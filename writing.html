@@ -243,6 +243,16 @@
       </div>
     </header>
 
+    <section id="announcement-box" class="hidden mb-4 rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-slate-100">
+      <div class="flex items-start gap-3">
+        <i class="fa-solid fa-bullhorn mt-0.5 text-amber-200"></i>
+        <div class="min-w-0">
+          <div class="font-tech text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">Message</div>
+          <p id="announcement-text" class="mt-1 text-sm md:text-base font-bold leading-relaxed"></p>
+        </div>
+      </div>
+    </section>
+
     <section class="grid xl:grid-cols-[520px_minmax(0,1fr)_360px] gap-4 items-start">
       <section class="glass rounded-[1.8rem] p-4 md:p-5 min-h-[40rem]">
         <div id="message" class="hidden rounded-2xl p-4 text-sm mb-4"></div>
@@ -401,6 +411,12 @@
         </div>
       </details>
     </section>
+
+    <footer class="py-8 text-center">
+      <div class="mx-auto h-px w-32 bg-gradient-to-r from-transparent via-slate-600 to-transparent"></div>
+      <p class="mt-5 font-tech text-[10px] uppercase tracking-[0.22em] text-slate-500">Created with Codex</p>
+      <p class="mt-2 text-[11px] font-bold text-slate-500">この記述問題アプリの設計・実装支援にはCodexを使用しました。他の生成AIは使用していません。</p>
+    </footer>
   </main>
 
   <script src="./common/science-shared.js"></script>
@@ -415,7 +431,7 @@
     let selectedProblem = null;
     let selectedSubjectFilter = "all";
     let selectedUnitFilter = "all";
-    let writingConfig = { writingAiEnabled: false, writingMaxChars: 300, writingModel: "gpt-5.4-nano" };
+    let writingConfig = { writingAiEnabled: false, writingMaxChars: 300, writingModel: "gpt-5.4-nano", writingMaxAttemptsPerProblem: 3 };
     let usage = {};
     let writingHistory = [];
     let historyVisibleCount = 5;
@@ -687,10 +703,20 @@
     }
 
     function renderLimits() {
-      const daily = usage.dailyRemaining === null || usage.dailyRemaining === undefined ? "無制限" : `${usage.dailyRemaining}回`;
-      const monthly = usage.monthlyRemaining === null || usage.monthlyRemaining === undefined ? "無制限" : `${usage.monthlyRemaining}回`;
       const state = writingConfig.writingAiEnabled ? "ON" : "OFF";
-      el("limit-status").innerHTML = `AIフィードバック: <b>${state}</b><br>本日の残り: <b>${daily}</b> / 今月全体の残り: <b>${monthly}</b><br>model: <b>${writingConfig.writingModel || "gpt-5.4-nano"}</b>`;
+      const maxAttempts = writingConfig.writingMaxAttemptsPerProblem || usage.maxAttemptsPerProblem || 3;
+      const remaining = selectedProblem ? Math.max(0, Number(selectedProblem.attemptsRemaining || 0)) : "--";
+      const used = selectedProblem ? Math.max(0, Number(selectedProblem.attemptCount || 0)) : "--";
+      el("limit-status").innerHTML = `AIフィードバック: <b>${state}</b><br>同じ問題: <b>${used} / ${maxAttempts}回</b><br>この問題の残り: <b>${remaining}回</b><br>model: <b>${writingConfig.writingModel || "gpt-5.4-nano"}</b>`;
+      renderAnnouncement();
+    }
+
+    function renderAnnouncement() {
+      const box = el("announcement-box");
+      const text = String(writingConfig.announcementText || "").trim();
+      const enabled = !!writingConfig.announcementEnabled && !!text;
+      box.classList.toggle("hidden", !enabled);
+      el("announcement-text").textContent = enabled ? text : "";
     }
 
     function normalizeGradeKey(value) {
@@ -823,6 +849,7 @@
         button.className = "problem-card rounded-2xl p-4 text-left w-full";
         button.dataset.problemId = problem.problemId;
         const bestText = problem.bestEvaluation ? `${escapeHtml(evaluationDisplay(problem.bestEvaluation))}${problem.bestEvaluationDate ? ` / ${escapeHtml(problem.bestEvaluationDate)}` : ""}` : "未挑戦";
+        const attemptsText = `試行 ${Number(problem.attemptCount || 0)} / ${writingConfig.writingMaxAttemptsPerProblem || usage.maxAttemptsPerProblem || 3}`;
         const registered = formatRegisteredDate(problem);
         const number = problemNumber(problem, index);
         button.innerHTML = `
@@ -834,7 +861,10 @@
             <span class="shrink-0 rounded-lg border border-cyan-300/30 bg-cyan-400/10 px-2 py-1 font-tech text-[10px] font-black text-cyan-100">${escapeHtml(number)}</span>
             <div class="problem-card-text min-w-0 truncate font-black leading-relaxed">${escapeHtml(problemTitle(problem))}</div>
           </div>
-          <div class="mt-3 text-[11px] text-slate-400">${bestText}</div>
+          <div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+            <span>${bestText}</span>
+            <span>${escapeHtml(attemptsText)}</span>
+          </div>
         `;
         button.addEventListener("click", () => selectProblem(problem.problemId));
         list.appendChild(button);
@@ -875,6 +905,8 @@
       renderProblemImage(selectedProblem.image || null);
       renderPeerExamples([]);
       updateCharCount();
+      renderLimits();
+      updateFeedbackButtonState();
     }
 
     function renderProblemImage(image) {
@@ -899,6 +931,16 @@
       const count = el("answer").value.length;
       el("char-count").textContent = `${count} / ${max}`;
       el("char-count").className = count > max ? "text-xs text-rose-300 font-bold" : "text-xs text-slate-400";
+      updateFeedbackButtonState();
+    }
+
+    function updateFeedbackButtonState() {
+      const button = el("feedback-btn");
+      if (!button) return;
+      const blocked = !!(selectedProblem && Number(selectedProblem.attemptsRemaining || 0) <= 0);
+      button.disabled = blocked;
+      button.classList.toggle("opacity-60", blocked);
+      button.classList.toggle("cursor-not-allowed", blocked);
     }
 
     async function syncWriting() {
@@ -928,6 +970,7 @@
     async function requestFeedback() {
       if (!selectedProblem) return showMessage("記述問題を選んでください。", "error");
       if (!isProfileReady()) return showMessage("中学/高校・学年・クラス・番号・名前を保存してください。", "error");
+      if (Number(selectedProblem.attemptsRemaining || 0) <= 0) return showMessage(`この問題のフィードバック上限に達しています。同じ問題は最大${writingConfig.writingMaxAttemptsPerProblem || 3}回までです。`, "error");
       const answer = el("answer").value.trim();
       if (!answer) return showMessage("回答が空欄です。", "error");
       if (answer.length > selectedProblem.maxChars) return showMessage(`回答が上限の${selectedProblem.maxChars}字を超えています。`, "error");
@@ -961,6 +1004,7 @@
       } finally {
         button.disabled = false;
         button.classList.remove("opacity-60");
+        updateFeedbackButtonState();
       }
     }
 
