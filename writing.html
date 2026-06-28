@@ -142,7 +142,7 @@
             </select>
             <select id="user-grade" class="input-compact px-3 py-2 text-sm w-20">
               <option value="1">1年</option>
-              <option value="2">2年</option>
+              <option value="2" selected>2年</option>
               <option value="3">3年</option>
             </select>
             <input id="user-class" class="input-compact px-3 py-2 text-sm w-20" placeholder="クラス">
@@ -212,6 +212,7 @@
               <span id="selected-unit" class="chip rounded-full px-3 py-1 text-[10px] font-black"></span>
               <span id="selected-grade" class="chip rounded-full px-3 py-1 text-[10px] font-black"></span>
               <span id="max-chars" class="chip rounded-full px-3 py-1 text-[10px] font-black"></span>
+              <span id="registered-date" class="chip hidden rounded-full px-3 py-1 text-[10px] font-black"></span>
             </div>
             <h2 id="prompt" class="writing-prompt font-black leading-relaxed"></h2>
             <figure id="image-box" class="hidden mt-4 rounded-2xl border border-white/10 bg-slate-950/35 p-3">
@@ -305,6 +306,14 @@
             <h2 class="font-tech text-xs font-black uppercase tracking-[0.18em] text-cyan-200">Session Library</h2>
             <span id="task-count" class="text-[10px] text-slate-400 font-bold">0 tasks</span>
           </div>
+          <div id="problem-filter-panel" class="mb-3 space-y-2">
+            <div class="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-slate-950/35 px-3 py-2">
+              <span class="font-tech text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Grade</span>
+              <span id="active-grade-filter" class="text-xs font-black text-cyan-100">未設定</span>
+            </div>
+            <select id="subject-filter" class="input-compact w-full px-3 py-2 text-sm"></select>
+            <select id="unit-filter" class="input-compact hidden w-full px-3 py-2 text-sm"></select>
+          </div>
           <div id="problem-list" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
         </section>
       </aside>
@@ -356,6 +365,8 @@
 
     let writingProblems = [];
     let selectedProblem = null;
+    let selectedSubjectFilter = "all";
+    let selectedUnitFilter = "all";
     let writingConfig = { writingAiEnabled: false, writingMaxChars: 300, writingModel: "gpt-5.4-nano" };
     let usage = {};
     let writingHistory = [];
@@ -426,7 +437,7 @@
 
     function loadProfile() {
       el("user-stage").value = localStorage.getItem("ethics_user_stage") || "M";
-      el("user-grade").value = localStorage.getItem("ethics_user_grade") || "1";
+      el("user-grade").value = localStorage.getItem("ethics_user_grade") || "2";
       el("user-class").value = localStorage.getItem("ethics_user_class") || "";
       el("user-number").value = localStorage.getItem("ethics_user_number") || "";
       el("user-name").value = localStorage.getItem("ethics_user_name") || "";
@@ -442,11 +453,14 @@
       localStorage.removeItem("ethics_user_number");
       localStorage.removeItem("ethics_user_name");
       el("user-stage").value = "M";
-      el("user-grade").value = "1";
+      el("user-grade").value = "2";
       el("user-class").value = "";
       el("user-number").value = "";
       el("user-name").value = "";
       updateProfileMode();
+      selectedSubjectFilter = "all";
+      selectedUnitFilter = "all";
+      renderProblems(true);
       showMessage("ユーザー情報を解除しました。", "info");
     }
 
@@ -627,13 +641,91 @@
       el("limit-status").innerHTML = `AIフィードバック: <b>${state}</b><br>本日の残り: <b>${daily}</b> / 今月全体の残り: <b>${monthly}</b><br>model: <b>${writingConfig.writingModel || "gpt-5.4-nano"}</b>`;
     }
 
-    function renderProblems() {
+    function normalizeGradeKey(value) {
+      const s = String(value || "").trim().toUpperCase();
+      if (!s) return "";
+      const direct = s.match(/^([MH])\s*([1-3])$/);
+      if (direct) return `${direct[1]}${direct[2]}`;
+      const middle = s.match(/中\s*([1-3])/);
+      if (middle) return `M${middle[1]}`;
+      const high = s.match(/高\s*([1-3])/);
+      if (high) return `H${high[1]}`;
+      return s;
+    }
+
+    function activeGradeKey() {
+      return el("user-stage").value && el("user-grade").value ? `${el("user-stage").value}${el("user-grade").value}` : "";
+    }
+
+    function problemSubject(problem) {
+      return problem.subject || problem.subjectName || problem.course || "科目未設定";
+    }
+
+    function problemUnit(problem) {
+      return problem.field || problem.domain || problem.unit || "分野未設定";
+    }
+
+    function formatRegisteredDate(problem) {
+      const value = problem.registeredAt || problem.createdAt || problem.createdDate || "";
+      return value ? String(value).trim() : "";
+    }
+
+    function uniqueSorted(values) {
+      return Array.from(new Set(values.filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "ja"));
+    }
+
+    function gradeFilteredProblems() {
+      const grade = activeGradeKey();
+      if (!grade) return [];
+      return (writingProblems || []).filter((problem) => normalizeGradeKey(problem.grade) === grade);
+    }
+
+    function visibleProblems() {
+      return gradeFilteredProblems().filter((problem) => {
+        if (selectedSubjectFilter !== "all" && problemSubject(problem) !== selectedSubjectFilter) return false;
+        if (selectedUnitFilter !== "all" && problemUnit(problem) !== selectedUnitFilter) return false;
+        return true;
+      });
+    }
+
+    function renderProblemFilters() {
+      const grade = activeGradeKey();
+      el("active-grade-filter").textContent = grade || "未設定";
+      const byGrade = gradeFilteredProblems();
+      const subjects = uniqueSorted(byGrade.map(problemSubject));
+      if (selectedSubjectFilter !== "all" && !subjects.includes(selectedSubjectFilter)) {
+        selectedSubjectFilter = "all";
+        selectedUnitFilter = "all";
+      }
+      el("subject-filter").innerHTML = `<option value="all">すべての科目</option>` + subjects.map((subject) => `<option value="${escapeHtml(subject)}">${escapeHtml(subject)}</option>`).join("");
+      el("subject-filter").value = selectedSubjectFilter;
+
+      const bySubject = selectedSubjectFilter === "all" ? [] : byGrade.filter((problem) => problemSubject(problem) === selectedSubjectFilter);
+      const units = uniqueSorted(bySubject.map(problemUnit));
+      if (selectedUnitFilter !== "all" && !units.includes(selectedUnitFilter)) selectedUnitFilter = "all";
+      el("unit-filter").classList.toggle("hidden", selectedSubjectFilter === "all");
+      el("unit-filter").innerHTML = `<option value="all">すべての分野</option>` + units.map((unit) => `<option value="${escapeHtml(unit)}">${escapeHtml(unit)}</option>`).join("");
+      el("unit-filter").value = selectedUnitFilter;
+    }
+
+    function clearSelectedProblem() {
+      selectedProblem = null;
+      el("empty-state").classList.remove("hidden");
+      el("writing-area").classList.add("hidden");
+      el("message").classList.add("hidden");
+      renderPeerExamples([]);
+    }
+
+    function renderProblems(autoSelect) {
+      renderProblemFilters();
       const list = el("problem-list");
       list.innerHTML = "";
-      const problems = Array.isArray(writingProblems) ? writingProblems : [];
-      el("task-count").textContent = `${problems.length} tasks`;
+      const problems = visibleProblems();
+      const totalForGrade = gradeFilteredProblems().length;
+      el("task-count").textContent = `${problems.length} / ${totalForGrade} tasks`;
       if (!problems.length) {
-        list.innerHTML = `<div class="text-sm text-slate-400 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">表示できる記述問題がありません。</div>`;
+        list.innerHTML = `<div class="text-sm text-slate-400 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">選択中の学年・科目・分野で表示できる記述問題がありません。</div>`;
+        clearSelectedProblem();
         return;
       }
       problems.forEach((problem) => {
@@ -641,9 +733,11 @@
         button.className = "problem-card rounded-2xl p-4 text-left w-full";
         button.dataset.problemId = problem.problemId;
         const bestText = problem.bestEvaluation ? `${escapeHtml(problem.bestEvaluation)}${problem.bestEvaluationDate ? ` / ${escapeHtml(problem.bestEvaluationDate)}` : ""}` : "未挑戦";
+        const registered = formatRegisteredDate(problem);
         button.innerHTML = `
           <div class="flex justify-between gap-3 mb-2">
-            <span class="text-[10px] text-cyan-200 font-black">${problem.unit || "単元未設定"}</span>
+            <span class="text-[10px] text-cyan-200 font-black">${escapeHtml(problemSubject(problem))} / ${escapeHtml(problemUnit(problem))}</span>
+            ${registered ? `<span class="shrink-0 text-[10px] text-slate-500 font-bold">${escapeHtml(registered)}</span>` : ""}
           </div>
           <div class="flex items-start gap-2">
             <i class="fa-solid fa-chevron-right text-[10px] text-slate-500 mt-1"></i>
@@ -654,6 +748,11 @@
         button.addEventListener("click", () => selectProblem(problem.problemId));
         list.appendChild(button);
       });
+      if (autoSelect || !selectedProblem || !problems.some((problem) => problem.problemId === selectedProblem.problemId)) {
+        selectProblem(problems[0].problemId);
+      } else {
+        document.querySelectorAll(".problem-card").forEach((card) => card.classList.toggle("active", card.dataset.problemId === selectedProblem.problemId));
+      }
       renderHistoryControls();
     }
 
@@ -675,9 +774,13 @@
       el("empty-state").classList.add("hidden");
       el("writing-area").classList.remove("hidden");
       el("message").classList.add("hidden");
-      el("selected-unit").textContent = selectedProblem.unit || "単元未設定";
+      const unitLabel = [problemSubject(selectedProblem), problemUnit(selectedProblem), selectedProblem.subunit].filter(Boolean).join(" / ");
+      const registered = formatRegisteredDate(selectedProblem);
+      el("selected-unit").textContent = unitLabel || "分野未設定";
       el("selected-grade").textContent = selectedProblem.grade || "学年未設定";
       el("max-chars").textContent = `${selectedProblem.maxChars || writingConfig.writingMaxChars}字まで`;
+      el("registered-date").textContent = registered ? `登録日 ${registered}` : "";
+      el("registered-date").classList.toggle("hidden", !registered);
       el("prompt").textContent = selectedProblem.prompt;
       renderProblemImage(selectedProblem.image || null);
       renderPeerExamples([]);
@@ -725,7 +828,7 @@
         writingHistory = Array.isArray(data.myHistory) ? data.myHistory : [];
         historyVisibleCount = 5;
         renderLimits();
-        renderProblems();
+        renderProblems(true);
         renderWritingHistory();
       } catch (err) {
         showMessage(`同期に失敗しました: ${err.message}`, "error");
@@ -913,6 +1016,22 @@
     el("save-profile-btn").addEventListener("click", saveProfile);
     el("logout-btn").addEventListener("click", logoutProfile);
     el("sync-btn").addEventListener("click", syncWriting);
+    ["user-stage", "user-grade"].forEach((id) => {
+      el(id).addEventListener("change", () => {
+        selectedSubjectFilter = "all";
+        selectedUnitFilter = "all";
+        renderProblems(true);
+      });
+    });
+    el("subject-filter").addEventListener("change", () => {
+      selectedSubjectFilter = el("subject-filter").value || "all";
+      selectedUnitFilter = "all";
+      renderProblems(true);
+    });
+    el("unit-filter").addEventListener("change", () => {
+      selectedUnitFilter = el("unit-filter").value || "all";
+      renderProblems(true);
+    });
     el("theme-btn").addEventListener("click", (event) => {
       event.stopPropagation();
       toggleThemeMenu();
