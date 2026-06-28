@@ -115,8 +115,9 @@
     .criterion-ng { background: rgba(244, 63, 94, 0.14); color: #fecdd3; border: 1px solid rgba(244, 63, 94, 0.32); }
     .font-size-control button { color: rgba(248, 250, 252, 0.68); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
     .font-size-control button.active { color: #020617; background: var(--accent); border-color: rgba(255, 255, 255, 0.55); }
-    .theme-option { color: rgba(248, 250, 252, 0.78); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
+    .theme-option { display: flex; align-items: center; justify-content: flex-start; gap: 0.4rem; color: rgba(248, 250, 252, 0.78); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
     .theme-option.active { color: #020617; background: var(--accent); border-color: rgba(255, 255, 255, 0.55); }
+    .theme-swatch { width: 1rem; height: 1rem; flex: 0 0 1rem; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.42); background: linear-gradient(135deg, var(--theme-bg), var(--theme-accent)); box-shadow: 0 0 12px color-mix(in srgb, var(--theme-accent) 55%, transparent); }
     details > summary { list-style: none; }
     details > summary::-webkit-details-marker { display: none; }
   </style>
@@ -173,20 +174,21 @@
             <button id="sync-btn" class="chip rounded-full px-4 py-2 text-xs font-black uppercase"><i class="fa-solid fa-rotate"></i> Sync</button>
             <div id="theme-picker" class="relative">
               <button id="theme-btn" class="chip rounded-full px-4 py-2 text-xs font-black uppercase" type="button" aria-expanded="false"><i class="fa-solid fa-palette"></i> Theme</button>
-              <div id="theme-menu" class="hidden absolute right-0 top-full z-[9999] mt-2 grid w-64 grid-cols-3 gap-1 rounded-xl border border-slate-700 bg-slate-950/95 p-2 shadow-2xl">
-                <button type="button" data-theme="modeA" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEA</button>
-                <button type="button" data-theme="modeB" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEB</button>
-                <button type="button" data-theme="modeC" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEC</button>
-                <button type="button" data-theme="modeD" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODED</button>
-                <button type="button" data-theme="modeE" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEE</button>
-                <button type="button" data-theme="modeF" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEF</button>
-                <button type="button" data-theme="modeG" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEG</button>
-                <button type="button" data-theme="modeH" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEH</button>
-                <button type="button" data-theme="modeI" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEI</button>
-                <button type="button" data-theme="modeJ" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEJ</button>
-                <button type="button" data-theme="modeK" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEK</button>
-                <button type="button" data-theme="modeL" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODE-L</button>
-                <button type="button" data-theme="t16" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">T16</button>
+              <div id="theme-menu" class="hidden absolute right-0 top-full z-[9999] mt-2 grid w-72 grid-cols-3 gap-1 rounded-xl border border-slate-700 bg-slate-950/95 p-2 shadow-2xl">
+                <button type="button" data-theme="modeA" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#0f172a;--theme-accent:#6366f1"></span><span>MODEA</span></button>
+                <button type="button" data-theme="modeB" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#064e3b;--theme-accent:#10b981"></span><span>MODEB</span></button>
+                <button type="button" data-theme="modeC" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#450a0a;--theme-accent:#f43f5e"></span><span>MODEC</span></button>
+                <button type="button" data-theme="modeD" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#312e81;--theme-accent:#818cf8"></span><span>MODED</span></button>
+                <button type="button" data-theme="modeE" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#431407;--theme-accent:#f59e0b"></span><span>MODEE</span></button>
+                <button type="button" data-theme="modeF" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#083344;--theme-accent:#00f2ff"></span><span>MODEF</span></button>
+                <button type="button" data-theme="modeG" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#2e1065;--theme-accent:#a855f7"></span><span>MODEG</span></button>
+                <button type="button" data-theme="modeH" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#111827;--theme-accent:#facc15"></span><span>MODEH</span></button>
+                <button type="button" data-theme="modeI" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#1e1b4b;--theme-accent:#c084fc"></span><span>MODEI</span></button>
+                <button type="button" data-theme="modeJ" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#052e2b;--theme-accent:#2dd4bf"></span><span>MODEJ</span></button>
+                <button type="button" data-theme="modeK" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#3b0764;--theme-accent:#e879f9"></span><span>MODEK</span></button>
+                <button type="button" data-theme="modeL" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#0c0a09;--theme-accent:#fb923c"></span><span>MODE-L</span></button>
+                <button type="button" data-theme="t16" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#020617;--theme-accent:#38bdf8"></span><span>T16</span></button>
+                <button type="button" data-theme="modeFS" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#180905;--theme-accent:#ff7a18"></span><span>FS ORANGE</span></button>
               </div>
             </div>
           </div>
@@ -388,6 +390,7 @@
       modeJ: { bg: "#052e2b", panel: "rgba(19, 78, 74, 0.84)", accent: "#2dd4bf", text: "#f0fdfa" },
       modeK: { bg: "#3b0764", panel: "rgba(88, 28, 135, 0.82)", accent: "#e879f9", text: "#fdf4ff" },
       modeL: { bg: "#0c0a09", panel: "rgba(41, 37, 36, 0.88)", accent: "#fb923c", text: "#fff7ed" },
+      modeFS: { bg: "#180905", panel: "rgba(76, 29, 10, 0.9)", accent: "#ff7a18", text: "#fff7ed" },
       t16: { bg: "#020617", panel: "rgba(15, 23, 42, 0.85)", accent: "#38bdf8", text: "#f8fafc" }
     };
     const FONT_SIZE_MODES = ["small", "standard", "large", "xlarge"];
