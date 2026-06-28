@@ -87,9 +87,10 @@
       background: linear-gradient(135deg, var(--accent-soft), rgba(163, 230, 53, 0.12));
       border: 1px solid var(--accent-line);
       color: white;
-      font-size: 1.9rem;
       font-weight: 900;
     }
+    .eval-letter { font-size: 1.7rem; line-height: 1; }
+    .eval-stars { color: #fde68a; font-size: 0.58rem; letter-spacing: 0; line-height: 1; white-space: nowrap; }
     .input-compact {
       background: rgba(2, 6, 23, 0.72);
       border: 1px solid rgba(148, 163, 184, 0.24);
@@ -677,6 +678,22 @@
       return value ? String(value).trim() : "";
     }
 
+    function normalizeEvaluationLabel(value) {
+      const s = String(value || "").trim().toUpperCase();
+      return ["S", "A", "B", "C", "F"].includes(s) ? s : "-";
+    }
+
+    function evaluationStars(value) {
+      const count = { S: 5, A: 4, B: 3, C: 2, F: 1 }[normalizeEvaluationLabel(value)] || 0;
+      return count ? "★".repeat(count) : "";
+    }
+
+    function evaluationDisplay(value) {
+      const evaluation = normalizeEvaluationLabel(value);
+      const stars = evaluationStars(evaluation);
+      return stars ? `${evaluation} ${stars}` : evaluation;
+    }
+
     function uniqueSorted(values) {
       return Array.from(new Set(values.filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "ja"));
     }
@@ -739,7 +756,7 @@
         const button = document.createElement("button");
         button.className = "problem-card rounded-2xl p-4 text-left w-full";
         button.dataset.problemId = problem.problemId;
-        const bestText = problem.bestEvaluation ? `${escapeHtml(problem.bestEvaluation)}${problem.bestEvaluationDate ? ` / ${escapeHtml(problem.bestEvaluationDate)}` : ""}` : "未挑戦";
+        const bestText = problem.bestEvaluation ? `${escapeHtml(evaluationDisplay(problem.bestEvaluation))}${problem.bestEvaluationDate ? ` / ${escapeHtml(problem.bestEvaluationDate)}` : ""}` : "未挑戦";
         const registered = formatRegisteredDate(problem);
         button.innerHTML = `
           <div class="flex justify-between gap-3 mb-2">
@@ -883,7 +900,9 @@
 
     function renderFeedback(feedback) {
       el("feedback-panel").classList.remove("hidden");
-      el("evaluation").textContent = feedback.evaluation || "-";
+      const evaluation = normalizeEvaluationLabel(feedback.evaluation);
+      const stars = evaluationStars(evaluation);
+      el("evaluation").innerHTML = `<div class="eval-letter">${escapeHtml(evaluation)}</div>${stars ? `<div class="eval-stars">${escapeHtml(stars)}</div>` : ""}`;
       el("overall").textContent = feedback.overall || "コメントはありません。";
       el("good").textContent = feedback.good || "--";
       el("improve").textContent = feedback.improve || "--";
@@ -987,7 +1006,7 @@
                   <div class="text-[11px] font-bold text-slate-400">${meta}</div>
                   <div class="mt-1 text-sm font-black leading-relaxed text-slate-100">${escapeHtml(title)}</div>
                 </div>
-                <span class="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-sm font-black text-cyan-100">${escapeHtml(item.evaluation || "-")}</span>
+                <span class="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-sm font-black text-cyan-100">${escapeHtml(evaluationDisplay(item.evaluation))}</span>
               </div>
             </summary>
             <div class="mt-4 grid gap-3">
