@@ -658,7 +658,14 @@
     }
 
     function problemSubject(problem) {
-      return problem.subject || problem.subjectName || problem.course || "科目未設定";
+      if (problem.subject || problem.subjectName || problem.course) return problem.subject || problem.subjectName || problem.course;
+      const text = [problem.unit, problem.subunit, problem.prompt].filter(Boolean).join(" ");
+      if (/化学|物理|生物|地学|酸化|還元|電流|磁界|力|運動|天気|大地|植物|動物/.test(text)) return "理科";
+      if (/文法|読解|古文|漢文|説明文|物語|作文|要旨|主題/.test(text)) return "国語";
+      if (/関数|方程式|図形|確率|整数|計算|証明|比例|反比例/.test(text)) return "数学";
+      if (/歴史|地理|公民|政治|経済|資料|時代|地域/.test(text)) return "社会";
+      if (/英語|英文|語順|時制|文法|単語|リスニング/.test(text)) return "英語";
+      return "科目未設定";
     }
 
     function problemUnit(problem) {
