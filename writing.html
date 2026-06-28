@@ -125,7 +125,6 @@
   <main class="max-w-[1500px] mx-auto px-4 py-4 md:py-6">
     <header class="relative z-50 grid xl:grid-cols-[auto_1fr] gap-4 mb-4 items-start">
       <div>
-        <div class="font-tech text-[10px] tracking-[0.42em] text-cyan-200/80 font-black uppercase">SCIENCE 2026</div>
         <h1 class="text-3xl md:text-5xl font-black tracking-tight mt-1">Writing Feedback 2026</h1>
       </div>
       <div class="glass rounded-[1.4rem] p-3 xl:justify-self-end w-full xl:max-w-[920px]">
@@ -208,7 +207,7 @@
         </div>
 
         <div id="writing-area" class="hidden space-y-5">
-          <div class="rounded-[1.4rem] border border-slate-700/60 bg-slate-950/35 p-4">
+          <div class="max-h-[34rem] overflow-y-auto rounded-[1.4rem] border border-slate-700/60 bg-slate-950/35 p-4 pr-3">
             <div class="flex flex-wrap gap-2 mb-3">
               <span id="selected-unit" class="chip rounded-full px-3 py-1 text-[10px] font-black"></span>
               <span id="selected-grade" class="chip rounded-full px-3 py-1 text-[10px] font-black"></span>
@@ -678,6 +677,21 @@
       return value ? String(value).trim() : "";
     }
 
+    function problemNumber(problem, index) {
+      const raw = problem.problemNumber || problem.number || problem.no || "";
+      const value = raw || (Number.isFinite(Number(problem.order)) ? String(Math.max(1, Number(problem.order) / 10)) : String((index || 0) + 1));
+      const digits = String(value).replace(/\D/g, "");
+      return digits ? digits.padStart(4, "0") : String(value || "").trim();
+    }
+
+    function problemTitle(problem) {
+      const title = problem.title || problem.problemTitle || "";
+      if (title) return title;
+      const unitTitle = [problemUnit(problem), problem.subunit].filter(Boolean).join(" / ");
+      if (unitTitle) return unitTitle;
+      return String(problem.prompt || problem.problemId || "問題").slice(0, 32);
+    }
+
     function normalizeEvaluationLabel(value) {
       const s = String(value || "").trim().toUpperCase();
       return ["S", "A", "B", "C", "F"].includes(s) ? s : "-";
@@ -752,20 +766,21 @@
         clearSelectedProblem();
         return;
       }
-      problems.forEach((problem) => {
+      problems.forEach((problem, index) => {
         const button = document.createElement("button");
         button.className = "problem-card rounded-2xl p-4 text-left w-full";
         button.dataset.problemId = problem.problemId;
         const bestText = problem.bestEvaluation ? `${escapeHtml(evaluationDisplay(problem.bestEvaluation))}${problem.bestEvaluationDate ? ` / ${escapeHtml(problem.bestEvaluationDate)}` : ""}` : "未挑戦";
         const registered = formatRegisteredDate(problem);
+        const number = problemNumber(problem, index);
         button.innerHTML = `
           <div class="flex justify-between gap-3 mb-2">
             <span class="text-[10px] text-cyan-200 font-black">${escapeHtml(problemSubject(problem))} / ${escapeHtml(problemUnit(problem))}</span>
             ${registered ? `<span class="shrink-0 text-[10px] text-slate-500 font-bold">${escapeHtml(registered)}</span>` : ""}
           </div>
-          <div class="flex items-start gap-2">
-            <i class="fa-solid fa-chevron-right text-[10px] text-slate-500 mt-1"></i>
-            <div class="problem-card-text font-bold leading-relaxed">${escapeHtml(problem.prompt)}</div>
+          <div class="flex items-center gap-2">
+            <span class="shrink-0 rounded-lg border border-cyan-300/30 bg-cyan-400/10 px-2 py-1 font-tech text-[10px] font-black text-cyan-100">${escapeHtml(number)}</span>
+            <div class="problem-card-text min-w-0 truncate font-black leading-relaxed">${escapeHtml(problemTitle(problem))}</div>
           </div>
           <div class="mt-3 text-[11px] text-slate-400">${bestText}</div>
         `;
@@ -798,9 +813,8 @@
       el("empty-state").classList.add("hidden");
       el("writing-area").classList.remove("hidden");
       el("message").classList.add("hidden");
-      const unitLabel = [problemSubject(selectedProblem), problemUnit(selectedProblem), selectedProblem.subunit].filter(Boolean).join(" / ");
       const registered = formatRegisteredDate(selectedProblem);
-      el("selected-unit").textContent = unitLabel || "分野未設定";
+      el("selected-unit").textContent = `${problemNumber(selectedProblem, 0)} ${problemTitle(selectedProblem)}`;
       el("selected-grade").textContent = selectedProblem.grade || "学年未設定";
       el("max-chars").textContent = `${selectedProblem.maxChars || writingConfig.writingMaxChars}字まで`;
       el("registered-date").textContent = registered ? `登録日 ${registered}` : "";
