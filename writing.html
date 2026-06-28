@@ -119,6 +119,53 @@
     .theme-option.active { color: #020617; background: var(--accent); border-color: rgba(255, 255, 255, 0.55); }
     .theme-swatch { width: 1rem; height: 1rem; flex: 0 0 1rem; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.42); background: linear-gradient(135deg, var(--theme-bg), var(--theme-accent)); box-shadow: 0 0 12px color-mix(in srgb, var(--theme-accent) 55%, transparent); }
     .judge-level-label { display: grid; gap: 0.05rem; line-height: 1; }
+    body.fs-orange-mode {
+      background: linear-gradient(180deg, #101018 0%, #101018 12%, #281408 12%, #281408 100%) !important;
+      color: #fff7ed;
+    }
+    body.fs-orange-mode .glass {
+      background: rgba(40, 20, 8, 0.86);
+      border-color: rgba(236, 116, 48, 0.22);
+    }
+    body.fs-orange-mode .chip,
+    body.fs-orange-mode .input-compact,
+    body.fs-orange-mode .problem-card {
+      border-color: rgba(236, 116, 48, 0.38);
+      background: rgba(16, 16, 24, 0.72);
+      color: #f09048;
+    }
+    body.fs-orange-mode .problem-card:hover,
+    body.fs-orange-mode .problem-card.active {
+      border-color: #ec7430;
+      background: rgba(48, 32, 20, 0.86);
+    }
+    body.fs-orange-mode .font-size-control button.active,
+    body.fs-orange-mode .theme-option.active,
+    body.fs-orange-mode #feedback-btn,
+    body.fs-orange-mode #save-profile-btn {
+      background: #ec7430 !important;
+      border-color: rgba(255, 180, 120, 0.72) !important;
+      color: #101018 !important;
+    }
+    body.fs-orange-mode #voice-input-btn,
+    body.fs-orange-mode #toggle-peer-examples-btn,
+    body.fs-orange-mode #toggle-examples-btn {
+      background: rgba(236, 116, 48, 0.14) !important;
+      border-color: rgba(236, 116, 48, 0.42) !important;
+      color: #f09048 !important;
+    }
+    body.fs-orange-mode [class*="text-cyan"],
+    body.fs-orange-mode [class*="text-lime"] {
+      color: #f09048 !important;
+    }
+    body.fs-orange-mode [class*="border-cyan"],
+    body.fs-orange-mode [class*="border-lime"] {
+      border-color: rgba(236, 116, 48, 0.42) !important;
+    }
+    body.fs-orange-mode [class*="bg-cyan"],
+    body.fs-orange-mode [class*="bg-lime"] {
+      background-color: rgba(236, 116, 48, 0.14) !important;
+    }
     details > summary { list-style: none; }
     details > summary::-webkit-details-marker { display: none; }
   </style>
@@ -475,6 +522,7 @@
     function applyTheme(theme) {
       const safeTheme = THEMES[theme] ? theme : "modeA";
       const t = THEMES[safeTheme];
+      document.body.classList.toggle("fs-orange-mode", safeTheme === "modeFS");
       document.documentElement.style.setProperty("--bg", t.bg);
       document.documentElement.style.setProperty("--panel", t.panel);
       document.documentElement.style.setProperty("--accent", t.accent);
