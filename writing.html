@@ -114,6 +114,8 @@
     .criterion-ng { background: rgba(244, 63, 94, 0.14); color: #fecdd3; border: 1px solid rgba(244, 63, 94, 0.32); }
     .font-size-control button { color: rgba(248, 250, 252, 0.68); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
     .font-size-control button.active { color: #020617; background: var(--accent); border-color: rgba(255, 255, 255, 0.55); }
+    .theme-option { color: rgba(248, 250, 252, 0.78); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
+    .theme-option.active { color: #020617; background: var(--accent); border-color: rgba(255, 255, 255, 0.55); }
     details > summary { list-style: none; }
     details > summary::-webkit-details-marker { display: none; }
   </style>
@@ -126,10 +128,10 @@
         <h1 class="text-3xl md:text-5xl font-black tracking-tight mt-1">Writing Feedback</h1>
       </div>
       <div class="glass rounded-[1.4rem] p-3 xl:justify-self-end w-full xl:max-w-[920px]">
-        <div class="grid md:grid-cols-[auto_auto_auto_auto] gap-2 items-center justify-end">
-          <div id="profile-view" class="hidden items-center gap-2">
+        <div class="flex flex-wrap xl:flex-nowrap gap-2 items-center justify-start">
+          <div id="profile-view" class="hidden items-center gap-2 min-w-0">
             <span class="font-tech text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase">USER</span>
-            <button id="active-user-display" class="bg-white/10 text-white text-[10px] px-4 py-2 rounded-full border border-white/20 font-black italic cursor-default">--</button>
+            <button id="active-user-display" class="bg-white/10 text-white text-[10px] px-3 py-2 rounded-full border border-white/20 font-black italic cursor-default max-w-36 truncate">--</button>
             <button id="logout-btn" class="bg-white/10 text-white text-[10px] px-3 py-2 rounded-full border border-white/20 font-black italic cursor-pointer transition-all hover:opacity-80">LOGOUT</button>
           </div>
           <div id="profile-edit" class="flex items-center gap-2">
@@ -160,7 +162,19 @@
           <div class="flex gap-2 justify-end">
             <a href="https://myo-n778.github.io/R8M2/problemset/science2.0.html" class="chip rounded-full px-4 py-2 text-xs font-black uppercase"><i class="fa-solid fa-arrow-left"></i> Selection</a>
             <button id="sync-btn" class="chip rounded-full px-4 py-2 text-xs font-black uppercase"><i class="fa-solid fa-rotate"></i> Sync</button>
-            <button id="theme-btn" class="chip rounded-full px-4 py-2 text-xs font-black uppercase"><i class="fa-solid fa-palette"></i> Theme</button>
+            <div id="theme-picker" class="relative">
+              <button id="theme-btn" class="chip rounded-full px-4 py-2 text-xs font-black uppercase" type="button" aria-expanded="false"><i class="fa-solid fa-palette"></i> Theme</button>
+              <div id="theme-menu" class="hidden absolute right-0 top-full z-30 mt-2 grid w-44 grid-cols-2 gap-1 rounded-xl border border-slate-700 bg-slate-950/95 p-2 shadow-2xl">
+                <button type="button" data-theme="modeA" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEA</button>
+                <button type="button" data-theme="modeB" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEB</button>
+                <button type="button" data-theme="modeC" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEC</button>
+                <button type="button" data-theme="modeE" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEE</button>
+                <button type="button" data-theme="modeF" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEF</button>
+                <button type="button" data-theme="modeG" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEG</button>
+                <button type="button" data-theme="t16" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">T16</button>
+                <button type="button" data-theme="t31" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">T31</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -426,13 +440,17 @@
       localStorage.setItem("ethics_theme_mode", safeTheme);
       const themeButton = el("theme-btn");
       if (themeButton) themeButton.innerHTML = `<i class="fa-solid fa-palette"></i> ${safeTheme.toUpperCase()}`;
+      document.querySelectorAll("[data-theme]").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.theme === safeTheme);
+      });
     }
 
-    function cycleTheme() {
-      const current = localStorage.getItem("ethics_theme_mode") || "modeA";
-      const currentIndex = THEME_SEQUENCE.indexOf(current);
-      const next = THEME_SEQUENCE[(currentIndex + 1) % THEME_SEQUENCE.length] || "modeA";
-      applyTheme(next);
+    function toggleThemeMenu(forceOpen) {
+      const menu = el("theme-menu");
+      const button = el("theme-btn");
+      const willOpen = typeof forceOpen === "boolean" ? forceOpen : menu.classList.contains("hidden");
+      menu.classList.toggle("hidden", !willOpen);
+      button.setAttribute("aria-expanded", String(willOpen));
     }
 
     function normalizeFontSizeMode(mode) {
@@ -860,7 +878,23 @@
     el("save-profile-btn").addEventListener("click", saveProfile);
     el("logout-btn").addEventListener("click", logoutProfile);
     el("sync-btn").addEventListener("click", syncWriting);
-    el("theme-btn").addEventListener("click", cycleTheme);
+    el("theme-btn").addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleThemeMenu();
+    });
+    document.querySelectorAll("[data-theme]").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        applyTheme(btn.dataset.theme);
+        toggleThemeMenu(false);
+      });
+    });
+    document.addEventListener("click", (event) => {
+      if (!el("theme-picker").contains(event.target)) toggleThemeMenu(false);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") toggleThemeMenu(false);
+    });
     el("feedback-btn").addEventListener("click", requestFeedback);
     el("voice-input-btn").addEventListener("click", toggleVoiceInput);
     el("toggle-examples-btn").addEventListener("click", () => {
