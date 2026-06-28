@@ -253,7 +253,7 @@
       </div>
     </section>
 
-    <section class="grid xl:grid-cols-[520px_minmax(0,1fr)_360px] gap-4 items-start">
+    <section class="grid xl:grid-cols-[500px_minmax(520px,1fr)_300px] gap-4 items-start">
       <section class="glass rounded-[1.8rem] p-4 md:p-5 min-h-[40rem]">
         <div id="message" class="hidden rounded-2xl p-4 text-sm mb-4"></div>
 
@@ -1137,6 +1137,10 @@
                   <div class="mb-1 text-[10px] font-black text-amber-200">直すと良い点</div>
                   <p class="leading-relaxed text-slate-100">${escapeHtml(item.improve || "--")}</p>
                 </div>
+              </div>
+              <div class="rounded-2xl bg-violet-400/10 border border-violet-300/20 p-3">
+                <div class="mb-1 text-[10px] font-black text-violet-200">模範解答</div>
+                <p class="leading-relaxed text-slate-100">${escapeHtml(item.modelAnswer || "--")}</p>
               </div>
               ${item.keyPoint || item.scienceNote ? `<div class="rounded-2xl bg-rose-400/10 border border-rose-300/20 p-3"><div class="mb-1 text-[10px] font-black text-rose-200">理科の補足</div><p class="leading-relaxed text-slate-100">${escapeHtml(item.keyPoint || item.scienceNote)}</p></div>` : ""}
             </div>
