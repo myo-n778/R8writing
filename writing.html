@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>R8 Writing</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: rgba(15, 23, 42, 0.78);
+      --line: rgba(148, 163, 184, 0.22);
+      --accent: #22d3ee;
+      --accent-soft: rgba(34, 211, 238, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(circle at 14% 12%, rgba(34, 211, 238, 0.14), transparent 28rem),
+        radial-gradient(circle at 84% 8%, rgba(163, 230, 53, 0.10), transparent 24rem),
+        linear-gradient(135deg, #07111f 0%, #111827 54%, #0f172a 100%);
+      color: #e5f4ff;
+      font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+      letter-spacing: 0;
+    }
+    .font-tech { font-family: "Orbitron", "Noto Sans JP", sans-serif; }
+    .glass {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(18px);
+    }
+    .chip {
+      border: 1px solid rgba(34, 211, 238, 0.36);
+      background: var(--accent-soft);
+      color: #a5f3fc;
+    }
+    .field {
+      background: rgba(2, 6, 23, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.26);
+      border-radius: 0.85rem;
+      outline: none;
+    }
+    .field:focus { border-color: var(--accent); }
+    .problem-card {
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(15, 23, 42, 0.68);
+      transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+    }
+    .problem-card:hover, .problem-card.active {
+      border-color: var(--accent);
+      background: rgba(8, 47, 73, 0.58);
+      transform: translateY(-1px);
+    }
+    .eval-badge {
+      width: 3.55rem;
+      height: 3.55rem;
+      border-radius: 1rem;
+      display: grid;
+      place-items: center;
+      background: rgba(34, 211, 238, 0.12);
+      border: 1px solid rgba(34, 211, 238, 0.36);
+      font-size: 1.9rem;
+      font-weight: 900;
+    }
+    .criterion-mark {
+      width: 2.25rem;
+      height: 2.25rem;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      font-weight: 900;
+    }
+    .criterion-ok { background: rgba(16, 185, 129, 0.16); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.34); }
+    .criterion-mid { background: rgba(251, 191, 36, 0.16); color: #fde68a; border: 1px solid rgba(251, 191, 36, 0.34); }
+    .criterion-ng { background: rgba(244, 63, 94, 0.14); color: #fecdd3; border: 1px solid rgba(244, 63, 94, 0.32); }
+    textarea { min-height: 15rem; resize: vertical; }
+    details > summary { list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
+    img.problem-image { max-width: 100%; height: auto; max-height: 430px; object-fit: contain; }
+  </style>
+</head>
+<body>
+  <main class="max-w-[1500px] mx-auto px-4 py-5">
+    <header class="grid xl:grid-cols-[auto_1fr] gap-4 mb-4 items-start">
+      <div>
+        <div class="font-tech text-[10px] tracking-[0.32em] text-cyan-200/80 font-black uppercase">R8 Writing</div>
+        <h1 class="text-3xl md:text-5xl font-black tracking-tight mt-1">記述問題フィードバック</h1>
+      </div>
+      <div class="glass rounded-2xl p-3 xl:justify-self-end w-full xl:max-w-[980px]">
+        <div class="grid md:grid-cols-[1fr_auto_auto] gap-3 items-center">
+          <div id="profile-edit" class="grid grid-cols-[1fr_1fr_2fr_auto] gap-2">
+            <input id="user-class" class="field px-3 py-2 text-sm" placeholder="クラス">
+            <input id="user-number" class="field px-3 py-2 text-sm" placeholder="番号">
+            <input id="user-name" class="field px-3 py-2 text-sm" placeholder="名前">
+            <button id="save-profile-btn" class="bg-cyan-400 hover:bg-cyan-300 text-slate-950 rounded-xl px-3 py-2 text-xs font-black">保存</button>
+          </div>
+          <div id="profile-view" class="hidden items-center gap-2">
+            <span class="font-tech text-[10px] text-slate-400 font-black tracking-[0.18em] uppercase">USER</span>
+            <span id="active-user-display" class="bg-white/10 text-white text-xs px-4 py-2 rounded-full border border-white/20 font-bold">--</span>
+            <button id="logout-btn" class="bg-white/10 text-white text-xs px-3 py-2 rounded-full border border-white/20 font-bold">解除</button>
+          </div>
+          <div class="flex gap-2 justify-end">
+            <select id="feedback-level" class="field px-3 py-2 text-sm">
+              <option value="中学生">中学生</option>
+              <option value="高校生">高校生</option>
+              <option value="先生">先生</option>
+            </select>
+            <button id="sync-btn" class="chip rounded-full px-4 py-2 text-xs font-black"><i class="fa-solid fa-rotate"></i> Sync</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="grid xl:grid-cols-[410px_minmax(0,1fr)_360px] gap-4 items-start">
+      <aside class="glass rounded-2xl p-4 xl:sticky xl:top-4">
+        <div id="message" class="hidden rounded-2xl p-4 text-sm mb-4"></div>
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <label class="block">
+            <span class="block mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Grade</span>
+            <select id="grade-filter" class="field w-full px-3 py-2 text-sm"></select>
+          </label>
+          <label class="block">
+            <span class="block mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Unit</span>
+            <select id="unit-filter" class="field w-full px-3 py-2 text-sm"></select>
+          </label>
+        </div>
+        <div class="flex items-center justify-between gap-3 mb-3">
+          <h2 class="font-tech text-xs font-black uppercase tracking-[0.18em] text-cyan-200">Problems</h2>
+          <span id="task-count" class="text-[10px] text-slate-400 font-bold">0 tasks</span>
+        </div>
+        <div id="problem-list" class="space-y-2 max-h-[34rem] overflow-y-auto pr-1"></div>
+      </aside>
+
+      <section class="glass rounded-2xl p-4 md:p-5 min-h-[42rem]">
+        <div id="empty-state" class="h-full min-h-[34rem] grid place-items-center text-center text-slate-400">
+          <div>
+            <i class="fa-solid fa-pen-nib text-4xl text-cyan-300 mb-4"></i>
+            <p class="font-bold">左側から記述問題を選んでください。</p>
+            <p class="text-xs mt-2">問題は新しいスプレッドシートの `問題マスタ` から読み込みます。</p>
+          </div>
+        </div>
+
+        <div id="writing-area" class="hidden space-y-5">
+          <div class="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-4">
+            <div class="flex flex-wrap gap-2 mb-3">
+              <span id="selected-unit" class="chip rounded-full px-3 py-1 text-[10px] font-black"></span>
+              <span id="selected-grade" class="chip rounded-full px-3 py-1 text-[10px] font-black"></span>
+              <span id="max-chars" class="chip rounded-full px-3 py-1 text-[10px] font-black"></span>
+            </div>
+            <h2 id="prompt" class="text-2xl md:text-3xl font-black leading-relaxed"></h2>
+            <figure id="image-box" class="hidden mt-4 rounded-2xl border border-white/10 bg-slate-950/35 p-3">
+              <img id="problem-image" class="problem-image mx-auto rounded-xl" alt="">
+              <figcaption id="image-caption" class="mt-2 text-xs text-slate-400 leading-relaxed"></figcaption>
+            </figure>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <label for="answer" class="font-tech text-[10px] font-black uppercase text-slate-300 tracking-[0.18em]">Your Answer</label>
+              <span id="char-count" class="text-xs text-slate-400">0 / 300</span>
+            </div>
+            <textarea id="answer" class="w-full bg-slate-950/70 border border-slate-700 rounded-2xl p-4 leading-relaxed outline-none focus:border-cyan-400 text-base" placeholder="ここに自分の考えを書きます。"></textarea>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-3">
+            <button id="feedback-btn" class="bg-lime-400 hover:bg-lime-300 text-slate-950 rounded-2xl px-5 py-4 text-sm font-black flex-1">
+              <i class="fa-solid fa-comments"></i> フィードバックを見る
+            </button>
+            <button id="clear-btn" class="bg-white/10 hover:bg-white/15 border border-white/10 text-slate-200 rounded-2xl px-5 py-4 text-sm font-black">Clear</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="feedback-panel" class="glass rounded-2xl p-4 xl:sticky xl:top-4">
+        <div class="flex gap-3 items-start mb-4">
+          <div id="evaluation" class="eval-badge">-</div>
+          <div>
+            <div class="font-tech text-[10px] tracking-[0.22em] text-cyan-200 font-black uppercase">Feedback</div>
+            <p id="overall" class="text-slate-100 font-bold mt-2 leading-relaxed"></p>
+          </div>
+        </div>
+        <div class="space-y-3 text-sm">
+          <div class="rounded-2xl bg-emerald-400/10 border border-emerald-300/20 p-4"><div class="text-emerald-200 font-black text-xs mb-2">良い点</div><p id="good" class="leading-relaxed"></p></div>
+          <div class="rounded-2xl bg-amber-400/10 border border-amber-300/20 p-4"><div class="text-amber-200 font-black text-xs mb-2">直すと良い点</div><p id="improve" class="leading-relaxed"></p></div>
+          <div class="rounded-2xl bg-cyan-400/10 border border-cyan-300/20 p-4"><div class="text-cyan-200 font-black text-xs mb-2">書くときのポイント</div><p id="next" class="leading-relaxed"></p></div>
+        </div>
+        <div id="criteria-box" class="hidden mt-4 rounded-2xl bg-white/5 border border-white/10 p-4">
+          <div class="text-slate-200 font-black text-xs mb-3">criteria</div>
+          <div id="criteria-list" class="space-y-2"></div>
+        </div>
+        <div id="science-note-box" class="hidden mt-4 rounded-2xl bg-rose-400/10 border border-rose-300/25 p-4">
+          <div class="text-rose-200 font-black text-xs mb-2">理科の補足</div>
+          <p id="science-note" class="leading-relaxed"></p>
+        </div>
+        <details id="answer-examples" class="hidden mt-4 rounded-2xl bg-white/5 border border-white/10 p-4">
+          <summary class="cursor-pointer font-black text-sm text-slate-100"><i class="fa-solid fa-eye"></i> 解答例・模範解答</summary>
+          <div class="mt-3 space-y-3">
+            <div><div class="text-lime-200 font-black text-xs mb-1">添削後の解答例</div><p id="revised-answer" class="leading-relaxed"></p></div>
+            <div><div class="text-violet-200 font-black text-xs mb-1">模範解答</div><p id="model-answer" class="leading-relaxed"></p></div>
+          </div>
+        </details>
+        <div id="remember-box" class="hidden mt-4 rounded-2xl bg-white/5 border border-white/10 p-4">
+          <div class="text-slate-200 font-black text-xs mb-3">今回覚えること</div>
+          <div id="remember-list" class="flex flex-wrap gap-2"></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="mt-6">
+      <details id="history-details" class="glass rounded-2xl p-4">
+        <summary class="cursor-pointer">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="font-tech text-xs font-black uppercase tracking-[0.18em] text-cyan-200">My History</h2>
+              <p class="mt-1 text-xs text-slate-400">自分の記述履歴を確認できます。</p>
+            </div>
+            <span id="history-count" class="text-xs font-bold text-slate-400">0 records</span>
+          </div>
+        </summary>
+        <div class="mt-4 space-y-4">
+          <div class="grid md:grid-cols-[1fr_auto_auto] gap-3">
+            <select id="history-problem-filter" class="field w-full px-4 py-3 text-sm"></select>
+            <select id="history-sort" class="field w-full px-4 py-3 text-sm">
+              <option value="newest">新しい順</option>
+              <option value="oldest">古い順</option>
+            </select>
+            <button id="history-more-btn" type="button" class="rounded-2xl border border-white/10 bg-white/10 hover:bg-white/15 px-4 py-3 text-sm font-black text-slate-100">さらに表示</button>
+          </div>
+          <div id="history-list" class="space-y-3"></div>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <script>
+    const GAS_URL = "PASTE_DEPLOYED_GAS_WEB_APP_URL_HERE";
+    const SPREADSHEET_ID = "14Ryr1W1tH5jti2yf3ULIgbIY6SFLAx6u217DjUGNByo";
+    const GRADES = ["all", "unspecified", "中1", "中2", "中3", "高1", "高2", "高3"];
+    const FEEDBACK_LEVELS = ["中学生", "高校生", "先生"];
+    const el = (id) => document.getElementById(id);
+    const normalizeUserName = (name) => name ? name.normalize("NFKC").trim() : "";
+    const userId = () => `${el("user-class").value.trim()}-${el("user-number").value.trim()}-${normalizeUserName(el("user-name").value)}`;
+    const isProfileReady = () => el("user-class").value.trim() && el("user-number").value.trim() && normalizeUserName(el("user-name").value);
+
+    let problems = [];
+    let filteredProblems = [];
+    let selectedProblem = null;
+    let config = { writingAiEnabled: false, writingMaxChars: 300, historyInitialCount: 5, historyStepCount: 5 };
+    let usage = {};
+    let historyItems = [];
+    let historyVisibleCount = 5;
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    }
+
+    function showMessage(text, type = "info") {
+      const box = el("message");
+      box.className = "rounded-2xl p-4 text-sm mb-4";
+      const styles = {
+        info: "bg-cyan-400/10 border border-cyan-300/20 text-cyan-100",
+        error: "bg-rose-400/10 border border-rose-300/20 text-rose-100",
+        ok: "bg-lime-400/10 border border-lime-300/20 text-lime-100"
+      };
+      box.className += " " + (styles[type] || styles.info);
+      box.textContent = text;
+      box.classList.remove("hidden");
+    }
+
+    async function fetchJson(params) {
+      if (!GAS_URL || GAS_URL.includes("PASTE_DEPLOYED")) {
+        throw new Error("GAS_URLが未設定です。Apps ScriptのWebアプリURLをHTMLに設定してください。");
+      }
+      const url = `${GAS_URL}?${new URLSearchParams(params).toString()}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      return data;
+    }
+
+    function loadProfile() {
+      el("user-class").value = localStorage.getItem("r8writing_user_class") || "";
+      el("user-number").value = localStorage.getItem("r8writing_user_number") || "";
+      el("user-name").value = localStorage.getItem("r8writing_user_name") || "";
+      el("feedback-level").value = localStorage.getItem("r8writing_feedback_level") || "中学生";
+      updateProfileMode();
+    }
+
+    function saveProfile() {
+      const name = normalizeUserName(el("user-name").value);
+      localStorage.setItem("r8writing_user_class", el("user-class").value.trim());
+      localStorage.setItem("r8writing_user_number", el("user-number").value.trim());
+      localStorage.setItem("r8writing_user_name", name);
+      el("user-name").value = name;
+      updateProfileMode();
+      showMessage("ユーザー情報を保存しました。", "ok");
+      syncWriting();
+    }
+
+    function logoutProfile() {
+      ["r8writing_user_class", "r8writing_user_number", "r8writing_user_name"].forEach((key) => localStorage.removeItem(key));
+      el("user-class").value = "";
+      el("user-number").value = "";
+      el("user-name").value = "";
+      updateProfileMode();
+      renderHistory();
+    }
+
+    function updateProfileMode() {
+      const ready = isProfileReady();
+      el("profile-view").classList.toggle("hidden", !ready);
+      el("profile-view").classList.toggle("flex", ready);
+      el("profile-edit").classList.toggle("hidden", ready);
+      if (ready) el("active-user-display").textContent = `${el("user-class").value.trim()}-${el("user-number").value.trim()} ${normalizeUserName(el("user-name").value)}`;
+    }
+
+    function initFilters() {
+      el("grade-filter").innerHTML = GRADES.map((grade) => {
+        const label = grade === "all" ? "全学年" : grade === "unspecified" ? "学年未指定" : grade;
+        return `<option value="${grade}">${label}</option>`;
+      }).join("");
+      el("unit-filter").innerHTML = `<option value="all">全単元</option>`;
+    }
+
+    function refreshUnitFilter() {
+      const current = el("unit-filter").value || "all";
+      const grade = el("grade-filter").value;
+      const units = Array.from(new Set(problems
+        .filter((p) => grade === "all" || (grade === "unspecified" ? !p.grade : p.grade === grade))
+        .map((p) => p.unit || "単元未設定")))
+        .sort((a, b) => a.localeCompare(b, "ja"));
+      el("unit-filter").innerHTML = `<option value="all">全単元</option>` + units.map((unit) => `<option value="${escapeHtml(unit)}">${escapeHtml(unit)}</option>`).join("");
+      el("unit-filter").value = units.includes(current) ? current : "all";
+    }
+
+    function applyProblemFilters(refreshUnits = true) {
+      if (refreshUnits) refreshUnitFilter();
+      const grade = el("grade-filter").value;
+      const unit = el("unit-filter").value;
+      filteredProblems = problems.filter((p) => {
+        const gradeOk = grade === "all" || (grade === "unspecified" ? !p.grade : p.grade === grade);
+        const unitLabel = p.unit || "単元未設定";
+        const unitOk = unit === "all" || unitLabel === unit;
+        return gradeOk && unitOk;
+      });
+      renderProblems();
+    }
+
+    function renderProblems() {
+      const list = el("problem-list");
+      el("task-count").textContent = `${filteredProblems.length} tasks`;
+      if (!filteredProblems.length) {
+        list.innerHTML = `<div class="text-sm text-slate-400 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">表示できる記述問題がありません。</div>`;
+        return;
+      }
+      list.innerHTML = filteredProblems.map((problem) => {
+        const bestText = problem.bestEvaluation ? `${escapeHtml(problem.bestEvaluation)}${problem.bestEvaluationDate ? ` / ${escapeHtml(problem.bestEvaluationDate)}` : ""}` : "未挑戦";
+        const imageMark = problem.image && problem.image.url ? `<span class="text-[10px] text-lime-200"><i class="fa-solid fa-image"></i> image</span>` : "";
+        return `
+          <button class="problem-card rounded-2xl p-4 text-left w-full ${selectedProblem && selectedProblem.problemId === problem.problemId ? "active" : ""}" data-problem-id="${escapeHtml(problem.problemId)}">
+            <div class="flex justify-between gap-2 mb-2">
+              <span class="text-[10px] text-cyan-200 font-black">${escapeHtml(problem.grade || "学年未指定")} / ${escapeHtml(problem.unit || "単元未設定")}</span>
+              ${imageMark}
+            </div>
+            <div class="text-sm font-bold leading-relaxed">${escapeHtml(problem.prompt)}</div>
+            <div class="mt-3 text-[11px] text-slate-400">${bestText}</div>
+          </button>
+        `;
+      }).join("");
+      list.querySelectorAll("[data-problem-id]").forEach((button) => {
+        button.addEventListener("click", () => selectProblem(button.dataset.problemId));
+      });
+      renderHistoryControls();
+    }
+
+    function selectProblem(problemId) {
+      selectedProblem = problems.find((p) => p.problemId === problemId) || null;
+      if (!selectedProblem) return;
+      el("empty-state").classList.add("hidden");
+      el("writing-area").classList.remove("hidden");
+      el("selected-unit").textContent = selectedProblem.unit || "単元未設定";
+      el("selected-grade").textContent = selectedProblem.grade || "学年未指定";
+      el("max-chars").textContent = `${selectedProblem.maxChars || config.writingMaxChars}字まで`;
+      el("prompt").textContent = selectedProblem.prompt || "";
+      const image = selectedProblem.image || {};
+      const hasImage = !!image.url;
+      el("image-box").classList.toggle("hidden", !hasImage);
+      if (hasImage) {
+        el("problem-image").src = image.url;
+        el("problem-image").alt = image.alt || "問題画像";
+        el("image-caption").textContent = image.description || image.alt || "";
+      }
+      el("answer").value = "";
+      updateCharCount();
+      renderProblems();
+    }
+
+    function updateCharCount() {
+      const max = selectedProblem ? selectedProblem.maxChars : config.writingMaxChars;
+      const count = el("answer").value.length;
+      el("char-count").textContent = `${count} / ${max}`;
+      el("char-count").className = count > max ? "text-xs text-rose-300 font-bold" : "text-xs text-slate-400";
+    }
+
+    async function syncWriting() {
+      try {
+        const params = { action: "syncWriting", id: SPREADSHEET_ID };
+        if (isProfileReady()) params.userId = userId();
+        const data = await fetchJson(params);
+        problems = Array.isArray(data.problems) ? data.problems : [];
+        config = { ...config, ...(data.config || {}) };
+        usage = data.usage || {};
+        historyItems = Array.isArray(data.myHistory) ? data.myHistory : [];
+        historyVisibleCount = Number(config.historyInitialCount) || 5;
+        applyProblemFilters();
+        renderHistory();
+        showMessage(`同期しました。AI: ${config.writingAiEnabled ? "ON" : "OFF"} / 本日残り: ${usage.dailyRemaining ?? "無制限"}`, "ok");
+      } catch (err) {
+        showMessage(`同期に失敗しました: ${err.message}`, "error");
+      }
+    }
+
+    async function requestFeedback() {
+      if (!selectedProblem) return showMessage("記述問題を選んでください。", "error");
+      if (!isProfileReady()) return showMessage("クラス・番号・名前を保存してください。", "error");
+      const answer = el("answer").value.trim();
+      const maxChars = selectedProblem.maxChars || config.writingMaxChars;
+      if (!answer) return showMessage("回答が空欄です。", "error");
+      if (answer.length > maxChars) return showMessage(`回答が上限の${maxChars}字を超えています。`, "error");
+      if (!config.writingAiEnabled) return showMessage("現在、記述AIフィードバックはOFFです。設定シートで writingAiEnabled を TRUE にしてください。", "error");
+
+      const button = el("feedback-btn");
+      button.disabled = true;
+      button.classList.add("opacity-60");
+      showMessage("フィードバックを作成しています...", "info");
+      try {
+        const data = await fetchJson({
+          action: "gradeWriting",
+          id: SPREADSHEET_ID,
+          userId: userId(),
+          userName: normalizeUserName(el("user-name").value),
+          userClass: el("user-class").value.trim(),
+          userNumber: el("user-number").value.trim(),
+          problemId: selectedProblem.problemId,
+          feedbackLevel: el("feedback-level").value,
+          answer
+        });
+        renderFeedback(data.feedback || {});
+        showMessage("フィードバックを記録しました。", "ok");
+        await syncWriting();
+      } catch (err) {
+        showMessage(err.message, "error");
+      } finally {
+        button.disabled = false;
+        button.classList.remove("opacity-60");
+      }
+    }
+
+    function criterionClass(status) {
+      if (status === "○") return "criterion-ok";
+      if (status === "△") return "criterion-mid";
+      return "criterion-ng";
+    }
+
+    function renderFeedback(feedback) {
+      el("evaluation").textContent = feedback.evaluation || "-";
+      el("overall").textContent = feedback.overall || "フィードバックはここに表示されます。";
+      el("good").textContent = feedback.good || "--";
+      el("improve").textContent = feedback.improve || "--";
+      el("next").textContent = feedback.next || "--";
+      const criteria = Array.isArray(feedback.criteria) ? feedback.criteria : [];
+      el("criteria-box").classList.toggle("hidden", criteria.length === 0);
+      el("criteria-list").innerHTML = criteria.map((item) => `
+        <div class="flex gap-3 rounded-2xl border border-white/10 bg-slate-950/35 p-3">
+          <div class="criterion-mark ${criterionClass(item.status)}">${escapeHtml(item.status)}</div>
+          <div class="min-w-0">
+            <div class="text-xs font-black text-slate-100">${escapeHtml(item.label)}</div>
+            <div class="mt-1 text-sm leading-relaxed text-slate-300">${escapeHtml(item.comment)}</div>
+          </div>
+        </div>
+      `).join("");
+      el("science-note-box").classList.toggle("hidden", !feedback.scienceNote);
+      el("science-note").textContent = feedback.scienceNote || "";
+      const hasExamples = !!(feedback.revisedAnswer || feedback.modelAnswer);
+      el("answer-examples").classList.toggle("hidden", !hasExamples);
+      el("revised-answer").textContent = feedback.revisedAnswer || "--";
+      el("model-answer").textContent = feedback.modelAnswer || "--";
+      const remember = String(feedback.remember || "").split(/[\/／\n]/).map((s) => s.replace(/^・/, "").trim()).filter(Boolean).slice(0, 3);
+      el("remember-box").classList.toggle("hidden", remember.length === 0);
+      el("remember-list").innerHTML = remember.map((item) => `<span class="rounded-full bg-white/10 border border-white/10 px-3 py-2 text-xs font-bold text-slate-100">${escapeHtml(item)}</span>`).join("");
+    }
+
+    function historyTimeValue(item) {
+      const value = Date.parse(String(item.date || "").replace(/\//g, "-"));
+      return Number.isNaN(value) ? 0 : value;
+    }
+
+    function renderHistoryControls() {
+      const current = el("history-problem-filter").value || "all";
+      el("history-problem-filter").innerHTML = `<option value="all">すべての問題</option>` + problems.map((p) => `<option value="${escapeHtml(p.problemId)}">${escapeHtml((p.unit || "単元未設定") + ": " + (p.prompt || p.problemId))}</option>`).join("");
+      el("history-problem-filter").value = Array.from(el("history-problem-filter").options).some((option) => option.value === current) ? current : "all";
+    }
+
+    function filteredHistory() {
+      const problemFilter = el("history-problem-filter").value || "all";
+      const sortMode = el("history-sort").value || "newest";
+      return historyItems
+        .filter((item) => problemFilter === "all" || String(item.problemId || "") === problemFilter)
+        .sort((a, b) => sortMode === "oldest" ? historyTimeValue(a) - historyTimeValue(b) : historyTimeValue(b) - historyTimeValue(a));
+    }
+
+    function renderHistory() {
+      const list = el("history-list");
+      const filtered = filteredHistory();
+      const visible = filtered.slice(0, historyVisibleCount);
+      el("history-count").textContent = `${filtered.length} records`;
+      el("history-more-btn").classList.toggle("hidden", visible.length >= filtered.length);
+      if (!isProfileReady()) {
+        list.innerHTML = `<div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">ユーザー情報を保存すると、自分の履歴を表示できます。</div>`;
+        return;
+      }
+      if (!filtered.length) {
+        list.innerHTML = `<div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">表示できる履歴はまだありません。</div>`;
+        return;
+      }
+      list.innerHTML = visible.map((item) => `
+        <details class="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-4">
+          <summary class="cursor-pointer">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="text-[11px] font-bold text-slate-400">${escapeHtml([item.date, item.unit, item.grade].filter(Boolean).join(" / "))}</div>
+                <div class="mt-1 text-sm font-black leading-relaxed text-slate-100">${escapeHtml(item.prompt || item.problemId || "問題")}</div>
+              </div>
+              <span class="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-sm font-black text-cyan-100">${escapeHtml(item.evaluation || "-")}</span>
+            </div>
+          </summary>
+          <div class="mt-4 grid gap-3 text-sm">
+            <div class="rounded-2xl bg-white/5 border border-white/10 p-3"><div class="mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Your Answer</div><p class="leading-relaxed">${escapeHtml(item.answer || "--")}</p></div>
+            <div class="rounded-2xl bg-cyan-400/10 border border-cyan-300/20 p-3"><div class="mb-1 text-[10px] font-black tracking-[0.16em] text-cyan-200 uppercase">Feedback</div><p class="leading-relaxed">${escapeHtml(item.overall || "--")}</p></div>
+          </div>
+        </details>
+      `).join("");
+    }
+
+    el("save-profile-btn").addEventListener("click", saveProfile);
+    el("logout-btn").addEventListener("click", logoutProfile);
+    el("sync-btn").addEventListener("click", syncWriting);
+    el("feedback-btn").addEventListener("click", requestFeedback);
+    el("clear-btn").addEventListener("click", () => { el("answer").value = ""; updateCharCount(); });
+    el("answer").addEventListener("input", updateCharCount);
+    el("grade-filter").addEventListener("change", applyProblemFilters);
+    el("unit-filter").addEventListener("change", () => applyProblemFilters(false));
+    el("history-problem-filter").addEventListener("change", () => { historyVisibleCount = Number(config.historyInitialCount) || 5; renderHistory(); });
+    el("history-sort").addEventListener("change", () => { historyVisibleCount = Number(config.historyInitialCount) || 5; renderHistory(); });
+    el("history-more-btn").addEventListener("click", () => { historyVisibleCount += Number(config.historyStepCount) || 5; renderHistory(); });
+    el("feedback-level").addEventListener("change", () => localStorage.setItem("r8writing_feedback_level", el("feedback-level").value));
+
+    initFilters();
+    renderFeedback({});
+    loadProfile();
+    renderHistoryControls();
+    renderHistory();
+    syncWriting();
+  </script>
+</body>
+</html>
