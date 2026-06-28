@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SCIENCE 2026 Writing Feedback</title>
+  <title>Writing Feedback 2026</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -125,7 +125,7 @@
     <header class="relative z-50 grid xl:grid-cols-[auto_1fr] gap-4 mb-4 items-start">
       <div>
         <div class="font-tech text-[10px] tracking-[0.42em] text-cyan-200/80 font-black uppercase">SCIENCE 2026</div>
-        <h1 class="text-3xl md:text-5xl font-black tracking-tight mt-1">Writing Feedback</h1>
+        <h1 class="text-3xl md:text-5xl font-black tracking-tight mt-1">Writing Feedback 2026</h1>
       </div>
       <div class="glass rounded-[1.4rem] p-3 xl:justify-self-end w-full xl:max-w-[920px]">
         <div class="flex flex-wrap xl:flex-nowrap gap-2 items-center justify-start">
@@ -136,6 +136,15 @@
           </div>
           <div id="profile-edit" class="flex items-center gap-2">
             <span class="font-tech text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase">USER</span>
+            <select id="user-stage" class="input-compact px-3 py-2 text-sm w-20">
+              <option value="M">M</option>
+              <option value="H">H</option>
+            </select>
+            <select id="user-grade" class="input-compact px-3 py-2 text-sm w-20">
+              <option value="1">1年</option>
+              <option value="2">2年</option>
+              <option value="3">3年</option>
+            </select>
             <input id="user-class" class="input-compact px-3 py-2 text-sm w-20" placeholder="クラス">
             <input id="user-number" class="input-compact px-3 py-2 text-sm w-20" placeholder="番号">
             <input id="user-name" class="input-compact px-3 py-2 text-sm w-36" placeholder="名前">
@@ -164,15 +173,20 @@
             <button id="sync-btn" class="chip rounded-full px-4 py-2 text-xs font-black uppercase"><i class="fa-solid fa-rotate"></i> Sync</button>
             <div id="theme-picker" class="relative">
               <button id="theme-btn" class="chip rounded-full px-4 py-2 text-xs font-black uppercase" type="button" aria-expanded="false"><i class="fa-solid fa-palette"></i> Theme</button>
-              <div id="theme-menu" class="hidden absolute right-0 top-full z-[9999] mt-2 grid w-44 grid-cols-2 gap-1 rounded-xl border border-slate-700 bg-slate-950/95 p-2 shadow-2xl">
+              <div id="theme-menu" class="hidden absolute right-0 top-full z-[9999] mt-2 grid w-64 grid-cols-3 gap-1 rounded-xl border border-slate-700 bg-slate-950/95 p-2 shadow-2xl">
                 <button type="button" data-theme="modeA" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEA</button>
                 <button type="button" data-theme="modeB" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEB</button>
                 <button type="button" data-theme="modeC" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEC</button>
+                <button type="button" data-theme="modeD" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODED</button>
                 <button type="button" data-theme="modeE" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEE</button>
                 <button type="button" data-theme="modeF" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEF</button>
                 <button type="button" data-theme="modeG" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEG</button>
+                <button type="button" data-theme="modeH" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEH</button>
+                <button type="button" data-theme="modeI" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEI</button>
+                <button type="button" data-theme="modeJ" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEJ</button>
+                <button type="button" data-theme="modeK" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODEK</button>
+                <button type="button" data-theme="modeL" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">MODE-L</button>
                 <button type="button" data-theme="t16" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">T16</button>
-                <button type="button" data-theme="t31" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase">T31</button>
               </div>
             </div>
           </div>
@@ -350,24 +364,29 @@
     let isVoiceInputActive = false;
     let voiceStopRequested = false;
     const FEEDBACK_LEVELS = ["中学生", "高校生", "先生"];
-    const THEME_SEQUENCE = ["modeA", "modeB", "modeC", "modeE", "modeF", "modeG", "t16", "t31"];
     const THEMES = {
       modeA: { bg: "#0f172a", panel: "rgba(30, 41, 59, 0.85)", accent: "#6366f1", text: "#f8fafc" },
       modeB: { bg: "#064e3b", panel: "rgba(6, 78, 59, 0.8)", accent: "#10b981", text: "#ecfdf5" },
       modeC: { bg: "#450a0a", panel: "rgba(127, 29, 29, 0.7)", accent: "#f43f5e", text: "#fff1f2" },
+      modeD: { bg: "#312e81", panel: "rgba(49, 46, 129, 0.82)", accent: "#818cf8", text: "#eef2ff" },
       modeE: { bg: "#431407", panel: "rgba(124, 45, 18, 0.8)", accent: "#f59e0b", text: "#fff7ed" },
       modeF: { bg: "#083344", panel: "rgba(22, 78, 99, 0.8)", accent: "#00f2ff", text: "#ecfeff" },
       modeG: { bg: "#2e1065", panel: "rgba(76, 29, 149, 0.8)", accent: "#a855f7", text: "#f5f3ff" },
-      t16: { bg: "#020617", panel: "rgba(15, 23, 42, 0.85)", accent: "#38bdf8", text: "#f8fafc" },
-      t31: { bg: "#fff1f2", panel: "rgba(255, 255, 255, 0.85)", accent: "#fb7185", text: "#881337" }
+      modeH: { bg: "#111827", panel: "rgba(31, 41, 55, 0.86)", accent: "#facc15", text: "#f9fafb" },
+      modeI: { bg: "#1e1b4b", panel: "rgba(30, 27, 75, 0.84)", accent: "#c084fc", text: "#faf5ff" },
+      modeJ: { bg: "#052e2b", panel: "rgba(19, 78, 74, 0.84)", accent: "#2dd4bf", text: "#f0fdfa" },
+      modeK: { bg: "#3b0764", panel: "rgba(88, 28, 135, 0.82)", accent: "#e879f9", text: "#fdf4ff" },
+      modeL: { bg: "#0c0a09", panel: "rgba(41, 37, 36, 0.88)", accent: "#fb923c", text: "#fff7ed" },
+      t16: { bg: "#020617", panel: "rgba(15, 23, 42, 0.85)", accent: "#38bdf8", text: "#f8fafc" }
     };
     const FONT_SIZE_MODES = ["small", "standard", "large", "xlarge"];
     const FONT_SIZE_STORAGE_KEY = "writing_font_size_mode";
     const VOICE_MANUAL_STOP_STORAGE_KEY = "writing_voice_manual_stop";
 
     const el = (id) => document.getElementById(id);
-    const userId = () => `${el("user-class").value.trim()}-${el("user-number").value.trim()}-${normalizeUserName(el("user-name").value)}`;
-    const isProfileReady = () => el("user-class").value.trim() && el("user-number").value.trim() && normalizeUserName(el("user-name").value);
+    const userSchoolCode = () => `${el("user-stage").value}${el("user-grade").value}`;
+    const userId = () => `${userSchoolCode()}-${el("user-class").value.trim()}-${el("user-number").value.trim()}-${normalizeUserName(el("user-name").value)}`;
+    const isProfileReady = () => el("user-stage").value && el("user-grade").value && el("user-class").value.trim() && el("user-number").value.trim() && normalizeUserName(el("user-name").value);
 
     function updateProfileMode() {
       const ready = isProfileReady();
@@ -375,7 +394,7 @@
       el("profile-view").classList.toggle("flex", ready);
       el("profile-edit").classList.toggle("hidden", ready);
       if (ready) {
-        el("active-user-display").textContent = `${el("user-class").value.trim()}-${el("user-number").value.trim()} ${normalizeUserName(el("user-name").value)}`;
+        el("active-user-display").textContent = `${userSchoolCode()}-${el("user-class").value.trim()}-${el("user-number").value.trim()} ${normalizeUserName(el("user-name").value)}`;
       }
     }
 
@@ -394,6 +413,8 @@
 
     function saveProfile() {
       const name = normalizeUserName(el("user-name").value);
+      localStorage.setItem("ethics_user_stage", el("user-stage").value);
+      localStorage.setItem("ethics_user_grade", el("user-grade").value);
       localStorage.setItem("ethics_user_class", el("user-class").value.trim());
       localStorage.setItem("ethics_user_number", el("user-number").value.trim());
       localStorage.setItem("ethics_user_name", name);
@@ -404,6 +425,8 @@
     }
 
     function loadProfile() {
+      el("user-stage").value = localStorage.getItem("ethics_user_stage") || "M";
+      el("user-grade").value = localStorage.getItem("ethics_user_grade") || "1";
       el("user-class").value = localStorage.getItem("ethics_user_class") || "";
       el("user-number").value = localStorage.getItem("ethics_user_number") || "";
       el("user-name").value = localStorage.getItem("ethics_user_name") || "";
@@ -413,9 +436,13 @@
     }
 
     function logoutProfile() {
+      localStorage.removeItem("ethics_user_stage");
+      localStorage.removeItem("ethics_user_grade");
       localStorage.removeItem("ethics_user_class");
       localStorage.removeItem("ethics_user_number");
       localStorage.removeItem("ethics_user_name");
+      el("user-stage").value = "M";
+      el("user-grade").value = "1";
       el("user-class").value = "";
       el("user-number").value = "";
       el("user-name").value = "";
@@ -436,6 +463,11 @@
       document.documentElement.style.setProperty("--accent", t.accent);
       document.documentElement.style.setProperty("--accent-soft", `${t.accent}22`);
       document.documentElement.style.setProperty("--accent-line", `${t.accent}66`);
+      document.body.style.background = `
+        radial-gradient(circle at 12% 18%, ${t.accent}24, transparent 32rem),
+        radial-gradient(circle at 82% 6%, rgba(255, 255, 255, 0.08), transparent 26rem),
+        linear-gradient(135deg, ${t.bg} 0%, #111827 58%, #020617 100%)
+      `;
       document.body.style.color = t.text;
       localStorage.setItem("ethics_theme_mode", safeTheme);
       const themeButton = el("theme-btn");
@@ -702,7 +734,7 @@
 
     async function requestFeedback() {
       if (!selectedProblem) return showMessage("記述問題を選んでください。", "error");
-      if (!isProfileReady()) return showMessage("クラス・番号・名前を保存してください。", "error");
+      if (!isProfileReady()) return showMessage("中学/高校・学年・クラス・番号・名前を保存してください。", "error");
       const answer = el("answer").value.trim();
       if (!answer) return showMessage("回答が空欄です。", "error");
       if (answer.length > selectedProblem.maxChars) return showMessage(`回答が上限の${selectedProblem.maxChars}字を超えています。`, "error");
@@ -720,6 +752,9 @@
           userName: normalizeUserName(el("user-name").value),
           userClass: el("user-class").value.trim(),
           userNumber: el("user-number").value.trim(),
+          schoolStage: el("user-stage").value,
+          schoolGrade: el("user-grade").value,
+          schoolCode: userSchoolCode(),
           problemId: selectedProblem.problemId,
           feedbackLevel: feedbackLevel(),
           answer
