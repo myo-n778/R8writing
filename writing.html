@@ -772,11 +772,13 @@
 
     function normalizeEvaluationLabel(value) {
       const s = String(value || "").trim().toUpperCase();
-      return ["S", "A", "B", "C", "F"].includes(s) ? s : "-";
+      const normalized = s.replace(/[’`]/g, "'");
+      if (normalized === "S") return "A";
+      return ["A", "A'", "B", "C", "F"].includes(normalized) ? normalized : "-";
     }
 
     function evaluationStars(value) {
-      const count = { S: 5, A: 4, B: 3, C: 2, F: 1 }[normalizeEvaluationLabel(value)] || 0;
+      const count = { A: 5, "A'": 4, B: 3, C: 2, F: 1 }[normalizeEvaluationLabel(value)] || 0;
       return count ? "★".repeat(count) : "";
     }
 
