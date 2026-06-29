@@ -704,10 +704,12 @@
 
     function renderLimits() {
       const state = writingConfig.writingAiEnabled ? "ON" : "OFF";
-      const maxAttempts = writingConfig.writingMaxAttemptsPerProblem || usage.maxAttemptsPerProblem || 3;
+      const maxAttempts = selectedProblem ? (selectedProblem.maxAttempts || writingConfig.writingMaxAttemptsPerProblem || usage.maxAttemptsPerProblem || 3) : (writingConfig.writingMaxAttemptsPerProblem || usage.maxAttemptsPerProblem || 3);
+      const type = selectedProblem ? normalizeAssignmentType(selectedProblem.assignmentType) : "記述";
+      const limitLabel = type === "感想" ? "この感想" : "同じ問題";
       const remaining = selectedProblem ? Math.max(0, Number(selectedProblem.attemptsRemaining || 0)) : "--";
       const used = selectedProblem ? Math.max(0, Number(selectedProblem.attemptCount || 0)) : "--";
-      el("limit-status").innerHTML = `AIフィードバック: <b>${state}</b><br>同じ問題: <b>${used} / ${maxAttempts}回</b><br>この問題の残り: <b>${remaining}回</b><br>model: <b>${writingConfig.writingModel || "gpt-5.4-nano"}</b>`;
+      el("limit-status").innerHTML = `AIフィードバック: <b>${state}</b><br>${limitLabel}: <b>${used} / ${maxAttempts}回</b><br>残り: <b>${remaining}回</b><br>model: <b>${writingConfig.writingModel || "gpt-5.4-nano"}</b>`;
       renderAnnouncement();
     }
 
@@ -965,7 +967,12 @@
           throw new Error("GAS_URLが未設定です。Apps ScriptのWebアプリURLを設定してください。");
         }
         const params = { action: "syncWriting", id: SPREADSHEET_ID };
-        if (isProfileReady()) params.userId = userId();
+        if (isProfileReady()) {
+          params.userId = userId();
+          params.userName = normalizeUserName(el("user-name").value);
+          params.userClass = el("user-class").value.trim();
+          params.userNumber = el("user-number").value.trim();
+        }
         const data = await fetchJson(params);
         if (!Array.isArray(data.problems)) {
           throw new Error("GASが記述問題用の syncWriting に対応していない可能性があります。Apps Scriptに最新のGAS.txtを貼り替えて再デプロイしてください。");
