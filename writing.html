@@ -777,6 +777,20 @@
       return ["A", "A'", "B", "C", "F"].includes(normalized) ? normalized : "-";
     }
 
+    function normalizeAssignmentType(value) {
+      const s = String(value || "").trim();
+      if (["感想", "授業振り返り", "振り返り", "説明", "理由説明", "考察", "意見", "要約"].includes(s)) return s;
+      return "記述";
+    }
+
+    function activeAssignmentType(feedback = {}) {
+      return normalizeAssignmentType(feedback.assignmentType || (selectedProblem && selectedProblem.assignmentType) || "");
+    }
+
+    function isImpressionTask(type) {
+      return normalizeAssignmentType(type) === "感想";
+    }
+
     function evaluationStars(value) {
       const count = { A: 5, "A'": 4, B: 3, C: 2, F: 1 }[normalizeEvaluationLabel(value)] || 0;
       return count ? "★".repeat(count) : "";
@@ -997,8 +1011,9 @@
           feedbackLevel: feedbackLevel(),
           answer
         });
-        renderFeedback(data.feedback || {});
-        renderPeerExamples(data.peerExamples || []);
+        const feedback = data.feedback || {};
+        renderFeedback(feedback);
+        renderPeerExamples(isImpressionTask(activeAssignmentType(feedback)) ? [] : (data.peerExamples || []));
         showMessage("フィードバックを記録しました。", "ok");
         await syncWriting();
       } catch (err) {
@@ -1012,17 +1027,20 @@
 
     function renderFeedback(feedback) {
       el("feedback-panel").classList.remove("hidden");
+      const assignmentType = activeAssignmentType(feedback);
+      const impression = isImpressionTask(assignmentType);
       const evaluation = normalizeEvaluationLabel(feedback.evaluation);
       const stars = evaluationStars(evaluation);
+      el("evaluation").classList.toggle("hidden", impression);
       el("evaluation").innerHTML = `<div class="eval-letter">${escapeHtml(evaluation)}</div>${stars ? `<div class="eval-stars">${escapeHtml(stars)}</div>` : ""}`;
       el("overall").textContent = feedback.overall || "コメントはありません。";
       el("good").textContent = feedback.good || "--";
       el("improve").textContent = feedback.improve || "--";
       el("next").textContent = feedback.next || "--";
-      renderCriteria(feedback.criteria || []);
+      renderCriteria(impression ? [] : (feedback.criteria || []));
       el("key-point").textContent = feedback.keyPoint || "";
       el("key-point-box").classList.toggle("hidden", !feedback.keyPoint);
-      const hasExamples = !!(feedback.revisedAnswer || feedback.modelAnswer);
+      const hasExamples = !impression && !!(feedback.revisedAnswer || feedback.modelAnswer);
       el("revised-answer").textContent = feedback.revisedAnswer || "--";
       el("model-answer").textContent = feedback.modelAnswer || "--";
       el("example-controls").classList.toggle("hidden", !hasExamples);
@@ -1110,6 +1128,8 @@
       list.innerHTML = visible.map((item) => {
         const title = item.prompt || (writingProblems.find((problem) => problem.problemId === item.problemId) || {}).prompt || item.problemId || "問題";
         const meta = [item.date, item.unit, item.grade].filter(Boolean).map(escapeHtml).join(" / ");
+        const assignmentType = normalizeAssignmentType(item.assignmentType || ((writingProblems.find((problem) => problem.problemId === item.problemId) || {}).assignmentType));
+        const impression = isImpressionTask(assignmentType);
         return `
           <details class="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-4">
             <summary class="cursor-pointer list-none">
@@ -1118,7 +1138,7 @@
                   <div class="text-[11px] font-bold text-slate-400">${meta}</div>
                   <div class="mt-1 text-sm font-black leading-relaxed text-slate-100">${escapeHtml(title)}</div>
                 </div>
-                <span class="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-sm font-black text-cyan-100">${escapeHtml(evaluationDisplay(item.evaluation))}</span>
+                ${impression ? `<span class="shrink-0 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-slate-200">記録</span>` : `<span class="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-sm font-black text-cyan-100">${escapeHtml(evaluationDisplay(item.evaluation))}</span>`}
               </div>
             </summary>
             <div class="mt-4 grid gap-3">
@@ -1140,10 +1160,10 @@
                   <p class="leading-relaxed text-slate-100">${escapeHtml(item.improve || "--")}</p>
                 </div>
               </div>
-              <div class="rounded-2xl bg-violet-400/10 border border-violet-300/20 p-3">
+              ${impression ? "" : `<div class="rounded-2xl bg-violet-400/10 border border-violet-300/20 p-3">
                 <div class="mb-1 text-[10px] font-black text-violet-200">模範解答</div>
                 <p class="leading-relaxed text-slate-100">${escapeHtml(item.modelAnswer || "--")}</p>
-              </div>
+              </div>`}
               ${item.keyPoint || item.scienceNote ? `<div class="rounded-2xl bg-rose-400/10 border border-rose-300/20 p-3"><div class="mb-1 text-[10px] font-black text-rose-200">理科の補足</div><p class="leading-relaxed text-slate-100">${escapeHtml(item.keyPoint || item.scienceNote)}</p></div>` : ""}
             </div>
           </details>
