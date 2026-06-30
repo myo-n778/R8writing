@@ -1266,7 +1266,10 @@
       renderPeerExamples([]);
     }
 
-    function renderProblems(autoSelect) {
+    function renderProblems(options = {}) {
+      const preserveProblemId = options && typeof options === "object"
+        ? String(options.preserveProblemId || (selectedProblem && selectedProblem.problemId) || "")
+        : String((selectedProblem && selectedProblem.problemId) || "");
       renderProblemFilters();
       const list = el("problem-list");
       list.innerHTML = "";
@@ -1303,12 +1306,10 @@
         button.addEventListener("click", () => selectProblem(problem.problemId));
         list.appendChild(button);
       });
-      const matchingSelectedProblem = selectedProblem
-        ? problems.find((problem) => problem.problemId === selectedProblem.problemId)
+      const matchingSelectedProblem = preserveProblemId
+        ? problems.find((problem) => problem.problemId === preserveProblemId)
         : null;
-      if (autoSelect) {
-        selectProblem(problems[0].problemId);
-      } else if (matchingSelectedProblem) {
+      if (matchingSelectedProblem) {
         selectProblem(matchingSelectedProblem.problemId, { keepMessage: true, keepPeerExamples: true });
       } else {
         clearSelectedProblem();
@@ -1460,7 +1461,10 @@
       showMessage("消した回答を復活しました。", "ok");
     }
 
-    async function syncWriting() {
+    async function syncWriting(options = {}) {
+      const preserveProblemId = options && typeof options === "object"
+        ? String(options.preserveProblemId || (selectedProblem && selectedProblem.problemId) || "")
+        : String((selectedProblem && selectedProblem.problemId) || "");
       try {
         if (!GAS_URL || GAS_URL.includes("PASTE_DEPLOYED")) {
           throw new Error("GAS_URLが未設定です。Apps ScriptのWebアプリURLを設定してください。");
@@ -1482,7 +1486,7 @@
         writingHistory = Array.isArray(data.myHistory) ? data.myHistory : [];
         historyVisibleCount = 5;
         renderLimits();
-        renderProblems(false);
+        renderProblems({ preserveProblemId });
         renderWritingHistory();
       } catch (err) {
         showMessage(`同期に失敗しました: ${err.message}`, "error");
@@ -1530,7 +1534,8 @@
         renderFeedback(feedback);
         renderPeerExamples(isImpressionTask(activeAssignmentType(feedback)) ? [] : (data.peerExamples || []));
         showMessage("フィードバックを記録しました。", "ok");
-        await syncWriting();
+        const submittedProblemId = selectedProblem.problemId;
+        await syncWriting({ preserveProblemId: submittedProblemId });
       } catch (err) {
         showMessage(err.message, "error");
       } finally {
