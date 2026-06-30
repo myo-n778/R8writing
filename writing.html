@@ -1220,6 +1220,8 @@
     }
 
     function evaluationDisplay(value) {
+      // UI evaluation displays must use only the final `evaluation` field.
+      // `aiEvaluation`, `scoreEvaluation`, and `finalEvaluation` are audit fields.
       const evaluation = normalizeEvaluationLabel(value);
       const stars = evaluationStars(evaluation);
       return stars ? `${evaluation} ${stars}` : evaluation;
