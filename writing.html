@@ -532,6 +532,9 @@
     let voiceStopRequested = false;
     let feedbackButtonLockedUntil = 0;
     let feedbackButtonLockTimer = null;
+    let feedbackSubmitting = false;
+    let recentFeedbackSignature = "";
+    let recentFeedbackSignatureAt = 0;
     let lastClearedAnswer = null;
     const FEEDBACK_LEVELS = ["中学生", "高校生", "先生"];
     const THEMES = {
@@ -1374,10 +1377,13 @@
       const button = el("feedback-btn");
       if (!button) return;
       const locked = Date.now() < feedbackButtonLockedUntil;
-      const blocked = locked || !!(selectedProblem && Number(selectedProblem.attemptsRemaining || 0) <= 0);
+      const blocked = feedbackSubmitting || locked || !!(selectedProblem && Number(selectedProblem.attemptsRemaining || 0) <= 0);
       button.disabled = blocked;
       button.classList.toggle("opacity-60", blocked);
       button.classList.toggle("cursor-not-allowed", blocked);
+      button.innerHTML = feedbackSubmitting
+        ? `<i class="fa-solid fa-spinner fa-spin"></i> 現在確認中です`
+        : `<i class="fa-solid fa-comments"></i> フィードバックを見る`;
     }
 
     function lockFeedbackButton(ms = 6000) {
@@ -1389,6 +1395,24 @@
         feedbackButtonLockTimer = null;
         updateFeedbackButtonState();
       }, ms);
+    }
+
+    function feedbackDuplicateSignature(answer) {
+      const problemId = selectedProblem ? selectedProblem.problemId : "";
+      return [
+        userId(),
+        problemId,
+        String(answer || "").replace(/\s+/g, " ").trim()
+      ].join("::");
+    }
+
+    function isDuplicateFeedbackSubmission(signature, windowMs = 20000) {
+      return !!signature && signature === recentFeedbackSignature && Date.now() - recentFeedbackSignatureAt < windowMs;
+    }
+
+    function rememberFeedbackSubmission(signature) {
+      recentFeedbackSignature = signature;
+      recentFeedbackSignatureAt = Date.now();
     }
 
     function updateRestoreClearButton() {
@@ -1466,7 +1490,10 @@
     }
 
     async function requestFeedback() {
-      if (Date.now() < feedbackButtonLockedUntil) return;
+      if (feedbackSubmitting || Date.now() < feedbackButtonLockedUntil) {
+        showMessage("現在確認中です。結果が表示されるまでお待ちください。", "info");
+        return;
+      }
       if (!selectedProblem) return showMessage("記述問題を選んでください。", "error");
       if (!isProfileReady()) return showMessage("中学/高校・学年・クラス・番号・名前を保存してください。", "error");
       if (Number(selectedProblem.attemptsRemaining || 0) <= 0) return showMessage(`この問題のフィードバック上限に達しています。同じ問題は最大${writingConfig.writingMaxAttemptsPerProblem || 3}回までです。`, "error");
@@ -1474,9 +1501,16 @@
       if (!answer) return showMessage("回答が空欄です。", "error");
       if (answer.length > selectedProblem.maxChars) return showMessage(`回答が上限の${selectedProblem.maxChars}字を超えています。`, "error");
       if (!writingConfig.writingAiEnabled) return showMessage("現在、記述AIフィードバックはOFFです。", "error");
+      const duplicateSignature = feedbackDuplicateSignature(answer);
+      if (isDuplicateFeedbackSubmission(duplicateSignature)) {
+        showMessage("現在確認中です。同じ回答の連続送信は少し待ってから行ってください。", "info");
+        return;
+      }
 
+      feedbackSubmitting = true;
+      rememberFeedbackSubmission(duplicateSignature);
       lockFeedbackButton(6000);
-      showMessage("フィードバックを作成しています...", "info");
+      showMessage("現在確認中です。フィードバックを作成しています...", "info");
       try {
         const data = await fetchJson({
           action: "gradeWriting",
@@ -1500,6 +1534,7 @@
       } catch (err) {
         showMessage(err.message, "error");
       } finally {
+        feedbackSubmitting = false;
         updateFeedbackButtonState();
       }
     }
