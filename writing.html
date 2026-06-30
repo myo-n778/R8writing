@@ -326,7 +326,7 @@
               <i class="fa-solid fa-microphone"></i> 音声入力
             </button>
             <button id="clear-btn" class="bg-white/10 hover:bg-white/15 border border-white/10 text-slate-200 rounded-2xl px-5 py-4 text-sm font-black uppercase">Clear</button>
-            <button id="restore-clear-btn" type="button" class="hidden bg-amber-400/10 hover:bg-amber-400/15 border border-amber-300/25 text-amber-100 rounded-2xl px-5 py-4 text-sm font-black uppercase">復活</button>
+            <button id="restore-clear-btn" type="button" class="hidden bg-amber-400/10 hover:bg-amber-400/15 border border-amber-300/25 text-amber-100 rounded-2xl px-5 py-4 text-sm font-black uppercase">Restore</button>
           </div>
           <p id="voice-status" class="hidden text-xs text-slate-400 leading-relaxed"></p>
           <label class="inline-flex items-center gap-2 text-xs text-slate-300 leading-relaxed">
@@ -1462,12 +1462,12 @@
       renderPeerExamples([]);
       updateCharCount();
       updateRestoreClearButton();
-      showMessage("回答を消しました。必要なら「復活」で戻せます。", "ok");
+      showMessage("回答を消しました。必要なら Restore で戻せます。", "ok");
     }
 
     function restoreClearedAnswer() {
       if (!lastClearedAnswer || !lastClearedAnswer.text) {
-        showMessage("復活できる回答がありません。", "info");
+        showMessage("戻せる回答がありません。", "info");
         updateRestoreClearButton();
         return;
       }
@@ -1480,7 +1480,7 @@
       lastClearedAnswer = null;
       updateCharCount();
       updateRestoreClearButton();
-      showMessage("消した回答を復活しました。", "ok");
+      showMessage("消した回答を戻しました。", "ok");
     }
 
     async function syncWriting(options = {}) {
