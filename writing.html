@@ -326,6 +326,7 @@
               <i class="fa-solid fa-microphone"></i> 音声入力
             </button>
             <button id="clear-btn" class="bg-white/10 hover:bg-white/15 border border-white/10 text-slate-200 rounded-2xl px-5 py-4 text-sm font-black uppercase">Clear</button>
+            <button id="restore-clear-btn" type="button" class="hidden bg-amber-400/10 hover:bg-amber-400/15 border border-amber-300/25 text-amber-100 rounded-2xl px-5 py-4 text-sm font-black uppercase">復活</button>
           </div>
           <p id="voice-status" class="hidden text-xs text-slate-400 leading-relaxed"></p>
           <label class="inline-flex items-center gap-2 text-xs text-slate-300 leading-relaxed">
@@ -531,6 +532,7 @@
     let voiceStopRequested = false;
     let feedbackButtonLockedUntil = 0;
     let feedbackButtonLockTimer = null;
+    let lastClearedAnswer = null;
     const FEEDBACK_LEVELS = ["中学生", "高校生", "先生"];
     const THEMES = {
       modeA: { bg: "#0f172a", panel: "rgba(30, 41, 59, 0.85)", accent: "#6366f1", text: "#f8fafc" },
@@ -618,7 +620,7 @@
       updateProfileMode();
       selectedSubjectFilter = "all";
       selectedUnitFilter = "all";
-      renderProblems(true);
+      renderProblems(false);
       showMessage("ユーザー情報を解除しました。", "info");
     }
 
@@ -1298,10 +1300,15 @@
         button.addEventListener("click", () => selectProblem(problem.problemId));
         list.appendChild(button);
       });
-      if (autoSelect || !selectedProblem || !problems.some((problem) => problem.problemId === selectedProblem.problemId)) {
+      const matchingSelectedProblem = selectedProblem
+        ? problems.find((problem) => problem.problemId === selectedProblem.problemId)
+        : null;
+      if (autoSelect) {
         selectProblem(problems[0].problemId);
+      } else if (matchingSelectedProblem) {
+        selectProblem(matchingSelectedProblem.problemId, { keepMessage: true, keepPeerExamples: true });
       } else {
-        document.querySelectorAll(".problem-card").forEach((card) => card.classList.toggle("active", card.dataset.problemId === selectedProblem.problemId));
+        clearSelectedProblem();
       }
       renderHistoryControls();
     }
@@ -1317,13 +1324,13 @@
       select.value = Array.from(select.options).some((option) => option.value === current) ? current : "all";
     }
 
-    function selectProblem(problemId) {
+    function selectProblem(problemId, options = {}) {
       selectedProblem = writingProblems.find((p) => p.problemId === problemId) || null;
       if (!selectedProblem) return;
       document.querySelectorAll(".problem-card").forEach((card) => card.classList.toggle("active", card.dataset.problemId === problemId));
       el("empty-state").classList.add("hidden");
       el("writing-area").classList.remove("hidden");
-      el("message").classList.add("hidden");
+      if (!options.keepMessage) el("message").classList.add("hidden");
       const registered = formatRegisteredDate(selectedProblem);
       el("selected-unit").textContent = `${problemNumber(selectedProblem, 0)} ${problemTitle(selectedProblem)}`;
       el("selected-grade").textContent = selectedProblem.grade || "学年未設定";
@@ -1332,7 +1339,7 @@
       el("registered-date").classList.toggle("hidden", !registered);
       el("prompt").textContent = selectedProblem.prompt;
       renderProblemImage(selectedProblem.image || null);
-      renderPeerExamples([]);
+      if (!options.keepPeerExamples) renderPeerExamples([]);
       updateCharCount();
       renderLimits();
       updateFeedbackButtonState();
@@ -1384,6 +1391,51 @@
       }, ms);
     }
 
+    function updateRestoreClearButton() {
+      const button = el("restore-clear-btn");
+      if (!button) return;
+      button.classList.toggle("hidden", !(lastClearedAnswer && lastClearedAnswer.text));
+    }
+
+    function clearAnswerWithConfirmation() {
+      const answer = el("answer");
+      const text = answer.value;
+      if (!text.trim()) {
+        showMessage("消す回答がありません。", "info");
+        return;
+      }
+      showMessage("回答を消す前に確認してください。", "info");
+      if (!window.confirm("本当に消しますか？")) return;
+      lastClearedAnswer = {
+        text,
+        problemId: selectedProblem ? selectedProblem.problemId : "",
+        clearedAt: Date.now()
+      };
+      answer.value = "";
+      renderPeerExamples([]);
+      updateCharCount();
+      updateRestoreClearButton();
+      showMessage("回答を消しました。必要なら「復活」で戻せます。", "ok");
+    }
+
+    function restoreClearedAnswer() {
+      if (!lastClearedAnswer || !lastClearedAnswer.text) {
+        showMessage("復活できる回答がありません。", "info");
+        updateRestoreClearButton();
+        return;
+      }
+      const targetProblemId = lastClearedAnswer.problemId;
+      if (targetProblemId && (!selectedProblem || selectedProblem.problemId !== targetProblemId)) {
+        const exists = writingProblems.some((problem) => problem.problemId === targetProblemId);
+        if (exists) selectProblem(targetProblemId, { keepMessage: true, keepPeerExamples: true });
+      }
+      el("answer").value = lastClearedAnswer.text;
+      lastClearedAnswer = null;
+      updateCharCount();
+      updateRestoreClearButton();
+      showMessage("消した回答を復活しました。", "ok");
+    }
+
     async function syncWriting() {
       try {
         if (!GAS_URL || GAS_URL.includes("PASTE_DEPLOYED")) {
@@ -1406,7 +1458,7 @@
         writingHistory = Array.isArray(data.myHistory) ? data.myHistory : [];
         historyVisibleCount = 5;
         renderLimits();
-        renderProblems(true);
+        renderProblems(false);
         renderWritingHistory();
       } catch (err) {
         showMessage(`同期に失敗しました: ${err.message}`, "error");
@@ -1615,17 +1667,17 @@
       el(id).addEventListener("change", () => {
         selectedSubjectFilter = "all";
         selectedUnitFilter = "all";
-        renderProblems(true);
+        renderProblems(false);
       });
     });
     el("subject-filter").addEventListener("change", () => {
       selectedSubjectFilter = el("subject-filter").value || "all";
       selectedUnitFilter = "all";
-      renderProblems(true);
+      renderProblems(false);
     });
     el("unit-filter").addEventListener("change", () => {
       selectedUnitFilter = el("unit-filter").value || "all";
-      renderProblems(true);
+      renderProblems(false);
     });
     el("theme-btn").addEventListener("click", (event) => {
       event.stopPropagation();
@@ -1699,12 +1751,8 @@
     });
     el("admin-refresh-btn").addEventListener("click", loadAdminData);
     el("admin-close-btn").addEventListener("click", closeAdminPanel);
-    el("clear-btn").addEventListener("click", () => {
-      el("answer").value = "";
-      el("message").classList.add("hidden");
-      renderPeerExamples([]);
-      updateCharCount();
-    });
+    el("clear-btn").addEventListener("click", clearAnswerWithConfirmation);
+    el("restore-clear-btn").addEventListener("click", restoreClearedAnswer);
     el("answer").addEventListener("input", updateCharCount);
     document.querySelectorAll("[data-font-size]").forEach((btn) => {
       btn.addEventListener("click", () => applyFontSizeMode(btn.dataset.fontSize));
