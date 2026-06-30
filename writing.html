@@ -1124,11 +1124,10 @@
       const maxAttempts = selectedProblem ? (selectedProblem.maxAttempts || writingConfig.writingMaxAttemptsPerProblem || usage.maxAttemptsPerProblem || 3) : (writingConfig.writingMaxAttemptsPerProblem || usage.maxAttemptsPerProblem || 3);
       const type = selectedProblem ? normalizeAssignmentType(selectedProblem.assignmentType) : "記述";
       const limitLabel = type === "感想" ? "この感想" : "同じ問題";
-      const remaining = unlimited ? "無制限" : (selectedProblem ? Math.max(0, Number(selectedProblem.attemptsRemaining || 0)) : "--");
+      const remaining = selectedProblem ? Math.max(0, Number(selectedProblem.attemptsRemaining || 0)) : "--";
       const used = selectedProblem ? Math.max(0, Number(selectedProblem.attemptCount || 0)) : "--";
-      const maxLabel = unlimited ? "無制限" : `${maxAttempts}回`;
-      const remainingLabel = unlimited ? remaining : `${remaining}回`;
-      el("limit-status").innerHTML = `AIフィードバック: <b>${state}</b><br>${limitLabel}: <b>${used} / ${maxLabel}</b><br>残り: <b>${remainingLabel}</b><br>model: <b>${writingConfig.writingModel || "gpt-5.4-nano"}</b>`;
+      const limitLine = unlimited ? `${limitLabel}: <b>${used}回</b>` : `${limitLabel}: <b>${used} / ${maxAttempts}回</b><br>残り: <b>${remaining}回</b>`;
+      el("limit-status").innerHTML = `AIフィードバック: <b>${state}</b><br>${limitLine}<br>model: <b>${writingConfig.writingModel || "gpt-5.4-nano"}</b>`;
       renderAnnouncement();
     }
 
@@ -1290,7 +1289,7 @@
         button.dataset.problemId = problem.problemId;
         const bestText = problem.bestEvaluation ? `${escapeHtml(evaluationDisplay(problem.bestEvaluation))}${problem.bestEvaluationDate ? ` / ${escapeHtml(problem.bestEvaluationDate)}` : ""}` : "未挑戦";
         const attemptsText = (problem.attemptsUnlimited || Number(problem.maxAttempts || 0) === 0)
-          ? `試行 ${Number(problem.attemptCount || 0)} / 無制限`
+          ? `試行 ${Number(problem.attemptCount || 0)}回`
           : `試行 ${Number(problem.attemptCount || 0)} / ${problem.maxAttempts || writingConfig.writingMaxAttemptsPerProblem || usage.maxAttemptsPerProblem || 3}`;
         const registered = formatRegisteredDate(problem);
         const number = problemNumber(problem, index);
