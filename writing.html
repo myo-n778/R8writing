@@ -394,7 +394,7 @@
             <span id="task-count" class="text-[10px] text-slate-400 font-bold">0 tasks</span>
           </div>
           <div id="problem-filter-panel" class="mb-3 space-y-2">
-            <div class="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-slate-950/35 px-3 py-2">
+            <div id="grade-filter-toggle" class="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-slate-950/35 px-3 py-2">
               <span class="font-tech text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Grade</span>
               <span id="active-grade-filter" class="text-xs font-black text-cyan-100">未設定</span>
             </div>
@@ -526,6 +526,9 @@
     let adminData = null;
     let adminPassword = "";
     let adminActiveTab = "class";
+    let allGradeLibraryMode = false;
+    let gradeTapCount = 0;
+    let lastGradeTapAt = 0;
     let adminFooterTapCount = 0;
     let speechRecognition = null;
     let isVoiceInputActive = false;
@@ -1228,6 +1231,7 @@
 
     function gradeFilteredProblems() {
       const grade = activeGradeKey();
+      if (allGradeLibraryMode) return writingProblems || [];
       if (!grade) return [];
       return (writingProblems || []).filter((problem) => normalizeGradeKey(problem.grade) === grade);
     }
@@ -1242,7 +1246,7 @@
 
     function renderProblemFilters() {
       const grade = activeGradeKey();
-      el("active-grade-filter").textContent = grade || "未設定";
+      el("active-grade-filter").textContent = allGradeLibraryMode ? "全学年" : (grade || "未設定");
       const byGrade = gradeFilteredProblems();
       const subjects = uniqueSorted(byGrade.map(problemSubject));
       if (selectedSubjectFilter !== "all" && !subjects.includes(selectedSubjectFilter)) {
@@ -1295,7 +1299,7 @@
         const number = problemNumber(problem, index);
         button.innerHTML = `
           <div class="flex justify-between gap-3 mb-2">
-            <span class="text-[10px] text-cyan-200 font-black">${escapeHtml(problemSubject(problem))} / ${escapeHtml(problemUnit(problem))}</span>
+            <span class="text-[10px] text-cyan-200 font-black">${allGradeLibraryMode ? `${escapeHtml(normalizeGradeKey(problem.grade) || problem.grade || "学年未設定")} / ` : ""}${escapeHtml(problemSubject(problem))} / ${escapeHtml(problemUnit(problem))}</span>
             ${registered ? `<span class="shrink-0 text-[10px] text-slate-500 font-bold">${escapeHtml(registered)}</span>` : ""}
           </div>
           <div class="flex items-center gap-2">
@@ -1319,6 +1323,19 @@
         clearSelectedProblem();
       }
       renderHistoryControls();
+    }
+
+    function handleGradeFilterTap() {
+      const now = Date.now();
+      gradeTapCount = now - lastGradeTapAt > 1800 ? 1 : gradeTapCount + 1;
+      lastGradeTapAt = now;
+      if (gradeTapCount < 5) return;
+      gradeTapCount = 0;
+      allGradeLibraryMode = !allGradeLibraryMode;
+      selectedSubjectFilter = "all";
+      selectedUnitFilter = "all";
+      renderProblems({ preserveProblemId: selectedProblem && selectedProblem.problemId });
+      showMessage(allGradeLibraryMode ? "全学年の問題を表示します。" : "選択中の学年だけを表示します。", "info");
     }
 
     function renderHistoryControls() {
@@ -1710,8 +1727,11 @@
     el("save-profile-btn").addEventListener("click", saveProfile);
     el("logout-btn").addEventListener("click", logoutProfile);
     el("sync-btn").addEventListener("click", syncWriting);
+    el("grade-filter-toggle").addEventListener("click", handleGradeFilterTap);
     ["user-stage", "user-grade"].forEach((id) => {
       el(id).addEventListener("change", () => {
+        allGradeLibraryMode = false;
+        gradeTapCount = 0;
         selectedSubjectFilter = "all";
         selectedUnitFilter = "all";
         renderProblems(false);
