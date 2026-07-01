@@ -841,7 +841,7 @@
       const grade = el("admin-grade-filter").value || "all";
       const klass = el("admin-class-filter").value || "all";
       return adminUsers().filter((user) => {
-        if (grade !== "all" && String(user.grade || "") !== grade) return false;
+        if (grade !== "all" && normalizeGradeKey(user.grade) !== grade) return false;
         if (klass !== "all" && String(user.userClass || "") !== klass) return false;
         return true;
       });
@@ -849,7 +849,7 @@
 
     function adminFilteredProblems() {
       const grade = el("admin-grade-filter").value || "all";
-      return adminProblems().filter((problem) => grade === "all" || String(problem.grade || "") === grade);
+      return adminProblems().filter((problem) => grade === "all" || problemAppliesToGrade(problem.grade, grade));
     }
 
     function updateAdminFilters() {
@@ -863,10 +863,13 @@
       const currentClass = classSelect.value || "all";
       const currentUser = userSelect.value || "all";
       const currentProblem = problemSelect.value || "all";
-      const grades = uniqueSorted([...(users || []).map((u) => u.grade), ...(problems || []).map((p) => p.grade)]);
+      const grades = uniqueSorted([
+        ...(users || []).map((u) => normalizeGradeKey(u.grade)),
+        ...(problems || []).map((p) => normalizeGradeKey(p.grade)).filter((grade) => !["全学年", "中学共通", "高校共通"].includes(grade))
+      ]);
       gradeSelect.innerHTML = `<option value="all">すべての学年</option>` + grades.map((grade) => `<option value="${escapeHtml(grade)}">${escapeHtml(grade)}</option>`).join("");
       gradeSelect.value = Array.from(gradeSelect.options).some((option) => option.value === currentGrade) ? currentGrade : "all";
-      const filteredByGrade = users.filter((user) => gradeSelect.value === "all" || String(user.grade || "") === gradeSelect.value);
+      const filteredByGrade = users.filter((user) => gradeSelect.value === "all" || normalizeGradeKey(user.grade) === gradeSelect.value);
       const classes = uniqueSorted(filteredByGrade.map((user) => user.userClass));
       classSelect.innerHTML = `<option value="all">すべてのクラス</option>` + classes.map((klass) => `<option value="${escapeHtml(klass)}">${escapeHtml(klass)}</option>`).join("");
       classSelect.value = Array.from(classSelect.options).some((option) => option.value === currentClass) ? currentClass : "all";
@@ -1145,6 +1148,9 @@
     function normalizeGradeKey(value) {
       const s = String(value || "").trim().toUpperCase();
       if (!s) return "";
+      if (["全学年", "ALL", "COMMON", "共通"].includes(s)) return "全学年";
+      if (["中学共通", "中学生共通", "M共通", "MIDDLE"].includes(s)) return "中学共通";
+      if (["高校共通", "高校生共通", "H共通", "HIGH"].includes(s)) return "高校共通";
       const direct = s.match(/^([MH])\s*([1-3])$/);
       if (direct) return `${direct[1]}${direct[2]}`;
       const middle = s.match(/中\s*([1-3])/);
@@ -1152,6 +1158,24 @@
       const high = s.match(/高\s*([1-3])/);
       if (high) return `H${high[1]}`;
       return s;
+    }
+
+    function gradeStage(grade) {
+      const normalized = normalizeGradeKey(grade);
+      if (/^M[1-3]$/.test(normalized)) return "M";
+      if (/^H[1-3]$/.test(normalized)) return "H";
+      return "";
+    }
+
+    function problemAppliesToGrade(problemGrade, selectedGrade) {
+      const problem = normalizeGradeKey(problemGrade);
+      const selected = normalizeGradeKey(selectedGrade);
+      if (!selected) return false;
+      if (problem === selected || problem === "全学年") return true;
+      const stage = gradeStage(selected);
+      if (stage === "M" && problem === "中学共通") return true;
+      if (stage === "H" && problem === "高校共通") return true;
+      return false;
     }
 
     function activeGradeKey() {
@@ -1235,7 +1259,7 @@
       const grade = activeGradeKey();
       if (allGradeLibraryMode) return writingProblems || [];
       if (!grade) return [];
-      return (writingProblems || []).filter((problem) => normalizeGradeKey(problem.grade) === grade);
+      return (writingProblems || []).filter((problem) => problemAppliesToGrade(problem.grade, grade));
     }
 
     function visibleProblems() {
