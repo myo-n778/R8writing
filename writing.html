@@ -563,7 +563,27 @@
     const VOICE_MANUAL_STOP_STORAGE_KEY = "writing_voice_manual_stop";
 
     const el = (id) => document.getElementById(id);
-    const userSchoolCode = () => `${el("user-stage").value}${el("user-grade").value}`;
+    function normalizeUserStage(value) {
+      const s = String(value || "").trim().toUpperCase();
+      if (s === "H" || /^高/.test(s)) return "H";
+      return "M";
+    }
+
+    function normalizeUserGradeValue(value) {
+      const s = String(value || "").trim();
+      const match = s.match(/[1-3]/);
+      return match ? match[0] : "2";
+    }
+
+    function ensureUserGradeControls() {
+      const stage = normalizeUserStage(el("user-stage").value || localStorage.getItem("ethics_user_stage") || "M");
+      const grade = normalizeUserGradeValue(el("user-grade").value || localStorage.getItem("ethics_user_grade") || "2");
+      el("user-stage").value = stage;
+      el("user-grade").value = grade;
+      return `${stage}${grade}`;
+    }
+
+    const userSchoolCode = () => ensureUserGradeControls();
     const userId = () => `${userSchoolCode()}-${el("user-class").value.trim()}-${el("user-number").value.trim()}-${normalizeUserName(el("user-name").value)}`;
     const isProfileReady = () => el("user-stage").value && el("user-grade").value && el("user-class").value.trim() && el("user-number").value.trim() && normalizeUserName(el("user-name").value);
 
@@ -591,6 +611,7 @@
     }
 
     function saveProfile() {
+      ensureUserGradeControls();
       const name = normalizeUserName(el("user-name").value);
       localStorage.setItem("ethics_user_stage", el("user-stage").value);
       localStorage.setItem("ethics_user_grade", el("user-grade").value);
@@ -604,8 +625,8 @@
     }
 
     function loadProfile() {
-      el("user-stage").value = localStorage.getItem("ethics_user_stage") || "M";
-      el("user-grade").value = localStorage.getItem("ethics_user_grade") || "2";
+      el("user-stage").value = normalizeUserStage(localStorage.getItem("ethics_user_stage") || "M");
+      el("user-grade").value = normalizeUserGradeValue(localStorage.getItem("ethics_user_grade") || "2");
       el("user-class").value = localStorage.getItem("ethics_user_class") || "";
       el("user-number").value = localStorage.getItem("ethics_user_number") || "";
       el("user-name").value = localStorage.getItem("ethics_user_name") || "";
@@ -1190,7 +1211,7 @@
     }
 
     function activeGradeKey() {
-      return el("user-stage").value && el("user-grade").value ? `${el("user-stage").value}${el("user-grade").value}` : "";
+      return ensureUserGradeControls();
     }
 
     function problemSubject(problem) {
