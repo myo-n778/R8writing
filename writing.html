@@ -538,6 +538,7 @@
     let feedbackSubmitting = false;
     let recentFeedbackSignature = "";
     let recentFeedbackSignatureAt = 0;
+    let lastSuccessfulFeedbackByProblem = {};
     let lastClearedAnswer = null;
     const FEEDBACK_LEVELS = ["中学生", "高校生", "先生"];
     const THEMES = {
@@ -1460,8 +1461,12 @@
       return [
         userId(),
         problemId,
-        String(answer || "").replace(/\s+/g, " ").trim()
+        normalizeSubmittedAnswer(answer)
       ].join("::");
+    }
+
+    function normalizeSubmittedAnswer(answer) {
+      return String(answer || "").replace(/\s+/g, " ").trim();
     }
 
     function isDuplicateFeedbackSubmission(signature, windowMs = 20000) {
@@ -1471,6 +1476,28 @@
     function rememberFeedbackSubmission(signature) {
       recentFeedbackSignature = signature;
       recentFeedbackSignatureAt = Date.now();
+    }
+
+    function rememberSuccessfulFeedback(problemId, answer) {
+      if (!problemId) return;
+      lastSuccessfulFeedbackByProblem[problemId] = normalizeSubmittedAnswer(answer);
+    }
+
+    function latestSuccessfulAnswerForProblem(problemId) {
+      const cached = lastSuccessfulFeedbackByProblem[problemId];
+      if (cached) return cached;
+      const item = (writingHistory || []).find((historyItem) => (
+        historyItem &&
+        historyItem.problemId === problemId &&
+        historyItem.answer
+      ));
+      return item ? normalizeSubmittedAnswer(item.answer) : "";
+    }
+
+    function isUnchangedSinceLastFeedback(problemId, answer) {
+      if (!problemId) return false;
+      const previousAnswer = latestSuccessfulAnswerForProblem(problemId);
+      return !!previousAnswer && previousAnswer === normalizeSubmittedAnswer(answer);
     }
 
     function updateRestoreClearButton() {
@@ -1564,6 +1591,10 @@
       if (!answer) return showMessage("回答が空欄です。", "error");
       if (answer.length > selectedProblem.maxChars) return showMessage(`回答が上限の${selectedProblem.maxChars}字を超えています。`, "error");
       if (!writingConfig.writingAiEnabled) return showMessage("現在、記述AIフィードバックはOFFです。", "error");
+      if (isUnchangedSinceLastFeedback(selectedProblem.problemId, answer)) {
+        showMessage("前回のフィードバック後、回答が変更されていません。直してからもう一度送信してください。", "info");
+        return;
+      }
       const duplicateSignature = feedbackDuplicateSignature(answer);
       if (isDuplicateFeedbackSubmission(duplicateSignature)) {
         showMessage("現在確認中です。同じ回答の連続送信は少し待ってから行ってください。", "info");
@@ -1594,6 +1625,7 @@
         renderPeerExamples(isImpressionTask(activeAssignmentType(feedback)) ? [] : (data.peerExamples || []));
         showMessage("フィードバックを記録しました。", "ok");
         const submittedProblemId = selectedProblem.problemId;
+        rememberSuccessfulFeedback(submittedProblemId, answer);
         await syncWriting({ preserveProblemId: submittedProblemId });
       } catch (err) {
         showMessage(err.message, "error");
