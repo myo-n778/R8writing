@@ -1603,7 +1603,45 @@
       }
     }
 
+    function isBlankFeedbackField(value) {
+      const text = String(value || "").trim();
+      return !text || text === "--" || text === "コメントはありません。";
+    }
+
+    function weakCriteriaLabels(criteria) {
+      const list = Array.isArray(criteria) ? criteria : [];
+      return list
+        .filter((item) => item && ["×", "△"].includes(String(item.status || "").trim()))
+        .map((item) => String(item.label || "").trim())
+        .filter(Boolean)
+        .slice(0, 2);
+    }
+
+    function completeFeedbackForDisplay(feedback = {}) {
+      const filled = { ...feedback };
+      if (isImpressionTask(activeAssignmentType(filled))) return filled;
+      const evaluation = normalizeEvaluationLabel(filled.evaluation);
+      const weakLabels = weakCriteriaLabels(filled.criteria);
+      const weakText = weakLabels.length ? `「${weakLabels.join("」「")}」` : "問題で聞かれている内容";
+      if (isBlankFeedbackField(filled.overall)) {
+        filled.overall = evaluation === "F" || evaluation === "C"
+          ? "問題で求められている内容がまだ十分に説明できていません。まず、必要な要素を一つずつ整理しましょう。"
+          : "要点の一部は見えますが、説明をもう少し具体的につなげるとよいです。";
+      }
+      if (isBlankFeedbackField(filled.good)) {
+        filled.good = "短くても回答を書き始めています。ここから、問題で求められている用語や関係を足していきましょう。";
+      }
+      if (isBlankFeedbackField(filled.improve)) {
+        filled.improve = `${weakText}を中心に、具体的な内容や関係を本文に入れるとよいです。`;
+      }
+      if (isBlankFeedbackField(filled.next)) {
+        filled.next = "問題文を小さく分け、聞かれていることを一つずつ短い文で説明してからつなげましょう。";
+      }
+      return filled;
+    }
+
     function renderFeedback(feedback) {
+      feedback = completeFeedbackForDisplay(feedback || {});
       el("feedback-panel").classList.remove("hidden");
       const assignmentType = activeAssignmentType(feedback);
       const impression = isImpressionTask(assignmentType);
@@ -1713,6 +1751,7 @@
         const meta = [item.date, item.unit, item.grade].filter(Boolean).map(escapeHtml).join(" / ");
         const assignmentType = normalizeAssignmentType(item.assignmentType || ((writingProblems.find((problem) => problem.problemId === item.problemId) || {}).assignmentType));
         const impression = isImpressionTask(assignmentType);
+        const displayItem = completeFeedbackForDisplay(item);
         return `
           <details class="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-4">
             <summary class="cursor-pointer list-none">
@@ -1721,7 +1760,7 @@
                   <div class="text-[11px] font-bold text-slate-400">${meta}</div>
                   <div class="mt-1 text-sm font-black leading-relaxed text-slate-100">${escapeHtml(title)}</div>
                 </div>
-                ${impression ? `<span class="shrink-0 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-slate-200">記録</span>` : `<span class="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-sm font-black text-cyan-100">${escapeHtml(evaluationDisplay(item.evaluation))}</span>`}
+                ${impression ? `<span class="shrink-0 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-slate-200">記録</span>` : `<span class="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-sm font-black text-cyan-100">${escapeHtml(evaluationDisplay(displayItem.evaluation))}</span>`}
               </div>
             </summary>
             <div class="mt-4 grid gap-3">
@@ -1731,24 +1770,24 @@
               </div>
               <div class="rounded-2xl bg-cyan-400/10 border border-cyan-300/20 p-3">
                 <div class="mb-1 text-[10px] font-black tracking-[0.16em] text-cyan-200 uppercase">Feedback</div>
-                <p class="leading-relaxed text-slate-100">${escapeHtml(item.overall || "--")}</p>
+                <p class="leading-relaxed text-slate-100">${escapeHtml(displayItem.overall || "--")}</p>
               </div>
               <div class="grid md:grid-cols-2 gap-3">
                 <div class="rounded-2xl bg-emerald-400/10 border border-emerald-300/20 p-3">
                   <div class="mb-1 text-[10px] font-black text-emerald-200">良い点</div>
-                  <p class="leading-relaxed text-slate-100">${escapeHtml(item.good || "--")}</p>
+                  <p class="leading-relaxed text-slate-100">${escapeHtml(displayItem.good || "--")}</p>
                 </div>
                 <div class="rounded-2xl bg-amber-400/10 border border-amber-300/20 p-3">
                   <div class="mb-1 text-[10px] font-black text-amber-200">直すと良い点</div>
-                  <p class="leading-relaxed text-slate-100">${escapeHtml(item.improve || "--")}</p>
+                  <p class="leading-relaxed text-slate-100">${escapeHtml(displayItem.improve || "--")}</p>
                 </div>
               </div>
-              ${!impression && criteriaMarkup(item.criteria) ? `<div class="rounded-2xl bg-white/5 border border-white/10 p-3"><div class="mb-3 text-[10px] font-black tracking-[0.16em] text-slate-300 uppercase">理解の整理</div><div class="space-y-2">${criteriaMarkup(item.criteria)}</div></div>` : ""}
+              ${!impression && criteriaMarkup(displayItem.criteria) ? `<div class="rounded-2xl bg-white/5 border border-white/10 p-3"><div class="mb-3 text-[10px] font-black tracking-[0.16em] text-slate-300 uppercase">理解の整理</div><div class="space-y-2">${criteriaMarkup(displayItem.criteria)}</div></div>` : ""}
               ${impression ? "" : `<div class="rounded-2xl bg-violet-400/10 border border-violet-300/20 p-3">
                 <div class="mb-1 text-[10px] font-black text-violet-200">模範解答</div>
-                <p class="leading-relaxed text-slate-100 no-copy">${escapeHtml(item.modelAnswer || "--")}</p>
+                <p class="leading-relaxed text-slate-100 no-copy">${escapeHtml(displayItem.modelAnswer || "--")}</p>
               </div>`}
-              ${item.keyPoint || item.scienceNote ? `<div class="rounded-2xl bg-rose-400/10 border border-rose-300/20 p-3"><div class="mb-1 text-[10px] font-black text-rose-200">理科の補足</div><p class="leading-relaxed text-slate-100">${escapeHtml(item.keyPoint || item.scienceNote)}</p></div>` : ""}
+              ${displayItem.keyPoint || displayItem.scienceNote ? `<div class="rounded-2xl bg-rose-400/10 border border-rose-300/20 p-3"><div class="mb-1 text-[10px] font-black text-rose-200">理科の補足</div><p class="leading-relaxed text-slate-100">${escapeHtml(displayItem.keyPoint || displayItem.scienceNote)}</p></div>` : ""}
             </div>
           </details>
         `;
