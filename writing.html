@@ -540,6 +540,7 @@
     let recentFeedbackSignatureAt = 0;
     let lastSuccessfulFeedbackByProblem = {};
     let lastClearedAnswer = null;
+    let pasteStatusByProblem = {};
     const FEEDBACK_LEVELS = ["中学生", "高校生", "先生"];
     const THEMES = {
       modeA: { bg: "#0f172a", panel: "rgba(30, 41, 59, 0.85)", accent: "#6366f1", text: "#f8fafc" },
@@ -1431,6 +1432,11 @@
       updateFeedbackButtonState();
     }
 
+    function handleAnswerInput() {
+      if (selectedProblem) resetOwnWordsConfirmation(selectedProblem.problemId);
+      updateCharCount();
+    }
+
     function updateFeedbackButtonState() {
       const button = el("feedback-btn");
       if (!button) return;
@@ -1498,6 +1504,52 @@
       if (!problemId) return false;
       const previousAnswer = latestSuccessfulAnswerForProblem(problemId);
       return !!previousAnswer && previousAnswer === normalizeSubmittedAnswer(answer);
+    }
+
+    function currentPasteStatus() {
+      const problemId = selectedProblem ? selectedProblem.problemId : "";
+      if (!problemId) return { detected: false, longPaste: false, charCount: 0, confirmed: false };
+      if (!pasteStatusByProblem[problemId]) {
+        pasteStatusByProblem[problemId] = { detected: false, longPaste: false, charCount: 0, confirmed: false };
+      }
+      return pasteStatusByProblem[problemId];
+    }
+
+    function resetOwnWordsConfirmation(problemId) {
+      if (!problemId || !pasteStatusByProblem[problemId]) return;
+      pasteStatusByProblem[problemId].confirmed = false;
+    }
+
+    function markAnswerPaste(event) {
+      const text = event.clipboardData ? event.clipboardData.getData("text") : "";
+      const pastedLength = String(text || "").trim().length;
+      const status = currentPasteStatus();
+      status.detected = true;
+      status.charCount = Math.max(Number(status.charCount || 0), pastedLength);
+      if (pastedLength >= 50) {
+        status.longPaste = true;
+        status.confirmed = false;
+        showMessage("長い文章が貼り付けられました。バックアップや下書きの利用は問題ありません。送信前に、自分の言葉で整理できているか確認してください。", "info");
+      }
+    }
+
+    function confirmOwnWordsIfNeeded() {
+      const status = currentPasteStatus();
+      if (!status.longPaste || status.confirmed) return true;
+      const message = [
+        "長い文章が貼り付けられています。",
+        "",
+        "バックアップや下書きを使うことは問題ありません。",
+        "参考にした内容は、そのまま写すのではなく、自分の理解で言い直した回答にしてください。",
+        "",
+        "この回答は、自分の言葉で整理したものですか？"
+      ].join("\n");
+      if (!window.confirm(message)) {
+        showMessage("送信を止めました。自分の言葉で整理してから、もう一度送信してください。", "info");
+        return false;
+      }
+      status.confirmed = true;
+      return true;
     }
 
     function updateRestoreClearButton() {
@@ -1595,6 +1647,7 @@
         showMessage("前回のフィードバック後、回答が変更されていません。直してからもう一度送信してください。", "info");
         return;
       }
+      if (!confirmOwnWordsIfNeeded()) return;
       const duplicateSignature = feedbackDuplicateSignature(answer);
       if (isDuplicateFeedbackSubmission(duplicateSignature)) {
         showMessage("現在確認中です。同じ回答の連続送信は少し待ってから行ってください。", "info");
@@ -1618,6 +1671,10 @@
           schoolCode: userSchoolCode(),
           problemId: selectedProblem.problemId,
           feedbackLevel: feedbackLevel(),
+          pasteDetected: currentPasteStatus().detected ? "TRUE" : "FALSE",
+          longPasteDetected: currentPasteStatus().longPaste ? "TRUE" : "FALSE",
+          pasteCharCount: String(currentPasteStatus().charCount || 0),
+          ownWordsConfirmed: currentPasteStatus().confirmed ? "TRUE" : "FALSE",
           answer
         });
         const feedback = data.feedback || {};
@@ -1926,7 +1983,8 @@
     el("admin-close-btn").addEventListener("click", closeAdminPanel);
     el("clear-btn").addEventListener("click", clearAnswerWithConfirmation);
     el("restore-clear-btn").addEventListener("click", restoreClearedAnswer);
-    el("answer").addEventListener("input", updateCharCount);
+    el("answer").addEventListener("input", handleAnswerInput);
+    el("answer").addEventListener("paste", markAnswerPaste);
     document.querySelectorAll("[data-font-size]").forEach((btn) => {
       btn.addEventListener("click", () => applyFontSizeMode(btn.dataset.fontSize));
     });
