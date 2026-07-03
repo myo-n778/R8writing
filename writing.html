@@ -574,6 +574,7 @@
     let lastSuccessfulFeedbackByProblem = {};
     let lastClearedAnswer = null;
     let pasteStatusByProblem = {};
+    let profileSaved = false;
     const FEEDBACK_LEVELS = ["中学生", "高校生", "先生"];
     const THEMES = {
       modeA: { bg: "#0f172a", panel: "rgba(30, 41, 59, 0.85)", accent: "#6366f1", text: "#f8fafc" },
@@ -618,7 +619,8 @@
 
     const userSchoolCode = () => ensureUserGradeControls();
     const userId = () => `${userSchoolCode()}-${el("user-class").value.trim()}-${el("user-number").value.trim()}-${normalizeUserName(el("user-name").value)}`;
-    const isProfileReady = () => el("user-stage").value && el("user-grade").value && el("user-class").value.trim() && el("user-number").value.trim() && normalizeUserName(el("user-name").value);
+    const isProfileFieldsComplete = () => el("user-stage").value && el("user-grade").value && el("user-class").value.trim() && el("user-number").value.trim() && normalizeUserName(el("user-name").value);
+    const isProfileReady = () => profileSaved && isProfileFieldsComplete();
 
     function updateProfileMode() {
       const ready = isProfileReady();
@@ -628,6 +630,26 @@
       if (ready) {
         el("active-user-display").textContent = `${userSchoolCode()}-${el("user-class").value.trim()}-${el("user-number").value.trim()} ${normalizeUserName(el("user-name").value)}`;
       }
+      updateAnswerInputGate();
+    }
+
+    function updateAnswerInputGate() {
+      const ready = isProfileReady();
+      const answer = el("answer");
+      if (answer) {
+        answer.disabled = !ready;
+        answer.placeholder = ready ? "ここに自分の考えを書きます。短くても送れます。" : "先にユーザー情報を入力し、SAVEしてください。";
+        answer.classList.toggle("opacity-60", !ready);
+        answer.classList.toggle("cursor-not-allowed", !ready);
+      }
+      ["voice-input-btn"].forEach((id) => {
+        const button = el(id);
+        if (!button) return;
+        button.disabled = !ready;
+        button.classList.toggle("opacity-60", !ready);
+        button.classList.toggle("cursor-not-allowed", !ready);
+      });
+      updateFeedbackButtonState();
     }
 
     function showMessage(text, type = "info") {
@@ -646,12 +668,19 @@
     function saveProfile() {
       ensureUserGradeControls();
       const name = normalizeUserName(el("user-name").value);
+      if (!isProfileFieldsComplete()) {
+        profileSaved = false;
+        updateProfileMode();
+        showMessage("中学/高校・学年・クラス・番号・名前を入力してからSAVEしてください。", "error");
+        return;
+      }
       localStorage.setItem("ethics_user_stage", el("user-stage").value);
       localStorage.setItem("ethics_user_grade", el("user-grade").value);
       localStorage.setItem("ethics_user_class", el("user-class").value.trim());
       localStorage.setItem("ethics_user_number", el("user-number").value.trim());
       localStorage.setItem("ethics_user_name", name);
       el("user-name").value = name;
+      profileSaved = true;
       updateProfileMode();
       showMessage("ユーザー情報を保存しました。", "ok");
       syncWriting();
@@ -665,6 +694,7 @@
       el("user-name").value = localStorage.getItem("ethics_user_name") || "";
       const savedLevel = localStorage.getItem("writing_feedback_level") || "中学生";
       el("feedback-level").value = FEEDBACK_LEVELS.includes(savedLevel) ? savedLevel : "中学生";
+      profileSaved = !!isProfileFieldsComplete();
       updateProfileMode();
     }
 
@@ -679,11 +709,17 @@
       el("user-class").value = "";
       el("user-number").value = "";
       el("user-name").value = "";
+      profileSaved = false;
       updateProfileMode();
       selectedSubjectFilter = "all";
       selectedUnitFilter = "all";
       renderProblems(false);
       showMessage("ユーザー情報を解除しました。", "info");
+    }
+
+    function handleProfileEditChanged() {
+      profileSaved = false;
+      updateProfileMode();
     }
 
     function feedbackLevel() {
@@ -1680,7 +1716,7 @@
       if (!button) return;
       const locked = Date.now() < feedbackButtonLockedUntil;
       const unlimited = selectedProblem && (selectedProblem.attemptsUnlimited || Number(selectedProblem.maxAttempts || 0) === 0);
-      const blocked = feedbackSubmitting || locked || !!(selectedProblem && !unlimited && Number(selectedProblem.attemptsRemaining || 0) <= 0);
+      const blocked = !isProfileReady() || !selectedProblem || feedbackSubmitting || locked || !!(selectedProblem && !unlimited && Number(selectedProblem.attemptsRemaining || 0) <= 0);
       button.disabled = blocked;
       button.classList.toggle("opacity-60", blocked);
       button.classList.toggle("cursor-not-allowed", blocked);
@@ -2131,12 +2167,16 @@
     el("grade-filter-toggle").addEventListener("click", handleGradeFilterTap);
     ["user-stage", "user-grade"].forEach((id) => {
       el(id).addEventListener("change", () => {
+        handleProfileEditChanged();
         allGradeLibraryMode = false;
         gradeTapCount = 0;
         selectedSubjectFilter = "all";
         selectedUnitFilter = "all";
         renderProblems(false);
       });
+    });
+    ["user-class", "user-number", "user-name"].forEach((id) => {
+      el(id).addEventListener("input", handleProfileEditChanged);
     });
     el("subject-filter").addEventListener("change", () => {
       selectedSubjectFilter = el("subject-filter").value || "all";
