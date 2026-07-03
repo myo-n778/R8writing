@@ -194,8 +194,32 @@
     body.fs-orange-mode [class*="bg-lime"] {
       background-color: rgba(236, 116, 48, 0.14) !important;
     }
+    #print-export-root { display: none; }
+    .print-page { background: #fff; color: #111827; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .print-header { border-bottom: 2px solid #111827; padding-bottom: 0.7rem; margin-bottom: 1rem; }
+    .print-title { font-size: 1.4rem; font-weight: 900; margin: 0; }
+    .print-subtitle { margin-top: 0.25rem; color: #4b5563; font-size: 0.86rem; }
+    .print-problem { break-inside: avoid; page-break-inside: avoid; margin: 0 0 1rem; border: 1px solid #d1d5db; border-radius: 0.4rem; padding: 0.85rem; }
+    .print-problem-title { font-size: 1rem; font-weight: 900; margin: 0 0 0.35rem; }
+    .print-problem-meta { font-size: 0.78rem; color: #4b5563; margin-bottom: 0.55rem; }
+    .print-attempt { break-inside: avoid; page-break-inside: avoid; border-top: 1px solid #e5e7eb; padding-top: 0.7rem; margin-top: 0.7rem; }
+    .print-attempt-head { display: flex; justify-content: space-between; gap: 1rem; font-weight: 800; font-size: 0.82rem; margin-bottom: 0.45rem; }
+    .print-block { margin: 0.45rem 0; }
+    .print-label { font-size: 0.72rem; font-weight: 900; color: #374151; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem; }
+    .print-text { white-space: pre-wrap; line-height: 1.65; font-size: 0.9rem; margin: 0; }
+    .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; }
+    .print-criteria { display: grid; gap: 0.35rem; margin-top: 0.25rem; }
+    .print-criterion { display: grid; grid-template-columns: 2rem 7rem 1fr; gap: 0.35rem; align-items: start; font-size: 0.84rem; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.35rem; }
     details > summary { list-style: none; }
     details > summary::-webkit-details-marker { display: none; }
+    @media print {
+      @page { size: A4; margin: 12mm; }
+      body { background: #fff !important; color: #111827 !important; }
+      body > main { display: none !important; }
+      #print-export-root { display: block !important; }
+      .print-page { padding: 0; }
+      .print-actions { display: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -418,7 +442,7 @@
           </div>
         </summary>
         <div class="mt-4 space-y-4">
-          <div class="grid md:grid-cols-[1fr_auto_auto] gap-3">
+          <div class="grid md:grid-cols-[1fr_auto_auto_auto] gap-3">
             <label class="block">
               <span class="block mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Problem</span>
               <select id="history-problem-filter" class="w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none focus:border-cyan-400"></select>
@@ -433,6 +457,11 @@
             <div class="flex items-end">
               <button id="history-more-btn" type="button" class="w-full rounded-2xl border border-white/10 bg-white/10 hover:bg-white/15 px-4 py-3 text-sm font-black text-slate-100">
                 さらに表示
+              </button>
+            </div>
+            <div class="flex items-end">
+              <button id="history-print-btn" type="button" class="w-full rounded-2xl border border-cyan-300/30 bg-cyan-400/10 hover:bg-cyan-400/15 px-4 py-3 text-sm font-black text-cyan-100">
+                PDF用一覧
               </button>
             </div>
           </div>
@@ -506,6 +535,10 @@
       </div>
     </footer>
   </main>
+
+  <section id="print-export-root" aria-hidden="true">
+    <div id="print-export-content"></div>
+  </section>
 
   <script src="./common/science-shared.js"></script>
   <script>
@@ -1041,10 +1074,16 @@
       const rows = adminHistory().filter((item) => item.userKey === selected);
       container.innerHTML = `
         <div class="rounded-2xl border border-white/10 bg-slate-950/35 p-4">
-          <div class="text-sm font-black text-slate-100">${escapeHtml(user ? `${user.grade || ""} ${user.userClass || ""}-${user.userNumber || ""} ${user.userName || ""}` : selected)}</div>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="text-sm font-black text-slate-100">${escapeHtml(user ? `${user.grade || ""} ${user.userClass || ""}-${user.userNumber || ""} ${user.userName || ""}` : selected)}</div>
+            <button type="button" class="rounded-2xl border border-cyan-300/30 bg-cyan-400/10 hover:bg-cyan-400/15 px-4 py-2 text-xs font-black text-cyan-100" data-admin-print-user="${escapeHtml(selected)}">
+              このユーザーのPDF用一覧
+            </button>
+          </div>
           <div class="mt-3 space-y-2">${rows.length ? rows.map(adminHistoryCard).join("") : `<div class="text-sm text-slate-400">提出履歴はありません。</div>`}</div>
         </div>
       `;
+      container.querySelector("[data-admin-print-user]")?.addEventListener("click", () => printAdminUserHistory(selected));
     }
 
     function renderAdminProblemView() {
@@ -1145,6 +1184,184 @@
         </div>
       `;
       el("admin-detail-view").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function problemNumberForExport(problem, index = 0) {
+      return problem && (problem.problemNumber || problem.number) ? String(problem.problemNumber || problem.number) : ("0000" + (index + 1)).slice(-4);
+    }
+
+    function problemTitleForExport(problem, fallback = "問題") {
+      return (problem && (problem.title || problem.subunit || problem.unit || problem.prompt || problem.problemId)) || fallback;
+    }
+
+    function problemSortKeyForExport(problem, index) {
+      const order = Number(problem && problem.order);
+      const number = Number(String(problemNumberForExport(problem, index)).replace(/[^\d]/g, ""));
+      return [
+        String(Number.isFinite(order) ? order : 999999).padStart(6, "0"),
+        String(Number.isFinite(number) ? number : 999999).padStart(6, "0"),
+        problemTitleForExport(problem, "")
+      ].join("|");
+    }
+
+    function groupHistoryForPrint(items, problems) {
+      const problemMap = {};
+      (problems || []).forEach((problem, index) => {
+        problemMap[problem.problemId] = { ...problem, exportIndex: index };
+      });
+      const groups = {};
+      (items || []).forEach((rawItem) => {
+        if (!rawItem || !rawItem.problemId) return;
+        const problem = problemMap[rawItem.problemId] || { problemId: rawItem.problemId, prompt: rawItem.prompt, exportIndex: 999999 };
+        const key = rawItem.problemId;
+        if (!groups[key]) {
+          groups[key] = {
+            problem,
+            sortKey: problemSortKeyForExport(problem, problem.exportIndex || 0),
+            attempts: []
+          };
+        }
+        groups[key].attempts.push(completeFeedbackForDisplay(rawItem));
+      });
+      return Object.values(groups).map((group) => {
+        group.attempts.sort((a, b) => historyTimeValue(a) - historyTimeValue(b));
+        return group;
+      }).sort((a, b) => String(a.sortKey).localeCompare(String(b.sortKey), "ja"));
+    }
+
+    function printCriteriaMarkup(criteria) {
+      const list = Array.isArray(criteria) ? criteria.filter((item) => item && item.label && item.status && item.comment).slice(0, 8) : [];
+      if (!list.length) return "";
+      return `
+        <div class="print-block">
+          <div class="print-label">理解の整理</div>
+          <div class="print-criteria">
+            ${list.map((item) => `
+              <div class="print-criterion">
+                <strong>${escapeHtml(item.status)}</strong>
+                <strong>${escapeHtml(item.label)}</strong>
+                <span>${escapeHtml(item.comment)}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPrintAttempt(item, index, problem) {
+      const assignmentType = normalizeAssignmentType(item.assignmentType || (problem && problem.assignmentType));
+      const impression = isImpressionTask(assignmentType);
+      const evaluation = impression ? "記録" : evaluationDisplay(item.evaluation);
+      return `
+        <section class="print-attempt">
+          <div class="print-attempt-head">
+            <span>試行 ${index + 1} / ${escapeHtml(item.date || "")}</span>
+            <span>${escapeHtml(evaluation || "--")}</span>
+          </div>
+          <div class="print-block">
+            <div class="print-label">回答</div>
+            <p class="print-text">${escapeHtml(item.answer || "--")}</p>
+          </div>
+          <div class="print-block">
+            <div class="print-label">Feedback</div>
+            <p class="print-text">${escapeHtml(item.overall || "--")}</p>
+          </div>
+          <div class="print-grid">
+            <div class="print-block">
+              <div class="print-label">良い点</div>
+              <p class="print-text">${escapeHtml(item.good || "--")}</p>
+            </div>
+            <div class="print-block">
+              <div class="print-label">直すと良い点</div>
+              <p class="print-text">${escapeHtml(item.improve || "--")}</p>
+            </div>
+          </div>
+          <div class="print-block">
+            <div class="print-label">書くときのポイント</div>
+            <p class="print-text">${escapeHtml(item.next || "--")}</p>
+          </div>
+          ${impression ? "" : printCriteriaMarkup(item.criteria)}
+        </section>
+      `;
+    }
+
+    function renderPrintExport({ title, subtitle, items, problems }) {
+      const groups = groupHistoryForPrint(items, problems);
+      if (!groups.length) {
+        window.alert("PDF化できる履歴がありません。");
+        return false;
+      }
+      el("print-export-content").innerHTML = `
+        <article class="print-page">
+          <header class="print-header">
+            <h1 class="print-title">${escapeHtml(title)}</h1>
+            <div class="print-subtitle">${escapeHtml(subtitle)}</div>
+          </header>
+          ${groups.map((group) => {
+            const problem = group.problem || {};
+            const number = problemNumberForExport(problem, problem.exportIndex || 0);
+            const prompt = problem.prompt || (group.attempts[0] && group.attempts[0].prompt) || problemTitleForExport(problem);
+            const meta = [problem.grade || (group.attempts[0] && group.attempts[0].grade), problem.subject, problem.unit || (group.attempts[0] && group.attempts[0].unit), problem.subunit || (group.attempts[0] && group.attempts[0].subunit)].filter(Boolean).join(" / ");
+            return `
+              <section class="print-problem">
+                <h2 class="print-problem-title">${escapeHtml(number)} ${escapeHtml(problemTitleForExport(problem, problem.problemId || "問題"))}</h2>
+                <div class="print-problem-meta">${escapeHtml(meta)}</div>
+                <div class="print-block">
+                  <div class="print-label">問題</div>
+                  <p class="print-text">${escapeHtml(prompt || "--")}</p>
+                </div>
+                ${group.attempts.map((item, index) => renderPrintAttempt(item, index, problem)).join("")}
+              </section>
+            `;
+          }).join("")}
+        </article>
+      `;
+      return true;
+    }
+
+    async function printStudentHistory() {
+      if (!isProfileReady()) {
+        setStatus("ユーザー情報を保存すると、PDF用一覧を作成できます。", "error");
+        return;
+      }
+      try {
+        setStatus("PDF用履歴を取得しています...", "info");
+        const data = await fetchJson({
+          action: "historyExport",
+          id: SPREADSHEET_ID,
+          userId: userId(),
+          userName: normalizeUserName(el("user-name").value),
+          userClass: el("user-class").value.trim(),
+          userNumber: el("user-number").value.trim(),
+          schoolCode: userSchoolCode()
+        });
+        const userLabel = `${userSchoolCode()} ${el("user-class").value.trim()}-${el("user-number").value.trim()} ${normalizeUserName(el("user-name").value)}`;
+        if (renderPrintExport({
+          title: "Writing Feedback History",
+          subtitle: `${userLabel} / ${new Date().toLocaleString("ja-JP")}`,
+          items: data.history || [],
+          problems: writingProblems
+        })) {
+          window.print();
+          setStatus("PDF用一覧を開きました。印刷画面からPDF保存できます。", "ok");
+        }
+      } catch (err) {
+        setStatus("PDF用履歴を取得できませんでした: " + err.message, "error");
+      }
+    }
+
+    function printAdminUserHistory(userKey) {
+      const user = adminUsers().find((item) => item.userKey === userKey);
+      const items = adminHistory().filter((item) => item.userKey === userKey);
+      const label = user ? `${user.grade || ""} ${user.userClass || ""}-${user.userNumber || ""} ${user.userName || ""}` : userKey;
+      if (renderPrintExport({
+        title: "Writing Feedback History",
+        subtitle: `${label} / 管理者出力 / ${new Date().toLocaleString("ja-JP")}`,
+        items,
+        problems: adminProblems()
+      })) {
+        window.print();
+      }
     }
 
     function renderLimits() {
@@ -1978,6 +2195,7 @@
       historyVisibleCount += 5;
       renderWritingHistory();
     });
+    el("history-print-btn").addEventListener("click", printStudentHistory);
     el("admin-entry-btn").addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
