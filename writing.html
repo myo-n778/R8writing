@@ -214,14 +214,14 @@
     details > summary { list-style: none; }
     details > summary::-webkit-details-marker { display: none; }
     @media print {
-      @page { size: A4; margin: 10mm; }
+      @page { size: B5 portrait; margin: 8mm; }
       body { background: #fff !important; color: #111827 !important; }
       body > main { display: none !important; }
       #print-export-root { display: block !important; }
-      .print-page { width: 100%; max-width: 100%; padding: 0; font-size: 10pt; }
+      .print-page { width: 100%; max-width: 100%; padding: 0; font-size: 9.5pt; }
       .print-grid { grid-template-columns: 1fr; gap: 0.35rem; }
-      .print-block { padding: 0.42rem; }
-      .print-text { font-size: 9.5pt; line-height: 1.48; }
+      .print-block { padding: 0.38rem; }
+      .print-text { font-size: 8.8pt; line-height: 1.45; }
       .print-actions { display: none !important; }
     }
   </style>
@@ -1322,14 +1322,26 @@
       `;
     }
 
+    function ordinalLabel(number) {
+      const n = Number(number) || 0;
+      const mod100 = n % 100;
+      if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+      const mod10 = n % 10;
+      if (mod10 === 1) return `${n}st`;
+      if (mod10 === 2) return `${n}nd`;
+      if (mod10 === 3) return `${n}rd`;
+      return `${n}th`;
+    }
+
     function renderPrintAttempt(item, index, problem) {
       const assignmentType = normalizeAssignmentType(item.assignmentType || (problem && problem.assignmentType));
       const impression = isImpressionTask(assignmentType);
       const evaluation = impression ? "記録" : evaluationDisplay(item.evaluation);
+      const challengeLabel = `${ordinalLabel(index + 1)} Challenge`;
       return `
         <section class="print-attempt">
           <div class="print-attempt-head">
-            <span>Challenge ${index + 1}</span>
+            <span>${escapeHtml(challengeLabel)}</span>
             <span>${escapeHtml(item.date || "")}</span>
             <span class="print-evaluation">${escapeHtml(evaluation || "--")}</span>
           </div>
@@ -1356,6 +1368,12 @@
             <p class="print-text">${escapeHtml(item.next || "--")}</p>
           </div>
           ${impression ? "" : printCriteriaMarkup(item.criteria)}
+          ${!impression && item.revisedAnswer ? `
+          <div class="print-block">
+            <div class="print-label">添削後の解答例</div>
+            <p class="print-text">${escapeHtml(item.revisedAnswer)}</p>
+          </div>
+          ` : ""}
         </section>
       `;
     }
@@ -1411,7 +1429,7 @@
     body { margin: 0; background: #f3f4f6; color: #111827; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .print-toolbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end; gap: 0.5rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.94); border-bottom: 1px solid #d1d5db; }
     .print-toolbar button { border: 1px solid #111827; border-radius: 0.4rem; background: #111827; color: #fff; font-weight: 800; padding: 0.45rem 0.8rem; cursor: pointer; }
-    .print-page { max-width: 180mm; margin: 1rem auto; background: #fff; color: #111827; padding: 1rem; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12); box-sizing: border-box; overflow-wrap: anywhere; }
+    .print-page { max-width: 160mm; margin: 1rem auto; background: #fff; color: #111827; padding: 0.9rem; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12); box-sizing: border-box; overflow-wrap: anywhere; }
     .print-header { border-bottom: 2px solid #111827; padding-bottom: 0.6rem; margin-bottom: 0.8rem; }
     .print-title { font-size: 1.25rem; font-weight: 900; margin: 0; }
     .print-subtitle { margin-top: 0.22rem; color: #4b5563; font-size: 0.78rem; }
@@ -1427,14 +1445,14 @@
     .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
     .print-criteria { display: grid; gap: 0.35rem; margin-top: 0.25rem; }
     .print-criterion { display: grid; grid-template-columns: 1.6rem minmax(4.5rem, 7rem) 1fr; gap: 0.3rem; align-items: start; font-size: 0.78rem; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.32rem; box-sizing: border-box; }
-    @page { size: A4; margin: 10mm; }
+    @page { size: B5 portrait; margin: 8mm; }
     @media print {
       body { background: #fff; }
       .print-toolbar { display: none; }
-      .print-page { width: 100%; max-width: 100%; margin: 0; padding: 0; box-shadow: none; font-size: 10pt; }
+      .print-page { width: 100%; max-width: 100%; margin: 0; padding: 0; box-shadow: none; font-size: 9.5pt; }
       .print-grid { grid-template-columns: 1fr; gap: 0.35rem; }
-      .print-block { padding: 0.42rem; }
-      .print-text { font-size: 9.5pt; line-height: 1.48; }
+      .print-block { padding: 0.38rem; }
+      .print-text { font-size: 8.8pt; line-height: 1.45; }
     }
   </style>
 </head>
