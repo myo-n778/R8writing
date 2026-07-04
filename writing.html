@@ -727,6 +727,24 @@
       return FEEDBACK_LEVELS.includes(value) ? value : "中学生";
     }
 
+    function currentThemeMode() {
+      const stored = localStorage.getItem("ethics_theme_mode") || "modeA";
+      return THEMES[stored] ? stored : "modeA";
+    }
+
+    function themeDisplayName(theme) {
+      const safeTheme = THEMES[theme] ? theme : "modeA";
+      return safeTheme === "modeFS" ? "FS ORANGE" : safeTheme.toUpperCase();
+    }
+
+    function themePayload() {
+      const themeMode = currentThemeMode();
+      return {
+        themeMode,
+        themeLabel: themeDisplayName(themeMode)
+      };
+    }
+
     function applyTheme(theme) {
       const safeTheme = THEMES[theme] ? theme : "modeA";
       const t = THEMES[safeTheme];
@@ -746,7 +764,7 @@
       document.body.style.color = t.text;
       localStorage.setItem("ethics_theme_mode", safeTheme);
       const themeButton = el("theme-btn");
-      if (themeButton) themeButton.innerHTML = `<i class="fa-solid fa-palette"></i> ${safeTheme === "modeFS" ? "FS ORANGE" : safeTheme.toUpperCase()}`;
+      if (themeButton) themeButton.innerHTML = `<i class="fa-solid fa-palette"></i> ${themeDisplayName(safeTheme)}`;
       document.querySelectorAll("[data-theme]").forEach((btn) => {
         btn.classList.toggle("active", btn.dataset.theme === safeTheme);
       });
@@ -1046,9 +1064,10 @@
       `).join("");
       const rows = users.map((user) => {
         const counts = user.counts || {};
+        const themeLine = user.theme ? `<div class="mt-1 text-[9px] font-black uppercase text-orange-200/80">Theme: ${escapeHtml(user.theme)}</div>` : "";
         const fixed = `
           <td class="admin-sticky admin-col-number px-2 py-2 text-center text-xs font-black">${escapeHtml(user.userNumber || "--")}</td>
-          <td class="admin-sticky admin-col-name px-3 py-2 text-xs font-bold"><div class="whitespace-normal break-words leading-snug">${escapeHtml(user.userName || "--")}</div></td>
+          <td class="admin-sticky admin-col-name px-3 py-2 text-xs font-bold"><div class="whitespace-normal break-words leading-snug">${escapeHtml(user.userName || "--")}</div>${themeLine}</td>
           <td class="admin-sticky admin-col-a px-2 py-2 text-center text-xs font-black">${Number(counts.A || 0)}</td>
           <td class="admin-sticky admin-col-ap px-2 py-2 text-center text-xs font-black">${Number(counts["A'"] || 0)}</td>
           <td class="admin-sticky admin-col-b px-2 py-2 text-center text-xs font-black">${Number(counts.B || 0)}</td>
@@ -1108,10 +1127,14 @@
       }
       const user = adminUsers().find((item) => item.userKey === selected);
       const rows = adminHistory().filter((item) => item.userKey === selected);
+      const themeLine = user && user.theme ? `<div class="mt-1 text-xs font-black uppercase text-orange-200/80">Theme: ${escapeHtml(user.theme)}</div>` : "";
       container.innerHTML = `
         <div class="rounded-2xl border border-white/10 bg-slate-950/35 p-4">
           <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="text-sm font-black text-slate-100">${escapeHtml(user ? `${user.grade || ""} ${user.userClass || ""}-${user.userNumber || ""} ${user.userName || ""}` : selected)}</div>
+            <div>
+              <div class="text-sm font-black text-slate-100">${escapeHtml(user ? `${user.grade || ""} ${user.userClass || ""}-${user.userNumber || ""} ${user.userName || ""}` : selected)}</div>
+              ${themeLine}
+            </div>
             <button type="button" class="rounded-2xl border border-cyan-300/30 bg-cyan-400/10 hover:bg-cyan-400/15 px-4 py-2 text-xs font-black text-cyan-100" data-admin-print-user="${escapeHtml(selected)}">
               このユーザーのPDF用一覧
             </button>
@@ -1360,6 +1383,9 @@
         setStatus("ユーザー情報を保存すると、PDF用一覧を作成できます。", "error");
         return;
       }
+      const userLabel = `${userSchoolCode()} ${el("user-class").value.trim()}-${el("user-number").value.trim()} ${normalizeUserName(el("user-name").value)}`;
+      let items = [];
+      let usedFallback = false;
       try {
         setStatus("PDF用履歴を取得しています...", "info");
         const data = await fetchJson({
@@ -1369,20 +1395,30 @@
           userName: normalizeUserName(el("user-name").value),
           userClass: el("user-class").value.trim(),
           userNumber: el("user-number").value.trim(),
-          schoolCode: userSchoolCode()
+          schoolCode: userSchoolCode(),
+          ...themePayload()
         });
-        const userLabel = `${userSchoolCode()} ${el("user-class").value.trim()}-${el("user-number").value.trim()} ${normalizeUserName(el("user-name").value)}`;
-        if (renderPrintExport({
-          title: "Writing Feedback History",
-          subtitle: `${userLabel} / ${new Date().toLocaleString("ja-JP")}`,
-          items: data.history || [],
-          problems: writingProblems
-        })) {
-          window.print();
-          setStatus("PDF用一覧を開きました。印刷画面からPDF保存できます。", "ok");
-        }
+        items = Array.isArray(data.history) ? data.history : [];
       } catch (err) {
-        setStatus("PDF用履歴を取得できませんでした: " + err.message, "error");
+        items = Array.isArray(writingHistory) ? writingHistory : [];
+        usedFallback = true;
+        if (!items.length) {
+          setStatus("PDF用履歴を取得できませんでした: " + err.message, "error");
+          return;
+        }
+      }
+      if (!items.length && Array.isArray(writingHistory) && writingHistory.length) {
+        items = writingHistory;
+        usedFallback = true;
+      }
+      if (renderPrintExport({
+        title: "Writing Feedback History",
+        subtitle: `${userLabel} / ${new Date().toLocaleString("ja-JP")}`,
+        items,
+        problems: writingProblems
+      })) {
+        window.setTimeout(() => window.print(), 100);
+        setStatus(usedFallback ? "同期済み履歴でPDF用一覧を開きました。印刷画面からPDF保存できます。" : "PDF用一覧を開きました。印刷画面からPDF保存できます。", "ok");
       }
     }
 
@@ -1886,6 +1922,7 @@
           params.userClass = el("user-class").value.trim();
           params.userNumber = el("user-number").value.trim();
           params.schoolCode = userSchoolCode();
+          Object.assign(params, themePayload());
         }
         const data = await fetchJson(params);
         if (!Array.isArray(data.problems)) {
@@ -1943,6 +1980,7 @@
           schoolStage: el("user-stage").value,
           schoolGrade: el("user-grade").value,
           schoolCode: userSchoolCode(),
+          ...themePayload(),
           problemId: selectedProblem.problemId,
           feedbackLevel: feedbackLevel(),
           pasteDetected: currentPasteStatus().detected ? "TRUE" : "FALSE",
