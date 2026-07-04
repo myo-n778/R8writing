@@ -195,29 +195,33 @@
       background-color: rgba(236, 116, 48, 0.14) !important;
     }
     #print-export-root { display: none; }
-    .print-page { background: #fff; color: #111827; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .print-header { border-bottom: 2px solid #111827; padding-bottom: 0.7rem; margin-bottom: 1rem; }
-    .print-title { font-size: 1.4rem; font-weight: 900; margin: 0; }
-    .print-subtitle { margin-top: 0.25rem; color: #4b5563; font-size: 0.86rem; }
-    .print-problem { break-inside: avoid; page-break-inside: avoid; margin: 0 0 1rem; border: 1px solid #d1d5db; border-radius: 0.4rem; padding: 0.85rem; }
-    .print-problem-title { font-size: 1rem; font-weight: 900; margin: 0 0 0.35rem; }
-    .print-problem-meta { font-size: 0.78rem; color: #4b5563; margin-bottom: 0.55rem; }
-    .print-attempt { break-inside: avoid; page-break-inside: avoid; border-top: 1px solid #e5e7eb; padding-top: 0.7rem; margin-top: 0.7rem; }
-    .print-attempt-head { display: flex; justify-content: space-between; gap: 1rem; font-weight: 800; font-size: 0.82rem; margin-bottom: 0.45rem; }
-    .print-block { margin: 0.45rem 0; }
+    .print-page { background: #fff; color: #111827; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; box-sizing: border-box; overflow-wrap: anywhere; }
+    .print-header { border-bottom: 2px solid #111827; padding-bottom: 0.6rem; margin-bottom: 0.8rem; }
+    .print-title { font-size: 1.25rem; font-weight: 900; margin: 0; }
+    .print-subtitle { margin-top: 0.22rem; color: #4b5563; font-size: 0.78rem; }
+    .print-problem { break-inside: avoid; page-break-inside: avoid; margin: 0 0 0.8rem; border: 1px solid #d1d5db; border-radius: 0.35rem; padding: 0.7rem; box-sizing: border-box; max-width: 100%; }
+    .print-problem-title { font-size: 0.94rem; font-weight: 900; margin: 0 0 0.3rem; }
+    .print-problem-meta { font-size: 0.72rem; color: #4b5563; margin-bottom: 0.45rem; }
+    .print-attempt { break-inside: avoid; page-break-inside: avoid; border-top: 1px solid #e5e7eb; padding-top: 0.55rem; margin-top: 0.55rem; }
+    .print-attempt-head { display: flex; justify-content: flex-start; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; font-weight: 800; font-size: 0.78rem; margin-bottom: 0.4rem; }
+    .print-evaluation { display: inline-flex; align-items: center; gap: 0.2rem; border: 1px solid #d1d5db; border-radius: 999px; padding: 0.08rem 0.45rem; font-weight: 900; }
+    .print-block { margin: 0.42rem 0; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.5rem; background: #fff; box-sizing: border-box; }
     .print-label { font-size: 0.72rem; font-weight: 900; color: #374151; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem; }
-    .print-text { white-space: pre-wrap; line-height: 1.65; font-size: 0.9rem; margin: 0; }
-    .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; }
+    .print-text { white-space: pre-wrap; line-height: 1.55; font-size: 0.84rem; margin: 0; overflow-wrap: anywhere; }
+    .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
     .print-criteria { display: grid; gap: 0.35rem; margin-top: 0.25rem; }
-    .print-criterion { display: grid; grid-template-columns: 2rem 7rem 1fr; gap: 0.35rem; align-items: start; font-size: 0.84rem; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.35rem; }
+    .print-criterion { display: grid; grid-template-columns: 1.6rem minmax(4.5rem, 7rem) 1fr; gap: 0.3rem; align-items: start; font-size: 0.78rem; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.32rem; box-sizing: border-box; }
     details > summary { list-style: none; }
     details > summary::-webkit-details-marker { display: none; }
     @media print {
-      @page { size: A4; margin: 12mm; }
+      @page { size: A4; margin: 10mm; }
       body { background: #fff !important; color: #111827 !important; }
       body > main { display: none !important; }
       #print-export-root { display: block !important; }
-      .print-page { padding: 0; }
+      .print-page { width: 100%; max-width: 100%; padding: 0; font-size: 10pt; }
+      .print-grid { grid-template-columns: 1fr; gap: 0.35rem; }
+      .print-block { padding: 0.42rem; }
+      .print-text { font-size: 9.5pt; line-height: 1.48; }
       .print-actions { display: none !important; }
     }
   </style>
@@ -1325,8 +1329,9 @@
       return `
         <section class="print-attempt">
           <div class="print-attempt-head">
-            <span>試行 ${index + 1} / ${escapeHtml(item.date || "")}</span>
-            <span>${escapeHtml(evaluation || "--")}</span>
+            <span>Challenge ${index + 1}</span>
+            <span>${escapeHtml(item.date || "")}</span>
+            <span class="print-evaluation">${escapeHtml(evaluation || "--")}</span>
           </div>
           <div class="print-block">
             <div class="print-label">回答</div>
@@ -1406,26 +1411,30 @@
     body { margin: 0; background: #f3f4f6; color: #111827; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .print-toolbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end; gap: 0.5rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.94); border-bottom: 1px solid #d1d5db; }
     .print-toolbar button { border: 1px solid #111827; border-radius: 0.4rem; background: #111827; color: #fff; font-weight: 800; padding: 0.45rem 0.8rem; cursor: pointer; }
-    .print-page { max-width: 920px; margin: 1rem auto; background: #fff; color: #111827; padding: 1rem; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12); }
-    .print-header { border-bottom: 2px solid #111827; padding-bottom: 0.7rem; margin-bottom: 1rem; }
-    .print-title { font-size: 1.4rem; font-weight: 900; margin: 0; }
-    .print-subtitle { margin-top: 0.25rem; color: #4b5563; font-size: 0.86rem; }
-    .print-problem { break-inside: avoid; page-break-inside: avoid; margin: 0 0 1rem; border: 1px solid #d1d5db; border-radius: 0.4rem; padding: 0.85rem; }
-    .print-problem-title { font-size: 1rem; font-weight: 900; margin: 0 0 0.35rem; }
-    .print-problem-meta { font-size: 0.78rem; color: #4b5563; margin-bottom: 0.55rem; }
-    .print-attempt { break-inside: avoid; page-break-inside: avoid; border-top: 1px solid #e5e7eb; padding-top: 0.7rem; margin-top: 0.7rem; }
-    .print-attempt-head { display: flex; justify-content: space-between; gap: 1rem; font-weight: 800; font-size: 0.82rem; margin-bottom: 0.45rem; }
-    .print-block { margin: 0.45rem 0; }
+    .print-page { max-width: 180mm; margin: 1rem auto; background: #fff; color: #111827; padding: 1rem; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12); box-sizing: border-box; overflow-wrap: anywhere; }
+    .print-header { border-bottom: 2px solid #111827; padding-bottom: 0.6rem; margin-bottom: 0.8rem; }
+    .print-title { font-size: 1.25rem; font-weight: 900; margin: 0; }
+    .print-subtitle { margin-top: 0.22rem; color: #4b5563; font-size: 0.78rem; }
+    .print-problem { break-inside: avoid; page-break-inside: avoid; margin: 0 0 0.8rem; border: 1px solid #d1d5db; border-radius: 0.35rem; padding: 0.7rem; box-sizing: border-box; max-width: 100%; }
+    .print-problem-title { font-size: 0.94rem; font-weight: 900; margin: 0 0 0.3rem; }
+    .print-problem-meta { font-size: 0.72rem; color: #4b5563; margin-bottom: 0.45rem; }
+    .print-attempt { break-inside: avoid; page-break-inside: avoid; border-top: 1px solid #e5e7eb; padding-top: 0.55rem; margin-top: 0.55rem; }
+    .print-attempt-head { display: flex; justify-content: flex-start; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; font-weight: 800; font-size: 0.78rem; margin-bottom: 0.4rem; }
+    .print-evaluation { display: inline-flex; align-items: center; gap: 0.2rem; border: 1px solid #d1d5db; border-radius: 999px; padding: 0.08rem 0.45rem; font-weight: 900; }
+    .print-block { margin: 0.42rem 0; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.5rem; background: #fff; box-sizing: border-box; }
     .print-label { font-size: 0.72rem; font-weight: 900; color: #374151; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem; }
-    .print-text { white-space: pre-wrap; line-height: 1.65; font-size: 0.9rem; margin: 0; }
-    .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; }
+    .print-text { white-space: pre-wrap; line-height: 1.55; font-size: 0.84rem; margin: 0; overflow-wrap: anywhere; }
+    .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
     .print-criteria { display: grid; gap: 0.35rem; margin-top: 0.25rem; }
-    .print-criterion { display: grid; grid-template-columns: 2rem 7rem 1fr; gap: 0.35rem; align-items: start; font-size: 0.84rem; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.35rem; }
-    @page { size: A4; margin: 12mm; }
+    .print-criterion { display: grid; grid-template-columns: 1.6rem minmax(4.5rem, 7rem) 1fr; gap: 0.3rem; align-items: start; font-size: 0.78rem; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.32rem; box-sizing: border-box; }
+    @page { size: A4; margin: 10mm; }
     @media print {
       body { background: #fff; }
       .print-toolbar { display: none; }
-      .print-page { max-width: none; margin: 0; padding: 0; box-shadow: none; }
+      .print-page { width: 100%; max-width: 100%; margin: 0; padding: 0; box-shadow: none; font-size: 10pt; }
+      .print-grid { grid-template-columns: 1fr; gap: 0.35rem; }
+      .print-block { padding: 0.42rem; }
+      .print-text { font-size: 9.5pt; line-height: 1.48; }
     }
   </style>
 </head>
