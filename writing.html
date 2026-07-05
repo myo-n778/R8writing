@@ -2453,20 +2453,9 @@
     }
 
     function renderMathInNode(node) {
-      if (!node) return;
-      node.classList.add("tex-render");
-      loadMathRenderer().then((ready) => {
-        if (!ready || !window.renderMathInElement) return;
-        window.renderMathInElement(node, {
-          delimiters: [
-            { left: "$$", right: "$$", display: true },
-            { left: "\\[", right: "\\]", display: true },
-            { left: "$", right: "$", display: false },
-            { left: "\\(", right: "\\)", display: false }
-          ],
-          throwOnError: false
-        });
-      });
+      // Temporarily disabled: the KaTeX auto-render pass can mutate normal UI nodes.
+      // Keep TeX source text visible until math rendering is isolated from the app UI.
+      return;
     }
 
     function escapeHtml(value) {
