@@ -1,0 +1,2604 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Writing Feedback 2026</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #08111f;
+      --panel: rgba(20, 35, 57, 0.78);
+      --line: rgba(148, 163, 184, 0.18);
+      --cyan: #22d3ee;
+      --lime: #a3e635;
+      --amber: #fbbf24;
+      --rose: #fb7185;
+      --accent: #22d3ee;
+      --accent-soft: rgba(34, 211, 238, 0.12);
+      --accent-line: rgba(34, 211, 238, 0.34);
+    }
+    body.theme-lime { --accent: #a3e635; --accent-soft: rgba(163, 230, 53, 0.12); --accent-line: rgba(163, 230, 53, 0.34); }
+    body.theme-amber { --accent: #fbbf24; --accent-soft: rgba(251, 191, 36, 0.12); --accent-line: rgba(251, 191, 36, 0.34); }
+    body.theme-rose { --accent: #fb7185; --accent-soft: rgba(251, 113, 133, 0.12); --accent-line: rgba(251, 113, 133, 0.34); }
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 12% 18%, rgba(34, 211, 238, 0.18), transparent 32rem),
+        radial-gradient(circle at 82% 6%, rgba(163, 230, 53, 0.13), transparent 26rem),
+        linear-gradient(135deg, #08111f 0%, #111827 54%, #0f172a 100%);
+      color: #e5f4ff;
+      font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+    }
+    body.theme-lime {
+      background:
+        radial-gradient(circle at 12% 18%, rgba(163, 230, 53, 0.18), transparent 32rem),
+        radial-gradient(circle at 82% 6%, rgba(34, 211, 238, 0.10), transparent 26rem),
+        linear-gradient(135deg, #0c160f 0%, #111827 54%, #0f172a 100%);
+    }
+    body.theme-amber {
+      background:
+        radial-gradient(circle at 12% 18%, rgba(251, 191, 36, 0.18), transparent 32rem),
+        radial-gradient(circle at 82% 6%, rgba(34, 211, 238, 0.10), transparent 26rem),
+        linear-gradient(135deg, #171206 0%, #111827 54%, #0f172a 100%);
+    }
+    body.theme-rose {
+      background:
+        radial-gradient(circle at 12% 18%, rgba(251, 113, 133, 0.18), transparent 32rem),
+        radial-gradient(circle at 82% 6%, rgba(34, 211, 238, 0.10), transparent 26rem),
+        linear-gradient(135deg, #190b13 0%, #111827 54%, #0f172a 100%);
+    }
+    .font-tech { font-family: "Orbitron", "Noto Sans JP", sans-serif; }
+    .glass {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(18px);
+    }
+    .chip {
+      border: 1px solid var(--accent-line);
+      background: var(--accent-soft);
+      color: #a5f3fc;
+    }
+    .problem-card {
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(15, 23, 42, 0.66);
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+    .problem-card:hover, .problem-card.active {
+      transform: translateY(-2px);
+      border-color: var(--accent);
+      background: rgba(8, 47, 73, 0.58);
+    }
+    textarea {
+      resize: vertical;
+      min-height: 15rem;
+    }
+    .eval-badge {
+      width: 3.6rem;
+      height: 3.6rem;
+      border-radius: 1.1rem;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--accent-soft), rgba(163, 230, 53, 0.12));
+      border: 1px solid var(--accent-line);
+      color: white;
+      font-weight: 900;
+    }
+    .eval-letter { font-size: 1.7rem; line-height: 1; }
+    .eval-stars { color: #fde68a; font-size: 0.58rem; letter-spacing: 0; line-height: 1; white-space: nowrap; }
+    .input-compact {
+      background: rgba(2, 6, 23, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      border-radius: 0.9rem;
+      outline: none;
+    }
+    .input-compact:focus { border-color: var(--accent); }
+    .feedback-copy { font-size: 0.98rem; line-height: 1.75; }
+    body.font-size-small { --writing-text-scale: 0.92; }
+    body.font-size-standard { --writing-text-scale: 1; }
+    body.font-size-large { --writing-text-scale: 1.13; }
+    body.font-size-xlarge { --writing-text-scale: 1.26; }
+    body { --writing-text-scale: 1; }
+    .writing-text { font-size: calc(1rem * var(--writing-text-scale)); }
+    .writing-prompt { font-size: calc(1.55rem * var(--writing-text-scale)); }
+    .feedback-copy { font-size: calc(1.02rem * var(--writing-text-scale)); line-height: 1.78; }
+    .problem-card-text { font-size: calc(0.95rem * var(--writing-text-scale)); }
+    .example-copy { font-size: calc(1rem * var(--writing-text-scale)); line-height: 1.85; }
+    .tex-content .katex { font-size: 1.03em; }
+    .tex-content .katex-display { margin: 0.45rem 0; overflow-x: auto; overflow-y: hidden; }
+    .no-copy { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+    .criterion-mark { width: 2.25rem; height: 2.25rem; display: grid; place-items: center; border-radius: 999px; font-weight: 900; }
+    .criterion-ok { background: rgba(16, 185, 129, 0.16); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.34); }
+    .criterion-mid { background: rgba(251, 191, 36, 0.16); color: #fde68a; border: 1px solid rgba(251, 191, 36, 0.34); }
+    .criterion-ng { background: rgba(244, 63, 94, 0.14); color: #fecdd3; border: 1px solid rgba(244, 63, 94, 0.32); }
+    .admin-table-wrap { max-height: 70vh; overflow: auto; border-radius: 1.2rem; border: 1px solid rgba(148, 163, 184, 0.2); }
+    .admin-table { border-collapse: separate; border-spacing: 0; min-width: max-content; width: 100%; }
+    .admin-table th, .admin-table td { border-right: 1px solid rgba(148, 163, 184, 0.15); border-bottom: 1px solid rgba(148, 163, 184, 0.15); background: rgba(15, 23, 42, 0.9); }
+    .admin-table th { position: sticky; top: 0; z-index: 6; background: rgba(15, 23, 42, 0.98); }
+    .admin-sticky { position: sticky; z-index: 5; }
+    .admin-table th.admin-sticky { z-index: 8; }
+    .admin-col-number { left: 0; min-width: 4rem; max-width: 4rem; }
+    .admin-col-name { left: 4rem; min-width: 9rem; max-width: 9rem; }
+    .admin-col-a { left: 13rem; min-width: 3.25rem; max-width: 3.25rem; }
+    .admin-col-ap { left: 16.25rem; min-width: 3.25rem; max-width: 3.25rem; }
+    .admin-col-b { left: 19.5rem; min-width: 3.25rem; max-width: 3.25rem; }
+    .admin-col-c { left: 22.75rem; min-width: 3.25rem; max-width: 3.25rem; }
+    .admin-col-f { left: 26rem; min-width: 3.25rem; max-width: 3.25rem; }
+    .admin-col-impression { left: 29.25rem; min-width: 4rem; max-width: 4rem; }
+    .admin-col-total { left: 33.25rem; min-width: 3.5rem; max-width: 3.5rem; }
+    .admin-problem-col { min-width: 11rem; max-width: 11rem; }
+    .admin-cell-button { display: block; width: 100%; min-height: 3.2rem; text-align: left; border-radius: 0.8rem; padding: 0.55rem 0.65rem; border: 1px solid rgba(148, 163, 184, 0.14); background: rgba(2, 6, 23, 0.45); }
+    .admin-cell-button:hover { border-color: var(--accent); background: var(--accent-soft); }
+    .admin-status-missing { color: #94a3b8; }
+    .admin-status-record { color: #fbbf24; }
+    .admin-status-eval { color: #a5f3fc; }
+    .font-size-control button { color: rgba(248, 250, 252, 0.68); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
+    .font-size-control button.active { color: #020617; background: var(--accent); border-color: rgba(255, 255, 255, 0.55); }
+    .theme-option { display: flex; align-items: center; justify-content: flex-start; gap: 0.4rem; color: rgba(248, 250, 252, 0.78); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
+    .theme-option.active { color: #020617; background: var(--accent); border-color: rgba(255, 255, 255, 0.55); }
+    .theme-swatch { width: 1rem; height: 1rem; flex: 0 0 1rem; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.42); background: linear-gradient(135deg, var(--theme-bg), var(--theme-accent)); box-shadow: 0 0 12px color-mix(in srgb, var(--theme-accent) 55%, transparent); }
+    .judge-level-label { display: grid; gap: 0.05rem; line-height: 1; }
+    footer { background: linear-gradient(to top, rgba(0, 0, 0, 0.4) 0%, transparent 100%); border-top: 1px solid rgba(255, 255, 255, 0.03); position: relative; }
+    footer::before { content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 150px; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); }
+    .credit-glow-primary { color: var(--accent); text-shadow: 0 0 8px color-mix(in srgb, var(--accent), transparent 35%); }
+    .credit-glow-amber { color: #f59e0b; text-shadow: 0 0 8px rgba(245, 158, 11, 0.6); }
+    .copyright-text { letter-spacing: 0.4em; opacity: 0.3; transition: opacity 0.3s; }
+    footer:hover .copyright-text { opacity: 0.6; }
+    body.fs-orange-mode {
+      background: linear-gradient(180deg, #101018 0%, #101018 12%, #281408 12%, #281408 100%) !important;
+      color: #fff7ed;
+    }
+    body.fs-orange-mode .glass {
+      background: rgba(40, 20, 8, 0.86);
+      border-color: rgba(236, 116, 48, 0.22);
+    }
+    body.fs-orange-mode .chip,
+    body.fs-orange-mode .input-compact,
+    body.fs-orange-mode .problem-card {
+      border-color: rgba(236, 116, 48, 0.38);
+      background: rgba(16, 16, 24, 0.72);
+      color: #f09048;
+    }
+    body.fs-orange-mode .problem-card:hover,
+    body.fs-orange-mode .problem-card.active {
+      border-color: #ec7430;
+      background: rgba(48, 32, 20, 0.86);
+    }
+    body.fs-orange-mode .font-size-control button.active,
+    body.fs-orange-mode .theme-option.active,
+    body.fs-orange-mode #feedback-btn,
+    body.fs-orange-mode #save-profile-btn {
+      background: #ec7430 !important;
+      border-color: rgba(255, 180, 120, 0.72) !important;
+      color: #101018 !important;
+    }
+    body.fs-orange-mode #voice-input-btn,
+    body.fs-orange-mode #toggle-peer-examples-btn,
+    body.fs-orange-mode #toggle-examples-btn {
+      background: rgba(236, 116, 48, 0.14) !important;
+      border-color: rgba(236, 116, 48, 0.42) !important;
+      color: #f09048 !important;
+    }
+    body.fs-orange-mode [class*="text-cyan"],
+    body.fs-orange-mode [class*="text-lime"] {
+      color: #f09048 !important;
+    }
+    body.fs-orange-mode [class*="border-cyan"],
+    body.fs-orange-mode [class*="border-lime"] {
+      border-color: rgba(236, 116, 48, 0.42) !important;
+    }
+    body.fs-orange-mode [class*="bg-cyan"],
+    body.fs-orange-mode [class*="bg-lime"] {
+      background-color: rgba(236, 116, 48, 0.14) !important;
+    }
+    #print-export-root { display: none; }
+    .print-page { background: #fff; color: #111827; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; box-sizing: border-box; overflow-wrap: anywhere; }
+    .print-header { border-bottom: 2px solid #111827; padding-bottom: 0.6rem; margin-bottom: 0.8rem; }
+    .print-title { font-size: 1.25rem; font-weight: 900; margin: 0; }
+    .print-subtitle { margin-top: 0.22rem; color: #4b5563; font-size: 0.78rem; }
+    .print-problem { break-inside: avoid; page-break-inside: avoid; margin: 0 0 0.8rem; border: 1px solid #d1d5db; border-radius: 0.35rem; padding: 0.7rem; box-sizing: border-box; max-width: 100%; }
+    .print-problem-title { font-size: 0.94rem; font-weight: 900; margin: 0 0 0.3rem; }
+    .print-problem-meta { font-size: 0.72rem; color: #4b5563; margin-bottom: 0.45rem; }
+    .print-attempt { break-inside: avoid; page-break-inside: avoid; border-top: 1px solid #e5e7eb; padding-top: 0.55rem; margin-top: 0.55rem; }
+    .print-attempt-head { display: flex; justify-content: flex-start; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; font-weight: 800; font-size: 0.78rem; margin-bottom: 0.4rem; }
+    .print-evaluation { display: inline-flex; align-items: center; gap: 0.2rem; border: 1px solid #d1d5db; border-radius: 999px; padding: 0.08rem 0.45rem; font-weight: 900; }
+    .print-block { margin: 0.42rem 0; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.5rem; background: #fff; box-sizing: border-box; }
+    .print-label { font-size: 0.72rem; font-weight: 900; color: #374151; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem; }
+    .print-text { white-space: pre-wrap; line-height: 1.55; font-size: 0.84rem; margin: 0; overflow-wrap: anywhere; }
+    .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+    .print-criteria { display: grid; gap: 0.35rem; margin-top: 0.25rem; }
+    .print-criterion { display: grid; grid-template-columns: 1.6rem minmax(4.5rem, 7rem) 1fr; gap: 0.3rem; align-items: start; font-size: 0.78rem; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.32rem; box-sizing: border-box; }
+    details > summary { list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
+    @media print {
+      @page { size: B5 portrait; margin: 8mm; }
+      body { background: #fff !important; color: #111827 !important; }
+      body > main { display: none !important; }
+      #print-export-root { display: block !important; }
+      .print-page { width: 100%; max-width: 100%; padding: 0; font-size: 9.5pt; }
+      .print-grid { grid-template-columns: 1fr; gap: 0.35rem; }
+      .print-block { padding: 0.38rem; }
+      .print-text { font-size: 8.8pt; line-height: 1.45; }
+      .print-actions { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="max-w-[1500px] mx-auto px-4 py-4 md:py-6">
+    <header class="relative z-50 grid xl:grid-cols-[auto_1fr] gap-4 mb-4 items-start">
+      <div>
+        <h1 class="text-3xl md:text-5xl font-black tracking-tight mt-1">Writing Feedback 2026</h1>
+      </div>
+      <div class="glass rounded-[1.4rem] p-3 xl:justify-self-end w-full xl:max-w-[920px]">
+        <div class="flex flex-wrap xl:flex-nowrap gap-2 items-center justify-start">
+          <div id="profile-view" class="hidden items-center gap-2 min-w-0 flex-wrap">
+            <span class="font-tech text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase">USER</span>
+            <button id="active-user-display" class="bg-white/10 text-white text-[10px] px-3 py-2 rounded-full border border-white/20 font-black italic cursor-default max-w-[14rem] sm:max-w-[18rem] whitespace-normal break-words leading-tight text-center">--</button>
+            <button id="logout-btn" class="bg-white/10 text-white text-[10px] px-3 py-2 rounded-full border border-white/20 font-black italic cursor-pointer transition-all hover:opacity-80">LOGOUT</button>
+          </div>
+          <div id="profile-edit" class="flex items-center gap-2">
+            <span class="font-tech text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase">USER</span>
+            <select id="user-stage" class="input-compact px-3 py-2 text-sm w-20">
+              <option value="M">M</option>
+              <option value="H">H</option>
+            </select>
+            <select id="user-grade" class="input-compact px-3 py-2 text-sm w-20">
+              <option value="1">1年</option>
+              <option value="2" selected>2年</option>
+              <option value="3">3年</option>
+            </select>
+            <input id="user-class" class="input-compact px-3 py-2 text-sm w-20" placeholder="クラス">
+            <input id="user-number" class="input-compact px-3 py-2 text-sm w-20" placeholder="番号">
+            <input id="user-name" class="input-compact px-3 py-2 text-sm w-36" placeholder="名前">
+            <button id="save-profile-btn" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-xl px-3 py-2 text-xs font-black uppercase">Save</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="judge-level-label font-tech text-[10px] text-slate-400 font-black tracking-[0.16em] uppercase"><span>Judge</span><span>Level</span></span>
+            <select id="feedback-level" class="input-compact px-3 py-2 text-sm w-28">
+              <option value="中学生">中学生</option>
+              <option value="高校生">高校生</option>
+              <option value="先生">先生</option>
+            </select>
+          </div>
+          <details class="relative">
+            <summary class="chip cursor-pointer rounded-full px-4 py-2 text-xs font-black uppercase"><i class="fa-solid fa-gauge-high"></i> Usage</summary>
+            <div id="limit-status" class="absolute right-0 z-20 mt-2 w-72 rounded-xl bg-slate-950 border border-slate-700 p-3 text-xs text-slate-300 shadow-2xl">同期してください。</div>
+          </details>
+          <div id="font-size-control" class="font-size-control flex gap-0.5">
+            <button type="button" data-font-size="small" class="px-2 py-1.5 rounded-md text-[9px] font-black transition-all">小</button>
+            <button type="button" data-font-size="standard" class="px-2 py-1.5 rounded-md text-[9px] font-black transition-all">標準</button>
+            <button type="button" data-font-size="large" class="px-2 py-1.5 rounded-md text-[9px] font-black transition-all">大</button>
+            <button type="button" data-font-size="xlarge" class="px-2 py-1.5 rounded-md text-[9px] font-black transition-all">特大</button>
+          </div>
+          <div class="flex gap-2 justify-end">
+            <button id="sync-btn" class="chip rounded-full px-4 py-2 text-xs font-black uppercase"><i class="fa-solid fa-rotate"></i> Sync</button>
+            <div id="theme-picker" class="relative">
+              <button id="theme-btn" class="chip rounded-full px-4 py-2 text-xs font-black uppercase" type="button" aria-expanded="false"><i class="fa-solid fa-palette"></i> Theme</button>
+              <div id="theme-menu" class="hidden absolute right-0 top-full z-[9999] mt-2 grid w-56 max-w-[calc(100vw-1rem)] grid-cols-2 gap-1 rounded-xl border border-slate-700 bg-slate-950/95 p-2 shadow-2xl">
+                <button type="button" data-theme="modeA" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#0f172a;--theme-accent:#6366f1"></span><span>MODEA</span></button>
+                <button type="button" data-theme="modeB" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#064e3b;--theme-accent:#10b981"></span><span>MODEB</span></button>
+                <button type="button" data-theme="modeC" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#450a0a;--theme-accent:#f43f5e"></span><span>MODEC</span></button>
+                <button type="button" data-theme="modeD" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#312e81;--theme-accent:#818cf8"></span><span>MODED</span></button>
+                <button type="button" data-theme="modeE" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#431407;--theme-accent:#f59e0b"></span><span>MODEE</span></button>
+                <button type="button" data-theme="modeF" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#083344;--theme-accent:#00f2ff"></span><span>MODEF</span></button>
+                <button type="button" data-theme="modeG" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#2e1065;--theme-accent:#a855f7"></span><span>MODEG</span></button>
+                <button type="button" data-theme="modeH" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#111827;--theme-accent:#facc15"></span><span>MODEH</span></button>
+                <button type="button" data-theme="modeI" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#1e1b4b;--theme-accent:#c084fc"></span><span>MODEI</span></button>
+                <button type="button" data-theme="modeJ" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#052e2b;--theme-accent:#2dd4bf"></span><span>MODEJ</span></button>
+                <button type="button" data-theme="modeK" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#3b0764;--theme-accent:#e879f9"></span><span>MODEK</span></button>
+                <button type="button" data-theme="modeL" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#0c0a09;--theme-accent:#fb923c"></span><span>MODE-L</span></button>
+                <button type="button" data-theme="t16" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#020617;--theme-accent:#38bdf8"></span><span>T16</span></button>
+                <button type="button" data-theme="modeFS" class="theme-option rounded-lg px-2 py-2 text-[10px] font-black uppercase"><span class="theme-swatch" style="--theme-bg:#101018;--theme-accent:#ec7430"></span><span>FS ORANGE</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section id="announcement-box" class="hidden mb-4 rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-slate-100">
+      <div class="flex items-start gap-3">
+        <i class="fa-solid fa-bullhorn mt-0.5 text-amber-200"></i>
+        <div class="min-w-0">
+          <div class="font-tech text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">Message</div>
+          <p id="announcement-text" class="mt-1 text-sm md:text-base font-bold leading-relaxed"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid xl:grid-cols-[500px_minmax(520px,1fr)_300px] gap-4 items-start">
+      <section class="glass rounded-[1.8rem] p-4 md:p-5 min-h-[40rem]">
+        <div id="message" class="hidden rounded-2xl p-4 text-sm mb-4"></div>
+
+        <div id="empty-state" class="h-full min-h-[32rem] grid place-items-center text-center text-slate-400">
+          <div>
+            <i class="fa-solid fa-pen-nib text-4xl text-cyan-300 mb-4"></i>
+            <p class="font-bold">右側から記述問題を選んでください。</p>
+            <p class="text-xs mt-2">問題が出ない場合は、スプレッドシートの `記述問題` シートを確認してください。</p>
+          </div>
+        </div>
+
+        <div id="writing-area" class="hidden space-y-5">
+          <div class="max-h-[34rem] overflow-y-auto rounded-[1.4rem] border border-slate-700/60 bg-slate-950/35 p-4 pr-3">
+            <div class="flex flex-wrap gap-2 mb-3">
+              <span id="selected-unit" class="chip rounded-full px-3 py-1 text-[10px] font-black"></span>
+              <span id="selected-grade" class="chip rounded-full px-3 py-1 text-[10px] font-black"></span>
+              <span id="max-chars" class="chip rounded-full px-3 py-1 text-[10px] font-black"></span>
+              <span id="registered-date" class="chip hidden rounded-full px-3 py-1 text-[10px] font-black"></span>
+            </div>
+            <h2 id="prompt" class="writing-prompt font-black leading-relaxed"></h2>
+            <figure id="image-box" class="hidden mt-4 rounded-2xl border border-white/10 bg-slate-950/35 p-3">
+              <img id="problem-image" class="mx-auto max-w-full max-h-[430px] rounded-xl object-contain" alt="">
+              <figcaption id="image-caption" class="mt-2 text-xs text-slate-400 leading-relaxed"></figcaption>
+            </figure>
+          </div>
+
+          <div>
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <label for="answer" class="font-tech text-[10px] font-black uppercase text-slate-300 tracking-[0.18em]">Your Answer</label>
+                <span id="char-count" class="text-xs text-slate-400">0 / 300</span>
+              </div>
+              <textarea id="answer" class="writing-text w-full bg-slate-950/70 border border-slate-700 rounded-2xl p-4 leading-relaxed outline-none focus:border-cyan-400" placeholder="ここに自分の考えを書きます。短くても送れます。"></textarea>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-3">
+            <button id="feedback-btn" class="bg-lime-400 hover:bg-lime-300 text-slate-950 rounded-2xl px-5 py-4 text-sm font-black uppercase flex-1">
+              <i class="fa-solid fa-comments"></i> フィードバックを見る
+            </button>
+            <button id="voice-input-btn" type="button" class="bg-cyan-400/10 hover:bg-cyan-400/15 border border-cyan-300/25 text-cyan-100 rounded-2xl px-5 py-4 text-sm font-black uppercase">
+              <i class="fa-solid fa-microphone"></i> 音声入力
+            </button>
+            <button id="clear-btn" class="bg-white/10 hover:bg-white/15 border border-white/10 text-slate-200 rounded-2xl px-5 py-4 text-sm font-black uppercase">Clear</button>
+            <button id="restore-clear-btn" type="button" class="hidden bg-amber-400/10 hover:bg-amber-400/15 border border-amber-300/25 text-amber-100 rounded-2xl px-5 py-4 text-sm font-black uppercase">Restore</button>
+          </div>
+          <p id="voice-status" class="hidden text-xs text-slate-400 leading-relaxed"></p>
+          <label class="inline-flex items-center gap-2 text-xs text-slate-300 leading-relaxed">
+            <input id="voice-manual-stop" type="checkbox" class="accent-cyan-300">
+            手動で停止するまで続ける
+          </label>
+
+          <div id="peer-example-panel" class="hidden rounded-[1.4rem] border border-white/10 bg-slate-950/35 p-4">
+            <button id="toggle-peer-examples-btn" type="button" class="w-full rounded-2xl border border-cyan-300/25 bg-cyan-400/10 hover:bg-cyan-400/15 px-4 py-3 text-sm font-black text-cyan-100 transition-all">
+              <i class="fa-solid fa-users"></i> 他の人の解答例を見る
+            </button>
+            <div id="peer-examples" class="hidden mt-3 space-y-3"></div>
+          </div>
+
+        </div>
+      </section>
+
+      <section id="feedback-panel" class="glass rounded-[1.8rem] p-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
+        <div class="flex gap-3 items-start mb-3">
+          <div id="evaluation" class="eval-badge">-</div>
+          <div>
+            <div class="font-tech text-[10px] tracking-[0.25em] text-cyan-200 font-black uppercase">Feedback</div>
+            <p id="overall" class="text-slate-100 font-bold mt-2 leading-relaxed feedback-copy"></p>
+          </div>
+        </div>
+        <div class="space-y-2 text-sm">
+          <div class="rounded-2xl bg-emerald-400/10 border border-emerald-300/20 p-3"><div class="text-emerald-200 font-black text-xs mb-1">良い点</div><p id="good" class="feedback-copy"></p></div>
+          <div class="rounded-2xl bg-amber-400/10 border border-amber-300/20 p-3"><div class="text-amber-200 font-black text-xs mb-1">直すと良い点</div><p id="improve" class="feedback-copy"></p></div>
+          <div class="rounded-2xl bg-cyan-400/10 border border-cyan-300/20 p-3"><div class="text-cyan-200 font-black text-xs mb-1">書くときのポイント</div><p id="next" class="feedback-copy"></p></div>
+        </div>
+        <div id="criteria-box" class="hidden mt-3 rounded-2xl bg-white/5 border border-white/10 p-3">
+          <div class="text-slate-200 font-black text-xs mb-3">理解の整理</div>
+          <div id="criteria-list" class="space-y-2"></div>
+        </div>
+        <div id="key-point-box" class="hidden mt-3 rounded-2xl bg-rose-400/10 border border-rose-300/25 p-3">
+          <div class="text-rose-200 font-black text-xs mb-2">重要ポイント</div>
+          <p id="key-point" class="feedback-copy text-slate-100 font-bold"></p>
+        </div>
+        <div id="example-controls" class="hidden mt-3">
+          <button id="toggle-examples-btn" type="button" class="w-full rounded-2xl border border-white/10 bg-white/10 hover:bg-white/15 px-4 py-3 text-sm font-black text-slate-100 transition-all">
+            <i class="fa-solid fa-eye"></i> 解答例を見る
+          </button>
+        </div>
+        <div id="answer-examples" class="hidden mt-3 space-y-2 no-copy">
+          <div class="rounded-2xl bg-lime-400/10 border border-lime-300/20 p-3">
+            <div class="text-lime-200 font-black text-xs mb-2">添削後の解答例</div>
+            <p id="revised-answer" class="example-copy no-copy"></p>
+          </div>
+          <div class="rounded-2xl bg-violet-400/10 border border-violet-300/20 p-3">
+            <div class="text-violet-200 font-black text-xs mb-2">模範解答（別の書き方）</div>
+            <p id="model-answer" class="example-copy no-copy"></p>
+          </div>
+        </div>
+        <div id="extra-notes" class="mt-3 text-sm text-slate-300 space-y-2 leading-relaxed"></div>
+        <div id="remember-box" class="hidden mt-3 rounded-2xl bg-white/5 border border-white/10 p-3">
+          <div class="text-slate-200 font-black text-xs mb-3">今回覚えること</div>
+          <div id="remember-list" class="flex flex-wrap gap-2"></div>
+        </div>
+      </section>
+
+      <aside class="space-y-4 xl:sticky xl:top-4">
+        <section class="glass rounded-[1.8rem] p-4">
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <h2 class="font-tech text-xs font-black uppercase tracking-[0.18em] text-cyan-200">Session Library</h2>
+            <span id="task-count" class="text-[10px] text-slate-400 font-bold">0 tasks</span>
+          </div>
+          <div id="problem-filter-panel" class="mb-3 space-y-2">
+            <div id="grade-filter-toggle" class="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-slate-950/35 px-3 py-2">
+              <span class="font-tech text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Grade</span>
+              <span id="active-grade-filter" class="text-xs font-black text-cyan-100">未設定</span>
+            </div>
+            <select id="grade-unlock-select" class="input-compact hidden w-full px-3 py-2 text-sm"></select>
+            <select id="subject-filter" class="input-compact w-full px-3 py-2 text-sm"></select>
+            <select id="unit-filter" class="input-compact hidden w-full px-3 py-2 text-sm"></select>
+          </div>
+          <div id="problem-list" class="space-y-2 min-h-[28rem] max-h-[calc(100vh-18rem)] overflow-y-auto pr-1"></div>
+        </section>
+      </aside>
+    </section>
+
+    <section class="mt-6">
+      <details id="history-details" class="glass rounded-[1.8rem] p-4">
+        <summary class="cursor-pointer list-none">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="font-tech text-xs font-black uppercase tracking-[0.18em] text-cyan-200">My History</h2>
+              <p class="mt-1 text-xs text-slate-400">自分の記述履歴を確認できます。</p>
+            </div>
+            <span id="history-count" class="text-xs font-bold text-slate-400">0 records</span>
+          </div>
+        </summary>
+        <div class="mt-4 space-y-4">
+          <div class="grid md:grid-cols-[1fr_auto_auto_auto] gap-3">
+            <label class="block">
+              <span class="block mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Problem</span>
+              <select id="history-problem-filter" class="w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none focus:border-cyan-400"></select>
+            </label>
+            <label class="block">
+              <span class="block mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Sort</span>
+              <select id="history-sort" class="w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none focus:border-cyan-400">
+                <option value="newest">新しい順</option>
+                <option value="oldest">古い順</option>
+              </select>
+            </label>
+            <div class="flex items-end">
+              <button id="history-more-btn" type="button" class="w-full rounded-2xl border border-white/10 bg-white/10 hover:bg-white/15 px-4 py-3 text-sm font-black text-slate-100">
+                さらに表示
+              </button>
+            </div>
+            <div class="flex items-end">
+              <div class="grid gap-2 sm:grid-cols-2">
+                <button id="history-browse-btn" type="button" class="rounded-2xl border border-cyan-300/30 bg-cyan-400/10 hover:bg-cyan-400/15 px-4 py-3 text-sm font-black text-cyan-100">
+                  ブラウザで開く
+                </button>
+                <button id="history-print-btn" type="button" class="rounded-2xl border border-orange-300/30 bg-orange-400/10 hover:bg-orange-400/15 px-4 py-3 text-sm font-black text-orange-100">
+                  PDF保存
+                </button>
+              </div>
+            </div>
+          </div>
+          <div id="history-list" class="space-y-3"></div>
+        </div>
+      </details>
+    </section>
+
+    <section id="admin-panel" class="hidden mt-6 glass rounded-[1.8rem] p-4 md:p-5">
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div>
+          <h2 class="font-tech text-sm font-black uppercase tracking-[0.18em] text-cyan-200">Admin Mode</h2>
+          <p class="mt-1 text-xs text-slate-400">クラス・ユーザー・課題ごとの提出状況を確認できます。</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" data-admin-tab="class" class="admin-tab chip rounded-full px-4 py-2 text-xs font-black uppercase">Class</button>
+          <button type="button" data-admin-tab="user" class="admin-tab chip rounded-full px-4 py-2 text-xs font-black uppercase">User</button>
+          <button type="button" data-admin-tab="problem" class="admin-tab chip rounded-full px-4 py-2 text-xs font-black uppercase">Task</button>
+          <button id="admin-refresh-btn" type="button" class="chip rounded-full px-4 py-2 text-xs font-black uppercase"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          <button id="admin-close-btn" type="button" class="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-black uppercase text-slate-200">Close</button>
+        </div>
+      </div>
+
+      <div id="admin-message" class="hidden rounded-2xl p-3 text-sm mb-4"></div>
+
+      <div class="grid md:grid-cols-4 gap-3 mb-4">
+        <label class="block">
+          <span class="block mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Grade</span>
+          <select id="admin-grade-filter" class="input-compact w-full px-3 py-2 text-sm"></select>
+        </label>
+        <label class="block">
+          <span class="block mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Class</span>
+          <select id="admin-class-filter" class="input-compact w-full px-3 py-2 text-sm"></select>
+        </label>
+        <label class="block">
+          <span class="block mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">User</span>
+          <select id="admin-user-filter" class="input-compact w-full px-3 py-2 text-sm"></select>
+        </label>
+        <label class="block">
+          <span class="block mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Task</span>
+          <select id="admin-problem-filter" class="input-compact w-full px-3 py-2 text-sm"></select>
+        </label>
+      </div>
+
+      <div id="admin-class-view" class="admin-view"></div>
+      <div id="admin-user-view" class="admin-view hidden"></div>
+      <div id="admin-problem-view" class="admin-view hidden"></div>
+      <div id="admin-detail-view" class="mt-4"></div>
+    </section>
+
+    <footer class="mt-auto pt-16 pb-12 text-center overflow-hidden">
+      <div class="max-w-4xl xl:max-w-[1450px] mx-auto px-6">
+        <p class="copyright-text font-tech text-[8px] md:text-[9px] uppercase mb-6 text-white/40">
+          &copy; 2026 WRITING FEEDBACK SYSTEMS | <span class="text-orange-300/60">HIGH SPEC EDITION</span> | ALL RIGHTS RESERVED.
+        </p>
+        <div class="font-tech text-[10px] md:text-[11px] tracking-[0.2em] uppercase font-black italic flex flex-wrap justify-center items-center gap-y-3 gap-x-4">
+          <div class="flex items-center gap-1">
+            <span class="text-white/20 text-[8px]">CREATED BY</span>
+            <button id="admin-entry-btn" type="button" class="credit-glow-primary px-2 py-0.5 border border-white/10 rounded bg-white/5 cursor-pointer">Myo-n</button>
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="text-white/20 text-[8px]">USING</span>
+            <span class="credit-glow-amber">Codex</span>
+          </div>
+        </div>
+        <div class="mt-8 flex justify-center gap-1 opacity-20">
+          <div class="w-1 h-1 bg-white rounded-full"></div>
+          <div class="w-12 h-[1px] bg-white self-center"></div>
+          <div class="w-1 h-1 bg-white rounded-full"></div>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <section id="print-export-root" aria-hidden="true">
+    <div id="print-export-content"></div>
+  </section>
+
+  <script src="./common/science-shared.js"></script>
+  <script>
+    const SHARED = window.ScienceShared || {};
+    const GAS_URL = "https://script.google.com/macros/s/AKfycby_8XQrFmYMnAYUAUvdlp8igl_TDsvP79S40wxUtdpcgqH0RuU7qtKhQj3ECAGN7fBM/exec";
+    const SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/14Ryr1W1tH5jti2yf3ULIgbIY6SFLAx6u217DjUGNByo/edit";
+    const SPREADSHEET_ID = (SPREADSHEET_URL.match(/\/d\/([^/]+)/) || [])[1] || "";
+    const normalizeUserName = SHARED.normalizeUserName || ((name) => name ? name.normalize("NFKC").trim() : "");
+
+    let writingProblems = [];
+    let selectedProblem = null;
+    let selectedSubjectFilter = "all";
+    let selectedUnitFilter = "all";
+    let writingConfig = { writingAiEnabled: false, writingMaxChars: 300, writingModel: "gpt-5.4-nano", writingMaxAttemptsPerProblem: 3 };
+    let usage = {};
+    let writingHistory = [];
+    let historyVisibleCount = 5;
+    let adminData = null;
+    let adminPassword = "";
+    let adminActiveTab = "class";
+    let libraryGradeOverride = "";
+    let gradeTapCount = 0;
+    let lastGradeTapAt = 0;
+    let adminFooterTapCount = 0;
+    let speechRecognition = null;
+    let isVoiceInputActive = false;
+    let voiceStopRequested = false;
+    let feedbackButtonLockedUntil = 0;
+    let feedbackButtonLockTimer = null;
+    let feedbackSubmitting = false;
+    let recentFeedbackSignature = "";
+    let recentFeedbackSignatureAt = 0;
+    let lastSuccessfulFeedbackByProblem = {};
+    let lastClearedAnswer = null;
+    let pasteStatusByProblem = {};
+    let profileSaved = false;
+    const FEEDBACK_LEVELS = ["中学生", "高校生", "先生"];
+    const THEMES = {
+      modeA: { bg: "#0f172a", panel: "rgba(30, 41, 59, 0.85)", accent: "#6366f1", text: "#f8fafc" },
+      modeB: { bg: "#064e3b", panel: "rgba(6, 78, 59, 0.8)", accent: "#10b981", text: "#ecfdf5" },
+      modeC: { bg: "#450a0a", panel: "rgba(127, 29, 29, 0.7)", accent: "#f43f5e", text: "#fff1f2" },
+      modeD: { bg: "#312e81", panel: "rgba(49, 46, 129, 0.82)", accent: "#818cf8", text: "#eef2ff" },
+      modeE: { bg: "#431407", panel: "rgba(124, 45, 18, 0.8)", accent: "#f59e0b", text: "#fff7ed" },
+      modeF: { bg: "#083344", panel: "rgba(22, 78, 99, 0.8)", accent: "#00f2ff", text: "#ecfeff" },
+      modeG: { bg: "#2e1065", panel: "rgba(76, 29, 149, 0.8)", accent: "#a855f7", text: "#f5f3ff" },
+      modeH: { bg: "#111827", panel: "rgba(31, 41, 55, 0.86)", accent: "#facc15", text: "#f9fafb" },
+      modeI: { bg: "#1e1b4b", panel: "rgba(30, 27, 75, 0.84)", accent: "#c084fc", text: "#faf5ff" },
+      modeJ: { bg: "#052e2b", panel: "rgba(19, 78, 74, 0.84)", accent: "#2dd4bf", text: "#f0fdfa" },
+      modeK: { bg: "#3b0764", panel: "rgba(88, 28, 135, 0.82)", accent: "#e879f9", text: "#fdf4ff" },
+      modeL: { bg: "#0c0a09", panel: "rgba(41, 37, 36, 0.88)", accent: "#fb923c", text: "#fff7ed" },
+      modeFS: { bg: "#101018", bgMid: "#302014", bgEnd: "#281408", panel: "rgba(48, 32, 20, 0.92)", accent: "#ec7430", text: "#fff7ed" },
+      t16: { bg: "#020617", panel: "rgba(15, 23, 42, 0.85)", accent: "#38bdf8", text: "#f8fafc" }
+    };
+    const FONT_SIZE_MODES = ["small", "standard", "large", "xlarge"];
+    const FONT_SIZE_STORAGE_KEY = "writing_font_size_mode";
+    const VOICE_MANUAL_STOP_STORAGE_KEY = "writing_voice_manual_stop";
+
+    const el = (id) => document.getElementById(id);
+    function normalizeUserStage(value) {
+      const s = String(value || "").trim().toUpperCase();
+      if (s === "H" || /^高/.test(s)) return "H";
+      return "M";
+    }
+
+    function normalizeUserGradeValue(value) {
+      const s = String(value || "").trim();
+      const match = s.match(/[1-3]/);
+      return match ? match[0] : "2";
+    }
+
+    function ensureUserGradeControls() {
+      const stage = normalizeUserStage(el("user-stage").value || localStorage.getItem("ethics_user_stage") || "M");
+      const grade = normalizeUserGradeValue(el("user-grade").value || localStorage.getItem("ethics_user_grade") || "2");
+      el("user-stage").value = stage;
+      el("user-grade").value = grade;
+      return `${stage}${grade}`;
+    }
+
+    const userSchoolCode = () => ensureUserGradeControls();
+    const userId = () => `${userSchoolCode()}-${el("user-class").value.trim()}-${el("user-number").value.trim()}-${normalizeUserName(el("user-name").value)}`;
+    const isProfileFieldsComplete = () => el("user-stage").value && el("user-grade").value && el("user-class").value.trim() && el("user-number").value.trim() && normalizeUserName(el("user-name").value);
+    const isProfileReady = () => profileSaved && isProfileFieldsComplete();
+
+    function updateProfileMode() {
+      const ready = isProfileReady();
+      el("profile-view").classList.toggle("hidden", !ready);
+      el("profile-view").classList.toggle("flex", ready);
+      el("profile-edit").classList.toggle("hidden", ready);
+      if (ready) {
+        el("active-user-display").textContent = `${userSchoolCode()}-${el("user-class").value.trim()}-${el("user-number").value.trim()} ${normalizeUserName(el("user-name").value)}`;
+      }
+      updateAnswerInputGate();
+    }
+
+    function updateAnswerInputGate() {
+      const ready = isProfileReady();
+      const answer = el("answer");
+      if (answer) {
+        answer.disabled = !ready;
+        answer.placeholder = ready ? "ここに自分の考えを書きます。短くても送れます。" : "先にユーザー情報を入力し、SAVEしてください。";
+        answer.classList.toggle("opacity-60", !ready);
+        answer.classList.toggle("cursor-not-allowed", !ready);
+      }
+      ["voice-input-btn"].forEach((id) => {
+        const button = el(id);
+        if (!button) return;
+        button.disabled = !ready;
+        button.classList.toggle("opacity-60", !ready);
+        button.classList.toggle("cursor-not-allowed", !ready);
+      });
+      updateFeedbackButtonState();
+    }
+
+    function showMessage(text, type = "info") {
+      const box = el("message");
+      box.className = "rounded-2xl p-4 text-sm";
+      box.classList.remove("hidden");
+      const styles = {
+        info: "bg-cyan-400/10 border border-cyan-300/20 text-cyan-100",
+        error: "bg-rose-400/10 border border-rose-300/20 text-rose-100",
+        ok: "bg-lime-400/10 border border-lime-300/20 text-lime-100"
+      };
+      box.className += " " + (styles[type] || styles.info);
+      box.textContent = text;
+    }
+
+    function saveProfile() {
+      ensureUserGradeControls();
+      const name = normalizeUserName(el("user-name").value);
+      if (!isProfileFieldsComplete()) {
+        profileSaved = false;
+        updateProfileMode();
+        showMessage("中学/高校・学年・クラス・番号・名前を入力してからSAVEしてください。", "error");
+        return;
+      }
+      localStorage.setItem("ethics_user_stage", el("user-stage").value);
+      localStorage.setItem("ethics_user_grade", el("user-grade").value);
+      localStorage.setItem("ethics_user_class", el("user-class").value.trim());
+      localStorage.setItem("ethics_user_number", el("user-number").value.trim());
+      localStorage.setItem("ethics_user_name", name);
+      el("user-name").value = name;
+      profileSaved = true;
+      updateProfileMode();
+      showMessage("ユーザー情報を保存しました。", "ok");
+      syncWriting();
+    }
+
+    function loadProfile() {
+      el("user-stage").value = normalizeUserStage(localStorage.getItem("ethics_user_stage") || "M");
+      el("user-grade").value = normalizeUserGradeValue(localStorage.getItem("ethics_user_grade") || "2");
+      el("user-class").value = localStorage.getItem("ethics_user_class") || "";
+      el("user-number").value = localStorage.getItem("ethics_user_number") || "";
+      el("user-name").value = localStorage.getItem("ethics_user_name") || "";
+      const savedLevel = localStorage.getItem("writing_feedback_level") || "中学生";
+      el("feedback-level").value = FEEDBACK_LEVELS.includes(savedLevel) ? savedLevel : "中学生";
+      profileSaved = !!isProfileFieldsComplete();
+      updateProfileMode();
+    }
+
+    function logoutProfile() {
+      localStorage.removeItem("ethics_user_stage");
+      localStorage.removeItem("ethics_user_grade");
+      localStorage.removeItem("ethics_user_class");
+      localStorage.removeItem("ethics_user_number");
+      localStorage.removeItem("ethics_user_name");
+      el("user-stage").value = "M";
+      el("user-grade").value = "2";
+      el("user-class").value = "";
+      el("user-number").value = "";
+      el("user-name").value = "";
+      profileSaved = false;
+      updateProfileMode();
+      selectedSubjectFilter = "all";
+      selectedUnitFilter = "all";
+      renderProblems(false);
+      showMessage("ユーザー情報を解除しました。", "info");
+    }
+
+    function handleProfileEditChanged() {
+      profileSaved = false;
+      updateProfileMode();
+    }
+
+    function feedbackLevel() {
+      const value = el("feedback-level").value;
+      return FEEDBACK_LEVELS.includes(value) ? value : "中学生";
+    }
+
+    function currentThemeMode() {
+      const stored = localStorage.getItem("ethics_theme_mode") || "modeA";
+      return THEMES[stored] ? stored : "modeA";
+    }
+
+    function themeDisplayName(theme) {
+      const safeTheme = THEMES[theme] ? theme : "modeA";
+      return safeTheme === "modeFS" ? "FS ORANGE" : safeTheme.toUpperCase();
+    }
+
+    function themePayload() {
+      const themeMode = currentThemeMode();
+      return {
+        themeMode,
+        themeLabel: themeDisplayName(themeMode)
+      };
+    }
+
+    function applyTheme(theme) {
+      const safeTheme = THEMES[theme] ? theme : "modeA";
+      const t = THEMES[safeTheme];
+      document.body.classList.toggle("fs-orange-mode", safeTheme === "modeFS");
+      document.documentElement.style.setProperty("--bg", t.bg);
+      document.documentElement.style.setProperty("--panel", t.panel);
+      document.documentElement.style.setProperty("--accent", t.accent);
+      document.documentElement.style.setProperty("--accent-soft", `${t.accent}22`);
+      document.documentElement.style.setProperty("--accent-line", `${t.accent}66`);
+      const bgMid = t.bgMid || "#111827";
+      const bgEnd = t.bgEnd || "#020617";
+      document.body.style.background = `
+        radial-gradient(circle at 12% 18%, ${t.accent}24, transparent 32rem),
+        radial-gradient(circle at 82% 6%, rgba(255, 255, 255, 0.08), transparent 26rem),
+        linear-gradient(135deg, ${t.bg} 0%, ${bgMid} 58%, ${bgEnd} 100%)
+      `;
+      document.body.style.color = t.text;
+      localStorage.setItem("ethics_theme_mode", safeTheme);
+      const themeButton = el("theme-btn");
+      if (themeButton) themeButton.innerHTML = `<i class="fa-solid fa-palette"></i> ${themeDisplayName(safeTheme)}`;
+      document.querySelectorAll("[data-theme]").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.theme === safeTheme);
+      });
+    }
+
+    function toggleThemeMenu(forceOpen) {
+      const menu = el("theme-menu");
+      const button = el("theme-btn");
+      const willOpen = typeof forceOpen === "boolean" ? forceOpen : menu.classList.contains("hidden");
+      menu.classList.toggle("hidden", !willOpen);
+      button.setAttribute("aria-expanded", String(willOpen));
+    }
+
+    function normalizeFontSizeMode(mode) {
+      return FONT_SIZE_MODES.includes(mode) ? mode : "standard";
+    }
+
+    function applyFontSizeMode(mode) {
+      const normalized = normalizeFontSizeMode(mode);
+      FONT_SIZE_MODES.forEach((name) => document.body.classList.remove(`font-size-${name}`));
+      document.body.classList.add(`font-size-${normalized}`);
+      document.querySelectorAll("[data-font-size]").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.fontSize === normalized);
+      });
+      localStorage.setItem(FONT_SIZE_STORAGE_KEY, normalized);
+    }
+
+    function speechRecognitionCtor() {
+      return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    }
+
+    function isVoiceManualStopMode() {
+      return !!el("voice-manual-stop") && el("voice-manual-stop").checked;
+    }
+
+    function setVoiceStatus(text, type = "info") {
+      const status = el("voice-status");
+      status.classList.remove("hidden", "text-slate-400", "text-cyan-200", "text-rose-200", "text-lime-200");
+      status.classList.add(type === "error" ? "text-rose-200" : type === "ok" ? "text-lime-200" : type === "active" ? "text-cyan-200" : "text-slate-400");
+      status.textContent = text;
+    }
+
+    function setVoiceButtonActive(active) {
+      const button = el("voice-input-btn");
+      isVoiceInputActive = active;
+      button.classList.toggle("bg-cyan-400/25", active);
+      button.innerHTML = active
+        ? `<i class="fa-solid fa-microphone-lines"></i> 停止`
+        : `<i class="fa-solid fa-microphone"></i> 音声入力`;
+    }
+
+    function appendRecognizedText(text) {
+      const answer = el("answer");
+      const current = answer.value.trimEnd();
+      const separator = current && !/[。！？\n]$/.test(current) ? "。" : "";
+      answer.value = current ? `${current}${separator}${text}` : text;
+      answer.focus();
+      updateCharCount();
+    }
+
+    function initVoiceInput() {
+      const Ctor = speechRecognitionCtor();
+      const button = el("voice-input-btn");
+      if (!Ctor) {
+        button.disabled = true;
+        button.classList.add("opacity-50", "cursor-not-allowed");
+        setVoiceStatus("このブラウザでは音声入力に対応していません。Safari/iOSではキーボードの音声入力を使ってください。", "error");
+        return;
+      }
+      speechRecognition = new Ctor();
+      speechRecognition.lang = "ja-JP";
+      speechRecognition.interimResults = false;
+      speechRecognition.continuous = isVoiceManualStopMode();
+      speechRecognition.onstart = () => {
+        voiceStopRequested = false;
+        setVoiceButtonActive(true);
+        setVoiceStatus(isVoiceManualStopMode() ? "話してください。停止を押すまで続けます。" : "話してください。認識した文字を回答欄に追加します。", "active");
+      };
+      speechRecognition.onresult = (event) => {
+        const transcript = Array.from(event.results || [])
+          .slice(event.resultIndex || 0)
+          .map((result) => result[0] && result[0].transcript ? result[0].transcript.trim() : "")
+          .filter(Boolean)
+          .join("");
+        if (transcript) {
+          appendRecognizedText(transcript);
+          setVoiceStatus("音声入力を回答欄に追加しました。送信前に内容を確認してください。", "ok");
+        }
+      };
+      speechRecognition.onerror = (event) => {
+        voiceStopRequested = true;
+        const message = event.error === "not-allowed"
+          ? "マイクの使用が許可されていません。ブラウザのマイク許可を確認してください。"
+          : "音声入力に失敗しました。もう一度試すか、キーボード入力を使ってください。";
+        setVoiceStatus(message, "error");
+      };
+      speechRecognition.onend = () => {
+        if (isVoiceManualStopMode() && isVoiceInputActive && !voiceStopRequested) {
+          try {
+            speechRecognition.start();
+            return;
+          } catch (err) {
+            setVoiceStatus("ブラウザ側で音声入力が終了しました。もう一度、音声入力を押してください。", "error");
+          }
+        }
+        setVoiceButtonActive(false);
+      };
+    }
+
+    function toggleVoiceInput() {
+      if (!speechRecognition) {
+        setVoiceStatus("このブラウザでは音声入力に対応していません。Safari/iOSではキーボードの音声入力を使ってください。", "error");
+        return;
+      }
+      if (isVoiceInputActive) {
+        voiceStopRequested = true;
+        speechRecognition.stop();
+        return;
+      }
+      try {
+        voiceStopRequested = false;
+        speechRecognition.continuous = isVoiceManualStopMode();
+        speechRecognition.start();
+      } catch (err) {
+        setVoiceStatus("音声入力を開始できませんでした。少し待ってからもう一度試してください。", "error");
+      }
+    }
+
+    function loadVoiceInputSettings() {
+      const checkbox = el("voice-manual-stop");
+      if (!checkbox) return;
+      checkbox.checked = localStorage.getItem(VOICE_MANUAL_STOP_STORAGE_KEY) === "true";
+      checkbox.addEventListener("change", () => {
+        localStorage.setItem(VOICE_MANUAL_STOP_STORAGE_KEY, checkbox.checked ? "true" : "false");
+        if (speechRecognition) speechRecognition.continuous = checkbox.checked;
+        setVoiceStatus(checkbox.checked ? "手動停止モードにしました。停止を押すまで続けます。" : "自動終了モードにしました。短い入力向きです。", "info");
+      });
+    }
+
+    async function fetchJson(params) {
+      const url = `${GAS_URL}?${new URLSearchParams(params).toString()}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      return data;
+    }
+
+    function showAdminMessage(text, type = "info") {
+      const box = el("admin-message");
+      if (!box) return;
+      box.className = "rounded-2xl p-3 text-sm mb-4";
+      box.classList.remove("hidden");
+      const styles = {
+        info: "bg-cyan-400/10 border border-cyan-300/20 text-cyan-100",
+        error: "bg-rose-400/10 border border-rose-300/20 text-rose-100",
+        ok: "bg-lime-400/10 border border-lime-300/20 text-lime-100"
+      };
+      box.className += " " + (styles[type] || styles.info);
+      box.textContent = text;
+    }
+
+    function adminProblemNumber(problem, index) {
+      return problemNumber(problem || {}, index || 0);
+    }
+
+    function adminProblemTitle(problem) {
+      return problemTitle(problem || {});
+    }
+
+    function adminUsers() {
+      return adminData && Array.isArray(adminData.users) ? adminData.users : [];
+    }
+
+    function adminProblems() {
+      return adminData && Array.isArray(adminData.problems) ? adminData.problems : [];
+    }
+
+    function adminHistory() {
+      return adminData && Array.isArray(adminData.history) ? adminData.history : [];
+    }
+
+    function adminFilteredUsers() {
+      const grade = el("admin-grade-filter").value || "all";
+      const klass = el("admin-class-filter").value || "all";
+      return adminUsers().filter((user) => {
+        if (grade !== "all" && normalizeGradeKey(user.grade) !== grade) return false;
+        if (klass !== "all" && String(user.userClass || "") !== klass) return false;
+        return true;
+      });
+    }
+
+    function adminFilteredProblems() {
+      const grade = el("admin-grade-filter").value || "all";
+      return adminProblems().filter((problem) => grade === "all" || problemAppliesToGrade(problem.grade, grade));
+    }
+
+    function updateAdminFilters() {
+      const users = adminUsers();
+      const problems = adminProblems();
+      const gradeSelect = el("admin-grade-filter");
+      const classSelect = el("admin-class-filter");
+      const userSelect = el("admin-user-filter");
+      const problemSelect = el("admin-problem-filter");
+      const currentGrade = gradeSelect.value || activeGradeKey() || "all";
+      const currentClass = classSelect.value || "all";
+      const currentUser = userSelect.value || "all";
+      const currentProblem = problemSelect.value || "all";
+      const grades = uniqueSorted([
+        ...(users || []).map((u) => normalizeGradeKey(u.grade)),
+        ...(problems || []).flatMap((p) => splitGradeKeys(p.grade)).filter((grade) => !["全学年", "中学共通", "高校共通"].includes(grade))
+      ]);
+      gradeSelect.innerHTML = `<option value="all">すべての学年</option>` + grades.map((grade) => `<option value="${escapeHtml(grade)}">${escapeHtml(grade)}</option>`).join("");
+      gradeSelect.value = Array.from(gradeSelect.options).some((option) => option.value === currentGrade) ? currentGrade : "all";
+      const filteredByGrade = users.filter((user) => gradeSelect.value === "all" || normalizeGradeKey(user.grade) === gradeSelect.value);
+      const classes = uniqueSorted(filteredByGrade.map((user) => user.userClass));
+      classSelect.innerHTML = `<option value="all">すべてのクラス</option>` + classes.map((klass) => `<option value="${escapeHtml(klass)}">${escapeHtml(klass)}</option>`).join("");
+      classSelect.value = Array.from(classSelect.options).some((option) => option.value === currentClass) ? currentClass : "all";
+      const filteredUsers = adminFilteredUsers();
+      userSelect.innerHTML = `<option value="all">ユーザーを選択</option>` + filteredUsers.map((user) => {
+        const label = `${user.userNumber || "--"} ${user.userName || "(名前なし)"}`;
+        return `<option value="${escapeHtml(user.userKey)}">${escapeHtml(label)}</option>`;
+      }).join("");
+      userSelect.value = Array.from(userSelect.options).some((option) => option.value === currentUser) ? currentUser : "all";
+      const filteredProblems = adminFilteredProblems();
+      problemSelect.innerHTML = `<option value="all">課題を選択</option>` + filteredProblems.map((problem, index) => {
+        const label = `${adminProblemNumber(problem, index)} ${adminProblemTitle(problem)}`;
+        return `<option value="${escapeHtml(problem.problemId)}">${escapeHtml(label)}</option>`;
+      }).join("");
+      problemSelect.value = Array.from(problemSelect.options).some((option) => option.value === currentProblem) ? currentProblem : "all";
+    }
+
+    async function loadAdminData() {
+      if (!adminPassword) {
+        const password = window.prompt("管理者パスワードを入力してください。");
+        if (password === null) return;
+        adminPassword = password;
+      }
+      showAdminMessage("管理者データを取得しています...", "info");
+      try {
+        const data = await fetchJson({ action: "adminSummary", id: SPREADSHEET_ID, password: adminPassword });
+        adminData = data.admin || { users: [], problems: [], history: [] };
+        updateAdminFilters();
+        renderAdmin();
+        showAdminMessage("管理者データを更新しました。", "ok");
+      } catch (err) {
+        adminPassword = "";
+        showAdminMessage(err.message, "error");
+      }
+    }
+
+    function openAdminPanel() {
+      el("admin-panel").classList.remove("hidden");
+      adminActiveTab = adminActiveTab || "class";
+      renderAdminTabs();
+      el("admin-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+      if (!adminData) loadAdminData();
+    }
+
+    function closeAdminPanel() {
+      el("admin-panel").classList.add("hidden");
+      el("admin-detail-view").innerHTML = "";
+    }
+
+    function renderAdminTabs() {
+      document.querySelectorAll(".admin-tab").forEach((button) => {
+        const active = button.dataset.adminTab === adminActiveTab;
+        button.classList.toggle("bg-cyan-300/20", active);
+        button.classList.toggle("border-cyan-200", active);
+      });
+      document.querySelectorAll(".admin-view").forEach((view) => view.classList.add("hidden"));
+      const activeView = el(`admin-${adminActiveTab}-view`);
+      if (activeView) activeView.classList.remove("hidden");
+    }
+
+    function renderAdmin() {
+      if (!adminData) return;
+      renderAdminTabs();
+      renderAdminClassView();
+      renderAdminUserView();
+      renderAdminProblemView();
+    }
+
+    function renderAdminClassView() {
+      const container = el("admin-class-view");
+      const users = adminFilteredUsers();
+      const problems = adminFilteredProblems();
+      if (!users.length) {
+        container.innerHTML = `<div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">表示できるユーザーがありません。名簿シートまたは回答履歴を確認してください。</div>`;
+        return;
+      }
+      const problemHeaders = problems.map((problem, index) => `
+        <th class="admin-problem-col px-3 py-3 text-left align-top">
+          <div class="font-tech text-[10px] text-cyan-200">${escapeHtml(adminProblemNumber(problem, index))}</div>
+          <div class="mt-1 whitespace-normal break-words text-[11px] leading-snug text-slate-100">${escapeHtml(adminProblemTitle(problem))}</div>
+        </th>
+      `).join("");
+      const rows = users.map((user) => {
+        const counts = user.counts || {};
+        const themeLine = user.theme ? `<div class="mt-1 text-[9px] font-black uppercase text-orange-200/80">Theme: ${escapeHtml(user.theme)}</div>` : "";
+        const fixed = `
+          <td class="admin-sticky admin-col-number px-2 py-2 text-center text-xs font-black">${escapeHtml(user.userNumber || "--")}</td>
+          <td class="admin-sticky admin-col-name px-3 py-2 text-xs font-bold"><div class="whitespace-normal break-words leading-snug">${escapeHtml(user.userName || "--")}</div>${themeLine}</td>
+          <td class="admin-sticky admin-col-a px-2 py-2 text-center text-xs font-black">${Number(counts.A || 0)}</td>
+          <td class="admin-sticky admin-col-ap px-2 py-2 text-center text-xs font-black">${Number(counts["A'"] || 0)}</td>
+          <td class="admin-sticky admin-col-b px-2 py-2 text-center text-xs font-black">${Number(counts.B || 0)}</td>
+          <td class="admin-sticky admin-col-c px-2 py-2 text-center text-xs font-black">${Number(counts.C || 0)}</td>
+          <td class="admin-sticky admin-col-f px-2 py-2 text-center text-xs font-black">${Number(counts.F || 0)}</td>
+          <td class="admin-sticky admin-col-impression px-2 py-2 text-center text-xs font-black">${Number(counts.impression || 0)}</td>
+          <td class="admin-sticky admin-col-total px-2 py-2 text-center text-xs font-black">${Number(counts.total || 0)}</td>
+        `;
+        const cells = problems.map((problem) => {
+          const cell = (user.cells || {})[problem.problemId] || { status: "未提出", attempts: 0 };
+          const statusClass = cell.status === "未提出" ? "admin-status-missing" : cell.status === "記録" ? "admin-status-record" : "admin-status-eval";
+          const sub = cell.status === "未提出" ? "未提出" : `${cell.attempts || 0}回${cell.date ? ` / ${cell.date.slice(0, 10)}` : ""}`;
+          return `
+            <td class="admin-problem-col px-2 py-2 align-top">
+              <button type="button" class="admin-cell-button" data-admin-user="${escapeHtml(user.userKey)}" data-admin-problem="${escapeHtml(problem.problemId)}">
+                <span class="block text-xs font-black ${statusClass}">${escapeHtml(cell.status || "未提出")}</span>
+                <span class="mt-1 block text-[10px] text-slate-400">${escapeHtml(sub)}</span>
+              </button>
+            </td>
+          `;
+        }).join("");
+        return `<tr>${fixed}${cells}</tr>`;
+      }).join("");
+      container.innerHTML = `
+        <div class="mb-2 text-xs text-slate-400">左側の番号・名前・評価数は固定、課題部分は横にスクロールできます。</div>
+        <div class="admin-table-wrap">
+          <table class="admin-table text-sm">
+            <thead>
+              <tr>
+                <th class="admin-sticky admin-col-number px-2 py-3 text-center text-[10px] uppercase">番号</th>
+                <th class="admin-sticky admin-col-name px-3 py-3 text-left text-[10px] uppercase">名前</th>
+                <th class="admin-sticky admin-col-a px-2 py-3 text-center text-[10px] uppercase">A</th>
+                <th class="admin-sticky admin-col-ap px-2 py-3 text-center text-[10px] uppercase">A'</th>
+                <th class="admin-sticky admin-col-b px-2 py-3 text-center text-[10px] uppercase">B</th>
+                <th class="admin-sticky admin-col-c px-2 py-3 text-center text-[10px] uppercase">C</th>
+                <th class="admin-sticky admin-col-f px-2 py-3 text-center text-[10px] uppercase">F</th>
+                <th class="admin-sticky admin-col-impression px-2 py-3 text-center text-[10px] uppercase">感想</th>
+                <th class="admin-sticky admin-col-total px-2 py-3 text-center text-[10px] uppercase">計</th>
+                ${problemHeaders}
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+      container.querySelectorAll("[data-admin-user][data-admin-problem]").forEach((button) => {
+        button.addEventListener("click", () => renderAdminDetail(button.dataset.adminUser, button.dataset.adminProblem));
+      });
+    }
+
+    function renderAdminUserView() {
+      const container = el("admin-user-view");
+      const selected = el("admin-user-filter").value;
+      if (!selected || selected === "all") {
+        container.innerHTML = `<div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">ユーザーを選ぶと履歴を表示します。</div>`;
+        return;
+      }
+      const user = adminUsers().find((item) => item.userKey === selected);
+      const rows = adminHistory().filter((item) => item.userKey === selected);
+      const themeLine = user && user.theme ? `<div class="mt-1 text-xs font-black uppercase text-orange-200/80">Theme: ${escapeHtml(user.theme)}</div>` : "";
+      container.innerHTML = `
+        <div class="rounded-2xl border border-white/10 bg-slate-950/35 p-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="text-sm font-black text-slate-100">${escapeHtml(user ? `${user.grade || ""} ${user.userClass || ""}-${user.userNumber || ""} ${user.userName || ""}` : selected)}</div>
+              ${themeLine}
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" class="rounded-2xl border border-cyan-300/30 bg-cyan-400/10 hover:bg-cyan-400/15 px-4 py-2 text-xs font-black text-cyan-100" data-admin-browse-user="${escapeHtml(selected)}">
+                ブラウザで開く
+              </button>
+              <button type="button" class="rounded-2xl border border-orange-300/30 bg-orange-400/10 hover:bg-orange-400/15 px-4 py-2 text-xs font-black text-orange-100" data-admin-print-user="${escapeHtml(selected)}">
+                PDF保存
+              </button>
+            </div>
+          </div>
+          <div class="mt-3 space-y-2">${rows.length ? rows.map(adminHistoryCard).join("") : `<div class="text-sm text-slate-400">提出履歴はありません。</div>`}</div>
+        </div>
+      `;
+      container.querySelector("[data-admin-browse-user]")?.addEventListener("click", () => exportAdminUserHistory(selected, "browse"));
+      container.querySelector("[data-admin-print-user]")?.addEventListener("click", () => exportAdminUserHistory(selected, "print"));
+    }
+
+    function renderAdminProblemView() {
+      const container = el("admin-problem-view");
+      const selected = el("admin-problem-filter").value;
+      if (!selected || selected === "all") {
+        container.innerHTML = `<div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">課題を選ぶと提出者一覧を表示します。</div>`;
+        return;
+      }
+      const problem = adminProblems().find((item) => item.problemId === selected);
+      const users = adminFilteredUsers();
+      const rows = users.map((user) => {
+        const history = adminHistory().filter((item) => item.userKey === user.userKey && item.problemId === selected);
+        const latest = history[0] || null;
+        const status = latest ? (normalizeAssignmentType(problem && problem.assignmentType) === "感想" ? "記録" : evaluationDisplay(latest.evaluation)) : "未提出";
+        return `
+          <button type="button" class="w-full rounded-2xl border border-white/10 bg-slate-950/35 p-3 text-left hover:border-cyan-300/50" data-admin-user="${escapeHtml(user.userKey)}" data-admin-problem="${escapeHtml(selected)}">
+            <div class="flex flex-wrap justify-between gap-2">
+              <span class="font-black text-slate-100">${escapeHtml(user.userNumber || "--")} ${escapeHtml(user.userName || "--")}</span>
+              <span class="text-xs font-black ${latest ? "text-cyan-100" : "text-slate-500"}">${escapeHtml(status)}</span>
+            </div>
+            <div class="mt-1 text-xs text-slate-400">${latest ? `${history.length}回 / ${latest.date}` : "未提出"}</div>
+          </button>
+        `;
+      }).join("");
+      container.innerHTML = `
+        <div class="mb-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+          <div class="font-tech text-[10px] text-cyan-200">${escapeHtml(problem ? adminProblemNumber(problem, 0) : selected)}</div>
+          <div class="mt-1 font-black text-slate-100">${escapeHtml(problem ? adminProblemTitle(problem) : selected)}</div>
+        </div>
+        <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-2">${rows}</div>
+      `;
+      container.querySelectorAll("[data-admin-user][data-admin-problem]").forEach((button) => {
+        button.addEventListener("click", () => renderAdminDetail(button.dataset.adminUser, button.dataset.adminProblem));
+      });
+    }
+
+    function adminHistoryCard(item) {
+      const problem = adminProblems().find((p) => p.problemId === item.problemId) || {};
+      const impression = isImpressionTask(item.assignmentType || problem.assignmentType);
+      return `
+        <details class="rounded-2xl border border-white/10 bg-slate-950/40 p-3">
+          <summary class="cursor-pointer list-none">
+            <div class="flex flex-wrap justify-between gap-2">
+              <span class="font-black text-slate-100">${escapeHtml(adminProblemNumber(problem, 0))} ${escapeHtml(adminProblemTitle(problem))}</span>
+              <span class="text-xs font-black text-cyan-100">${escapeHtml(impression ? "記録" : evaluationDisplay(item.evaluation))}</span>
+            </div>
+            <div class="mt-1 text-xs text-slate-400">${escapeHtml(item.date || "")}</div>
+          </summary>
+          <div class="mt-3 grid gap-2">${adminDetailMarkup([item])}</div>
+        </details>
+      `;
+    }
+
+    function adminDetailMarkup(items) {
+      if (!items.length) return `<div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">提出はありません。</div>`;
+      return items.map((item) => {
+        const problem = adminProblems().find((p) => p.problemId === item.problemId) || {};
+        const impression = isImpressionTask(item.assignmentType || problem.assignmentType);
+        return `
+          <div class="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
+            <div class="flex flex-wrap justify-between gap-2">
+              <div class="text-xs text-slate-400">${escapeHtml(item.date || "")}</div>
+              <div class="text-xs font-black text-cyan-100">${escapeHtml(impression ? "記録" : evaluationDisplay(item.evaluation))}</div>
+            </div>
+            <div class="mt-3 grid gap-3">
+              <div class="rounded-2xl bg-white/5 border border-white/10 p-3"><div class="mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Answer</div><p class="tex-content leading-relaxed text-slate-100">${textToHtml(item.answer || "--")}</p></div>
+              <div class="rounded-2xl bg-cyan-400/10 border border-cyan-300/20 p-3"><div class="mb-1 text-[10px] font-black text-cyan-200">全体コメント</div><p class="tex-content leading-relaxed text-slate-100">${textToHtml(item.overall || "--")}</p></div>
+              <div class="grid md:grid-cols-2 gap-3">
+                <div class="rounded-2xl bg-emerald-400/10 border border-emerald-300/20 p-3"><div class="mb-1 text-[10px] font-black text-emerald-200">良い点</div><p class="tex-content leading-relaxed text-slate-100">${textToHtml(item.good || "--")}</p></div>
+                <div class="rounded-2xl bg-amber-400/10 border border-amber-300/20 p-3"><div class="mb-1 text-[10px] font-black text-amber-200">直すと良い点</div><p class="tex-content leading-relaxed text-slate-100">${textToHtml(item.improve || "--")}</p></div>
+              </div>
+              ${!impression && criteriaMarkup(item.criteria) ? `<div class="rounded-2xl bg-white/5 border border-white/10 p-3"><div class="mb-3 text-[10px] font-black tracking-[0.16em] text-slate-300 uppercase">理解の整理</div><div class="space-y-2">${criteriaMarkup(item.criteria)}</div></div>` : ""}
+              ${!impression ? `<div class="rounded-2xl bg-violet-400/10 border border-violet-300/20 p-3"><div class="mb-1 text-[10px] font-black text-violet-200">模範解答</div><p class="tex-content leading-relaxed text-slate-100 no-copy">${textToHtml(item.modelAnswer || "--")}</p></div>` : ""}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderAdminDetail(userKey, problemId) {
+      const user = adminUsers().find((item) => item.userKey === userKey);
+      const problem = adminProblems().find((item) => item.problemId === problemId);
+      const items = adminHistory().filter((item) => item.userKey === userKey && item.problemId === problemId);
+      el("admin-detail-view").innerHTML = `
+        <div class="rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
+          <div class="flex flex-wrap justify-between gap-2 mb-3">
+            <div>
+              <div class="text-xs text-slate-400">詳細</div>
+              <div class="font-black text-slate-100">${escapeHtml(user ? `${user.userNumber || "--"} ${user.userName || "--"}` : userKey)}</div>
+            </div>
+            <div class="text-right">
+              <div class="font-tech text-[10px] text-cyan-200">${escapeHtml(problem ? adminProblemNumber(problem, 0) : problemId)}</div>
+              <div class="font-black text-slate-100">${escapeHtml(problem ? adminProblemTitle(problem) : problemId)}</div>
+            </div>
+          </div>
+          <div class="grid gap-3">${adminDetailMarkup(items)}</div>
+        </div>
+      `;
+      renderTexIn(el("admin-detail-view"));
+      el("admin-detail-view").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function problemNumberForExport(problem, index = 0) {
+      return problem && (problem.problemNumber || problem.number) ? String(problem.problemNumber || problem.number) : ("0000" + (index + 1)).slice(-4);
+    }
+
+    function problemTitleForExport(problem, fallback = "問題") {
+      return (problem && (problem.title || problem.subunit || problem.unit || problem.prompt || problem.problemId)) || fallback;
+    }
+
+    function problemSortKeyForExport(problem, index) {
+      const order = Number(problem && problem.order);
+      const number = Number(String(problemNumberForExport(problem, index)).replace(/[^\d]/g, ""));
+      return [
+        String(Number.isFinite(order) ? order : 999999).padStart(6, "0"),
+        String(Number.isFinite(number) ? number : 999999).padStart(6, "0"),
+        problemTitleForExport(problem, "")
+      ].join("|");
+    }
+
+    function groupHistoryForPrint(items, problems) {
+      const problemMap = {};
+      (problems || []).forEach((problem, index) => {
+        problemMap[problem.problemId] = { ...problem, exportIndex: index };
+      });
+      const groups = {};
+      (items || []).forEach((rawItem) => {
+        if (!rawItem || !rawItem.problemId) return;
+        const problem = problemMap[rawItem.problemId] || { problemId: rawItem.problemId, prompt: rawItem.prompt, exportIndex: 999999 };
+        const key = rawItem.problemId;
+        if (!groups[key]) {
+          groups[key] = {
+            problem,
+            sortKey: problemSortKeyForExport(problem, problem.exportIndex || 0),
+            attempts: []
+          };
+        }
+        groups[key].attempts.push(completeFeedbackForDisplay(rawItem));
+      });
+      return Object.values(groups).map((group) => {
+        group.attempts.sort((a, b) => historyTimeValue(a) - historyTimeValue(b));
+        return group;
+      }).sort((a, b) => String(a.sortKey).localeCompare(String(b.sortKey), "ja"));
+    }
+
+    function printCriteriaMarkup(criteria) {
+      const list = Array.isArray(criteria) ? criteria.filter((item) => item && item.label && item.status && item.comment).slice(0, 8) : [];
+      if (!list.length) return "";
+      return `
+        <div class="print-block">
+          <div class="print-label">理解の整理</div>
+          <div class="print-criteria">
+            ${list.map((item) => `
+              <div class="print-criterion">
+                <strong>${escapeHtml(item.status)}</strong>
+                <strong>${escapeHtml(item.label)}</strong>
+                <span class="tex-content">${textToHtml(item.comment)}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function ordinalLabel(number) {
+      const n = Number(number) || 0;
+      const mod100 = n % 100;
+      if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+      const mod10 = n % 10;
+      if (mod10 === 1) return `${n}st`;
+      if (mod10 === 2) return `${n}nd`;
+      if (mod10 === 3) return `${n}rd`;
+      return `${n}th`;
+    }
+
+    function renderPrintAttempt(item, index, problem) {
+      const assignmentType = normalizeAssignmentType(item.assignmentType || (problem && problem.assignmentType));
+      const impression = isImpressionTask(assignmentType);
+      const evaluation = impression ? "記録" : evaluationDisplay(item.evaluation);
+      const challengeLabel = `${ordinalLabel(index + 1)} Challenge`;
+      return `
+        <section class="print-attempt">
+          <div class="print-attempt-head">
+            <span>${escapeHtml(challengeLabel)}</span>
+            <span>${escapeHtml(item.date || "")}</span>
+            <span class="print-evaluation">${escapeHtml(evaluation || "--")}</span>
+          </div>
+          <div class="print-block">
+            <div class="print-label">回答</div>
+            <p class="print-text tex-content">${textToHtml(item.answer || "--")}</p>
+          </div>
+          <div class="print-block">
+            <div class="print-label">Feedback</div>
+            <p class="print-text tex-content">${textToHtml(item.overall || "--")}</p>
+          </div>
+          <div class="print-grid">
+            <div class="print-block">
+              <div class="print-label">良い点</div>
+              <p class="print-text tex-content">${textToHtml(item.good || "--")}</p>
+            </div>
+            <div class="print-block">
+              <div class="print-label">直すと良い点</div>
+              <p class="print-text tex-content">${textToHtml(item.improve || "--")}</p>
+            </div>
+          </div>
+          <div class="print-block">
+            <div class="print-label">書くときのポイント</div>
+            <p class="print-text tex-content">${textToHtml(item.next || "--")}</p>
+          </div>
+          ${impression ? "" : printCriteriaMarkup(item.criteria)}
+          ${!impression && item.revisedAnswer ? `
+          <div class="print-block">
+            <div class="print-label">添削後の解答例</div>
+            <p class="print-text tex-content">${textToHtml(item.revisedAnswer)}</p>
+          </div>
+          ` : ""}
+        </section>
+      `;
+    }
+
+    function buildPrintExportHtml({ title, subtitle, items, problems }) {
+      const groups = groupHistoryForPrint(items, problems);
+      if (!groups.length) {
+        window.alert("PDF化できる履歴がありません。");
+        return "";
+      }
+      return `
+        <article class="print-page">
+          <header class="print-header">
+            <h1 class="print-title">${escapeHtml(title)}</h1>
+            <div class="print-subtitle">${escapeHtml(subtitle)}</div>
+          </header>
+          ${groups.map((group) => {
+            const problem = group.problem || {};
+            const number = problemNumberForExport(problem, problem.exportIndex || 0);
+            const prompt = problem.prompt || (group.attempts[0] && group.attempts[0].prompt) || problemTitleForExport(problem);
+            const meta = [problem.grade || (group.attempts[0] && group.attempts[0].grade), problem.subject, problem.unit || (group.attempts[0] && group.attempts[0].unit), problem.subunit || (group.attempts[0] && group.attempts[0].subunit)].filter(Boolean).join(" / ");
+            return `
+              <section class="print-problem">
+                <h2 class="print-problem-title">${escapeHtml(number)} ${escapeHtml(problemTitleForExport(problem, problem.problemId || "問題"))}</h2>
+                <div class="print-problem-meta">${escapeHtml(meta)}</div>
+                <div class="print-block">
+                  <div class="print-label">問題</div>
+                  <p class="print-text tex-content">${textToHtml(prompt || "--")}</p>
+                </div>
+                ${group.attempts.map((item, index) => renderPrintAttempt(item, index, problem)).join("")}
+              </section>
+            `;
+          }).join("")}
+        </article>
+      `;
+    }
+
+    function renderPrintExport(payload) {
+      const html = buildPrintExportHtml(payload);
+      if (!html) return false;
+      el("print-export-content").innerHTML = html;
+      renderTexIn(el("print-export-content"));
+      return true;
+    }
+
+    function printWindowHtml({ title, bodyHtml }) {
+      return `<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <style>
+    body { margin: 0; background: #f3f4f6; color: #111827; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .print-toolbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end; gap: 0.5rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.94); border-bottom: 1px solid #d1d5db; }
+    .print-toolbar button { border: 1px solid #111827; border-radius: 0.4rem; background: #111827; color: #fff; font-weight: 800; padding: 0.45rem 0.8rem; cursor: pointer; }
+    .print-page { max-width: 160mm; margin: 1rem auto; background: #fff; color: #111827; padding: 0.9rem; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12); box-sizing: border-box; overflow-wrap: anywhere; }
+    .print-header { border-bottom: 2px solid #111827; padding-bottom: 0.6rem; margin-bottom: 0.8rem; }
+    .print-title { font-size: 1.25rem; font-weight: 900; margin: 0; }
+    .print-subtitle { margin-top: 0.22rem; color: #4b5563; font-size: 0.78rem; }
+    .print-problem { break-inside: avoid; page-break-inside: avoid; margin: 0 0 0.8rem; border: 1px solid #d1d5db; border-radius: 0.35rem; padding: 0.7rem; box-sizing: border-box; max-width: 100%; }
+    .print-problem-title { font-size: 0.94rem; font-weight: 900; margin: 0 0 0.3rem; }
+    .print-problem-meta { font-size: 0.72rem; color: #4b5563; margin-bottom: 0.45rem; }
+    .print-attempt { break-inside: avoid; page-break-inside: avoid; border-top: 1px solid #e5e7eb; padding-top: 0.55rem; margin-top: 0.55rem; }
+    .print-attempt-head { display: flex; justify-content: flex-start; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; font-weight: 800; font-size: 0.78rem; margin-bottom: 0.4rem; }
+    .print-evaluation { display: inline-flex; align-items: center; gap: 0.2rem; border: 1px solid #d1d5db; border-radius: 999px; padding: 0.08rem 0.45rem; font-weight: 900; }
+    .print-block { margin: 0.42rem 0; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.5rem; background: #fff; box-sizing: border-box; }
+    .print-label { font-size: 0.72rem; font-weight: 900; color: #374151; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem; }
+	    .print-text { white-space: pre-wrap; line-height: 1.55; font-size: 0.84rem; margin: 0; overflow-wrap: anywhere; }
+	    .tex-content .katex { font-size: 1.02em; }
+	    .tex-content .katex-display { margin: 0.35rem 0; overflow-x: auto; overflow-y: hidden; }
+    .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+    .print-criteria { display: grid; gap: 0.35rem; margin-top: 0.25rem; }
+    .print-criterion { display: grid; grid-template-columns: 1.6rem minmax(4.5rem, 7rem) 1fr; gap: 0.3rem; align-items: start; font-size: 0.78rem; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.32rem; box-sizing: border-box; }
+    @page { size: B5 portrait; margin: 8mm; }
+    @media print {
+      body { background: #fff; }
+      .print-toolbar { display: none; }
+      .print-page { width: 100%; max-width: 100%; margin: 0; padding: 0; box-shadow: none; font-size: 9.5pt; }
+      .print-grid { grid-template-columns: 1fr; gap: 0.35rem; }
+      .print-block { padding: 0.38rem; }
+      .print-text { font-size: 8.8pt; line-height: 1.45; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-toolbar">
+    <button type="button" onclick="window.print()">PDF保存</button>
+    <button type="button" onclick="window.close()">閉じる</button>
+  </div>
+  ${bodyHtml}
+</body>
+</html>`;
+    }
+
+    function openHistoryInNewTab(payload, openedWindow) {
+      const bodyHtml = buildPrintExportHtml(payload);
+      if (!bodyHtml) {
+        if (openedWindow && !openedWindow.closed) openedWindow.close();
+        return false;
+      }
+      if (!openedWindow) {
+        window.alert("新しいタブを開けませんでした。ポップアップブロックを確認してください。");
+        return false;
+      }
+      openedWindow.document.open();
+      openedWindow.document.write(printWindowHtml({ title: payload.title, bodyHtml }));
+      openedWindow.document.close();
+      window.setTimeout(() => renderTexIn(openedWindow.document), 0);
+      return true;
+    }
+
+    async function exportStudentHistory(mode = "print") {
+      if (!isProfileReady()) {
+        setStatus("ユーザー情報を保存すると、PDF用一覧を作成できます。", "error");
+        return;
+      }
+      const openedWindow = mode === "browse" ? window.open("", "_blank") : null;
+      if (mode === "browse" && !openedWindow) {
+        setStatus("新しいタブを開けませんでした。ポップアップブロックを確認してください。", "error");
+        return;
+      }
+      const userLabel = `${userSchoolCode()} ${el("user-class").value.trim()}-${el("user-number").value.trim()} ${normalizeUserName(el("user-name").value)}`;
+      let items = [];
+      let usedFallback = false;
+      try {
+        setStatus("PDF用履歴を取得しています...", "info");
+        const data = await fetchJson({
+          action: "historyExport",
+          id: SPREADSHEET_ID,
+          userId: userId(),
+          userName: normalizeUserName(el("user-name").value),
+          userClass: el("user-class").value.trim(),
+          userNumber: el("user-number").value.trim(),
+          schoolCode: userSchoolCode(),
+          ...themePayload()
+        });
+        items = Array.isArray(data.history) ? data.history : [];
+      } catch (err) {
+        items = Array.isArray(writingHistory) ? writingHistory : [];
+        usedFallback = true;
+        if (!items.length) {
+          setStatus("PDF用履歴を取得できませんでした: " + err.message, "error");
+          if (openedWindow && !openedWindow.closed) openedWindow.close();
+          return;
+        }
+      }
+      if (!items.length && Array.isArray(writingHistory) && writingHistory.length) {
+        items = writingHistory;
+        usedFallback = true;
+      }
+      const payload = {
+        title: "Writing Feedback History",
+        subtitle: `${userLabel} / ${new Date().toLocaleString("ja-JP")}`,
+        items,
+        problems: writingProblems
+      };
+      if (mode === "browse") {
+        if (openHistoryInNewTab(payload, openedWindow)) {
+          setStatus(usedFallback ? "同期済み履歴で新しいタブを開きました。" : "新しいタブでPDF用一覧を開きました。", "ok");
+        }
+        return;
+      }
+      if (renderPrintExport(payload)) {
+        window.setTimeout(() => window.print(), 100);
+        setStatus(usedFallback ? "同期済み履歴でPDF用一覧を開きました。印刷画面からPDF保存できます。" : "PDF用一覧を開きました。印刷画面からPDF保存できます。", "ok");
+      }
+    }
+
+    function exportAdminUserHistory(userKey, mode = "print") {
+      const user = adminUsers().find((item) => item.userKey === userKey);
+      const items = adminHistory().filter((item) => item.userKey === userKey);
+      const label = user ? `${user.grade || ""} ${user.userClass || ""}-${user.userNumber || ""} ${user.userName || ""}` : userKey;
+      const payload = {
+        title: "Writing Feedback History",
+        subtitle: `${label} / 管理者出力 / ${new Date().toLocaleString("ja-JP")}`,
+        items,
+        problems: adminProblems()
+      };
+      if (mode === "browse") {
+        openHistoryInNewTab(payload, window.open("", "_blank"));
+        return;
+      }
+      if (renderPrintExport(payload)) {
+        window.print();
+      }
+    }
+
+    function renderLimits() {
+      const state = writingConfig.writingAiEnabled ? "ON" : "OFF";
+      const unlimited = selectedProblem && (selectedProblem.attemptsUnlimited || Number(selectedProblem.maxAttempts || 0) === 0);
+      const maxAttempts = selectedProblem ? (selectedProblem.maxAttempts || writingConfig.writingMaxAttemptsPerProblem || usage.maxAttemptsPerProblem || 3) : (writingConfig.writingMaxAttemptsPerProblem || usage.maxAttemptsPerProblem || 3);
+      const type = selectedProblem ? normalizeAssignmentType(selectedProblem.assignmentType) : "記述";
+      const limitLabel = type === "感想" ? "この感想" : "同じ問題";
+      const remaining = selectedProblem ? Math.max(0, Number(selectedProblem.attemptsRemaining || 0)) : "--";
+      const used = selectedProblem ? Math.max(0, Number(selectedProblem.attemptCount || 0)) : "--";
+      const limitLine = unlimited ? `${limitLabel}: <b>${used}回</b>` : `${limitLabel}: <b>${used} / ${maxAttempts}回</b><br>残り: <b>${remaining}回</b>`;
+      el("limit-status").innerHTML = `AIフィードバック: <b>${state}</b><br>${limitLine}<br>model: <b>${writingConfig.writingModel || "gpt-5.4-nano"}</b>`;
+      renderAnnouncement();
+    }
+
+    function renderAnnouncement() {
+      const box = el("announcement-box");
+      const text = String(writingConfig.announcementText || "").trim();
+      const enabled = !!writingConfig.announcementEnabled && !!text;
+      box.classList.toggle("hidden", !enabled);
+      setTexText("announcement-text", enabled ? text : "");
+    }
+
+    function normalizeGradeKey(value) {
+      const s = String(value || "").trim().toUpperCase();
+      if (!s) return "";
+      if (["全学年", "ALL", "COMMON", "共通"].includes(s)) return "全学年";
+      if (["中学共通", "中学生共通", "M共通", "MIDDLE"].includes(s)) return "中学共通";
+      if (["高校共通", "高校生共通", "H共通", "HIGH"].includes(s)) return "高校共通";
+      const direct = s.match(/^([MH])\s*([1-3])$/);
+      if (direct) return `${direct[1]}${direct[2]}`;
+      const middle = s.match(/中\s*([1-3])/);
+      if (middle) return `M${middle[1]}`;
+      const high = s.match(/高\s*([1-3])/);
+      if (high) return `H${high[1]}`;
+      return s;
+    }
+
+    function splitGradeKeys(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return [];
+      return raw.split(/\s*(?:\/|／|,|、|，)\s*/).map(normalizeGradeKey).filter(Boolean);
+    }
+
+    function gradeStage(grade) {
+      const normalized = normalizeGradeKey(grade);
+      if (/^M[1-3]$/.test(normalized)) return "M";
+      if (/^H[1-3]$/.test(normalized)) return "H";
+      return "";
+    }
+
+    function problemAppliesToGrade(problemGrade, selectedGrade) {
+      const problemGrades = splitGradeKeys(problemGrade);
+      const selected = normalizeGradeKey(selectedGrade);
+      if (!selected) return false;
+      if (!problemGrades.length) return false;
+      const stage = gradeStage(selected);
+      return problemGrades.some((problem) => {
+        if (problem === selected || problem === "全学年") return true;
+        if (stage === "M" && problem === "中学共通") return true;
+        if (stage === "H" && problem === "高校共通") return true;
+        return false;
+      });
+    }
+
+    function activeGradeKey() {
+      return ensureUserGradeControls();
+    }
+
+    function problemSubject(problem) {
+      if (problem.subject || problem.subjectName || problem.course) return problem.subject || problem.subjectName || problem.course;
+      const text = [problem.unit, problem.subunit, problem.prompt].filter(Boolean).join(" ");
+      if (/化学|物理|生物|地学|酸化|還元|電流|磁界|力|運動|天気|大地|植物|動物/.test(text)) return "理科";
+      if (/文法|読解|古文|漢文|説明文|物語|作文|要旨|主題/.test(text)) return "国語";
+      if (/関数|方程式|図形|確率|整数|計算|証明|比例|反比例/.test(text)) return "数学";
+      if (/歴史|地理|公民|政治|経済|資料|時代|地域/.test(text)) return "社会";
+      if (/英語|英文|語順|時制|文法|単語|リスニング/.test(text)) return "英語";
+      return "科目未設定";
+    }
+
+    function problemUnit(problem) {
+      return problem.field || problem.domain || problem.unit || "分野未設定";
+    }
+
+    function formatRegisteredDate(problem) {
+      const value = problem.registeredAt || problem.createdAt || problem.createdDate || "";
+      return value ? String(value).trim() : "";
+    }
+
+    function problemNumber(problem, index) {
+      const raw = problem.problemNumber || problem.number || problem.no || "";
+      const value = raw || (Number.isFinite(Number(problem.order)) ? String(Math.max(1, Number(problem.order) / 10)) : String((index || 0) + 1));
+      const digits = String(value).replace(/\D/g, "");
+      return digits ? digits.padStart(4, "0") : String(value || "").trim();
+    }
+
+    function problemTitle(problem) {
+      const title = problem.title || problem.problemTitle || "";
+      if (title) return title;
+      const unitTitle = [problemUnit(problem), problem.subunit].filter(Boolean).join(" / ");
+      if (unitTitle) return unitTitle;
+      return String(problem.prompt || problem.problemId || "問題").slice(0, 32);
+    }
+
+    function normalizeEvaluationLabel(value) {
+      const s = String(value || "").trim().toUpperCase();
+      const normalized = s.replace(/[’`]/g, "'");
+      if (normalized === "S") return "A";
+      return ["A", "A'", "B", "C", "F"].includes(normalized) ? normalized : "-";
+    }
+
+    function normalizeAssignmentType(value) {
+      const s = String(value || "").trim();
+      if (["感想", "授業振り返り", "振り返り", "説明", "理由説明", "考察", "意見", "要約"].includes(s)) return s;
+      return "記述";
+    }
+
+    function activeAssignmentType(feedback = {}) {
+      return normalizeAssignmentType(feedback.assignmentType || (selectedProblem && selectedProblem.assignmentType) || "");
+    }
+
+    function isImpressionTask(type) {
+      return normalizeAssignmentType(type) === "感想";
+    }
+
+    function evaluationStars(value) {
+      const count = { A: 5, "A'": 4, B: 3, C: 2, F: 1 }[normalizeEvaluationLabel(value)] || 0;
+      return count ? "★".repeat(count) : "";
+    }
+
+    function evaluationDisplay(value) {
+      // UI evaluation displays must use only the final `evaluation` field.
+      // `aiEvaluation`, `scoreEvaluation`, and `finalEvaluation` are audit fields.
+      const evaluation = normalizeEvaluationLabel(value);
+      const stars = evaluationStars(evaluation);
+      return stars ? `${evaluation} ${stars}` : evaluation;
+    }
+
+    function uniqueSorted(values) {
+      return Array.from(new Set(values.filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "ja"));
+    }
+
+    function displayGradeChoiceLabel(grade) {
+      const normalized = normalizeGradeKey(grade);
+      const labels = { M1: "M1 / 中1", M2: "M2 / 中2", M3: "M3 / 中3", H1: "H1 / 高1", H2: "H2 / 高2", H3: "H3 / 高3" };
+      return labels[normalized] || normalized || "未設定";
+    }
+
+    function concreteProblemGrades() {
+      const grades = (writingProblems || [])
+        .flatMap((problem) => splitGradeKeys(problem.grade))
+        .filter((grade) => /^M[1-3]$|^H[1-3]$/.test(grade));
+      return uniqueSorted(grades);
+    }
+
+    function activeLibraryGradeKey() {
+      return libraryGradeOverride && libraryGradeOverride !== "all" ? libraryGradeOverride : activeGradeKey();
+    }
+
+    function gradeFilteredProblems() {
+      const grade = activeLibraryGradeKey();
+      if (libraryGradeOverride === "all") return writingProblems || [];
+      if (!grade) return [];
+      return (writingProblems || []).filter((problem) => problemAppliesToGrade(problem.grade, grade));
+    }
+
+    function visibleProblems() {
+      return gradeFilteredProblems().filter((problem) => {
+        if (selectedSubjectFilter !== "all" && problemSubject(problem) !== selectedSubjectFilter) return false;
+        if (selectedUnitFilter !== "all" && problemUnit(problem) !== selectedUnitFilter) return false;
+        return true;
+      });
+    }
+
+    function renderProblemFilters() {
+      const grade = activeLibraryGradeKey();
+      const gradeLabel = libraryGradeOverride === "all"
+        ? "全学年"
+        : libraryGradeOverride
+          ? `${displayGradeChoiceLabel(libraryGradeOverride)}`
+          : (grade || "未設定");
+      el("active-grade-filter").textContent = gradeLabel;
+      renderGradeUnlockSelect();
+      const byGrade = gradeFilteredProblems();
+      const subjects = uniqueSorted(byGrade.map(problemSubject));
+      if (selectedSubjectFilter !== "all" && !subjects.includes(selectedSubjectFilter)) {
+        selectedSubjectFilter = "all";
+        selectedUnitFilter = "all";
+      }
+      el("subject-filter").innerHTML = `<option value="all">すべての科目</option>` + subjects.map((subject) => `<option value="${escapeHtml(subject)}">${escapeHtml(subject)}</option>`).join("");
+      el("subject-filter").value = selectedSubjectFilter;
+
+      const bySubject = selectedSubjectFilter === "all" ? [] : byGrade.filter((problem) => problemSubject(problem) === selectedSubjectFilter);
+      const units = uniqueSorted(bySubject.map(problemUnit));
+      if (selectedUnitFilter !== "all" && !units.includes(selectedUnitFilter)) selectedUnitFilter = "all";
+      el("unit-filter").classList.toggle("hidden", selectedSubjectFilter === "all");
+      el("unit-filter").innerHTML = `<option value="all">すべての分野</option>` + units.map((unit) => `<option value="${escapeHtml(unit)}">${escapeHtml(unit)}</option>`).join("");
+      el("unit-filter").value = selectedUnitFilter;
+    }
+
+    function clearSelectedProblem() {
+      selectedProblem = null;
+      el("empty-state").classList.remove("hidden");
+      el("writing-area").classList.add("hidden");
+      el("message").classList.add("hidden");
+      renderPeerExamples([]);
+    }
+
+    function renderProblems(options = {}) {
+      const preserveProblemId = options && typeof options === "object"
+        ? String(options.preserveProblemId || (selectedProblem && selectedProblem.problemId) || "")
+        : String((selectedProblem && selectedProblem.problemId) || "");
+      renderProblemFilters();
+      const list = el("problem-list");
+      list.innerHTML = "";
+      const problems = visibleProblems();
+      const totalForGrade = gradeFilteredProblems().length;
+      el("task-count").textContent = `${problems.length} / ${totalForGrade} tasks`;
+      if (!problems.length) {
+        list.innerHTML = `<div class="text-sm text-slate-400 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">選択中の学年・科目・分野で表示できる記述問題がありません。</div>`;
+        clearSelectedProblem();
+        return;
+      }
+      problems.forEach((problem, index) => {
+        const button = document.createElement("button");
+        button.className = "problem-card rounded-2xl p-4 text-left w-full";
+        button.dataset.problemId = problem.problemId;
+        const bestText = problem.bestEvaluation ? `${escapeHtml(evaluationDisplay(problem.bestEvaluation))}${problem.bestEvaluationDate ? ` / ${escapeHtml(problem.bestEvaluationDate)}` : ""}` : "未挑戦";
+        const attemptsText = (problem.attemptsUnlimited || Number(problem.maxAttempts || 0) === 0)
+          ? `試行 ${Number(problem.attemptCount || 0)}回`
+          : `試行 ${Number(problem.attemptCount || 0)} / ${problem.maxAttempts || writingConfig.writingMaxAttemptsPerProblem || usage.maxAttemptsPerProblem || 3}`;
+        const registered = formatRegisteredDate(problem);
+        const number = problemNumber(problem, index);
+        button.innerHTML = `
+          <div class="flex justify-between gap-3 mb-2">
+            <span class="text-[10px] text-cyan-200 font-black">${libraryGradeOverride ? `${escapeHtml(normalizeGradeKey(problem.grade) || problem.grade || "学年未設定")} / ` : ""}${escapeHtml(problemSubject(problem))} / ${escapeHtml(problemUnit(problem))}</span>
+            ${registered ? `<span class="shrink-0 text-[10px] text-slate-500 font-bold">${escapeHtml(registered)}</span>` : ""}
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="shrink-0 rounded-lg border border-cyan-300/30 bg-cyan-400/10 px-2 py-1 font-tech text-[10px] font-black text-cyan-100">${escapeHtml(number)}</span>
+            <div class="problem-card-text min-w-0 truncate font-black leading-relaxed">${escapeHtml(problemTitle(problem))}</div>
+          </div>
+          <div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+            <span>${bestText}</span>
+            <span>${escapeHtml(attemptsText)}</span>
+          </div>
+        `;
+        button.addEventListener("click", () => selectProblem(problem.problemId));
+        list.appendChild(button);
+      });
+      const matchingSelectedProblem = preserveProblemId
+        ? problems.find((problem) => problem.problemId === preserveProblemId)
+        : null;
+      if (matchingSelectedProblem) {
+        selectProblem(matchingSelectedProblem.problemId, { keepMessage: true, keepPeerExamples: true });
+      } else {
+        clearSelectedProblem();
+      }
+      renderHistoryControls();
+    }
+
+    function handleGradeFilterTap() {
+      const now = Date.now();
+      gradeTapCount = now - lastGradeTapAt > 1800 ? 1 : gradeTapCount + 1;
+      lastGradeTapAt = now;
+      if (gradeTapCount < 5) return;
+      gradeTapCount = 0;
+      const select = el("grade-unlock-select");
+      renderGradeUnlockSelect();
+      select.classList.remove("hidden");
+      select.focus();
+      showMessage("表示する学年を選択できます。", "info");
+    }
+
+    function renderGradeUnlockSelect() {
+      const select = el("grade-unlock-select");
+      if (!select) return;
+      const current = libraryGradeOverride || "profile";
+      const grades = concreteProblemGrades();
+      select.innerHTML = [
+        `<option value="profile">選択中の学年だけ</option>`,
+        `<option value="all">全学年</option>`,
+        ...grades.map((grade) => `<option value="${escapeHtml(grade)}">${escapeHtml(displayGradeChoiceLabel(grade))}</option>`)
+      ].join("");
+      select.value = Array.from(select.options).some((option) => option.value === current) ? current : "profile";
+    }
+
+    function applyGradeUnlockSelection(value) {
+      const selected = String(value || "profile");
+      libraryGradeOverride = selected === "profile" ? "" : selected;
+      selectedSubjectFilter = "all";
+      selectedUnitFilter = "all";
+      renderProblems({ preserveProblemId: selectedProblem && selectedProblem.problemId });
+      const label = libraryGradeOverride === "all" ? "全学年" : libraryGradeOverride ? displayGradeChoiceLabel(libraryGradeOverride) : "選択中の学年";
+      showMessage(`${label}の問題を表示します。`, "info");
+    }
+
+    function renderHistoryControls() {
+      const select = el("history-problem-filter");
+      if (!select) return;
+      const current = select.value || "all";
+      select.innerHTML = `<option value="all">すべての問題</option>` + (writingProblems || []).map((problem) => {
+        const label = `${problem.unit || "単元未設定"}: ${problem.prompt || problem.problemId}`;
+        return `<option value="${escapeHtml(problem.problemId)}">${escapeHtml(label)}</option>`;
+      }).join("");
+      select.value = Array.from(select.options).some((option) => option.value === current) ? current : "all";
+    }
+
+    function selectProblem(problemId, options = {}) {
+      selectedProblem = writingProblems.find((p) => p.problemId === problemId) || null;
+      if (!selectedProblem) return;
+      document.querySelectorAll(".problem-card").forEach((card) => card.classList.toggle("active", card.dataset.problemId === problemId));
+      el("empty-state").classList.add("hidden");
+      el("writing-area").classList.remove("hidden");
+      if (!options.keepMessage) el("message").classList.add("hidden");
+      const registered = formatRegisteredDate(selectedProblem);
+      el("selected-unit").textContent = `${problemNumber(selectedProblem, 0)} ${problemTitle(selectedProblem)}`;
+      el("selected-grade").textContent = selectedProblem.grade || "学年未設定";
+      el("max-chars").textContent = `${selectedProblem.maxChars || writingConfig.writingMaxChars}字まで`;
+      el("registered-date").textContent = registered ? `登録日 ${registered}` : "";
+      el("registered-date").classList.toggle("hidden", !registered);
+      setTexText("prompt", selectedProblem.prompt);
+      renderProblemImage(selectedProblem.image || null);
+      if (!options.keepPeerExamples) renderPeerExamples([]);
+      updateCharCount();
+      renderLimits();
+      updateFeedbackButtonState();
+    }
+
+    function renderProblemImage(image) {
+      const box = el("image-box");
+      const img = el("problem-image");
+      const caption = el("image-caption");
+      const hasImage = !!(image && image.url);
+      box.classList.toggle("hidden", !hasImage);
+      if (!hasImage) {
+        img.removeAttribute("src");
+        img.alt = "";
+        caption.textContent = "";
+        return;
+      }
+      img.src = image.url;
+      img.alt = image.alt || "問題画像";
+      caption.textContent = image.description || image.alt || "";
+    }
+
+    function updateCharCount() {
+      const max = selectedProblem ? selectedProblem.maxChars : writingConfig.writingMaxChars;
+      const count = el("answer").value.length;
+      el("char-count").textContent = `${count} / ${max}`;
+      el("char-count").className = count > max ? "text-xs text-rose-300 font-bold" : "text-xs text-slate-400";
+      updateFeedbackButtonState();
+    }
+
+    function handleAnswerInput() {
+      if (selectedProblem) resetOwnWordsConfirmation(selectedProblem.problemId);
+      updateCharCount();
+    }
+
+    function updateFeedbackButtonState() {
+      const button = el("feedback-btn");
+      if (!button) return;
+      const locked = Date.now() < feedbackButtonLockedUntil;
+      const unlimited = selectedProblem && (selectedProblem.attemptsUnlimited || Number(selectedProblem.maxAttempts || 0) === 0);
+      const blocked = !isProfileReady() || !selectedProblem || feedbackSubmitting || locked || !!(selectedProblem && !unlimited && Number(selectedProblem.attemptsRemaining || 0) <= 0);
+      button.disabled = blocked;
+      button.classList.toggle("opacity-60", blocked);
+      button.classList.toggle("cursor-not-allowed", blocked);
+      button.innerHTML = feedbackSubmitting
+        ? `<i class="fa-solid fa-spinner fa-spin"></i> 現在確認中です`
+        : `<i class="fa-solid fa-comments"></i> フィードバックを見る`;
+    }
+
+    function lockFeedbackButton(ms = 6000) {
+      feedbackButtonLockedUntil = Date.now() + ms;
+      if (feedbackButtonLockTimer) clearTimeout(feedbackButtonLockTimer);
+      updateFeedbackButtonState();
+      feedbackButtonLockTimer = setTimeout(() => {
+        feedbackButtonLockedUntil = 0;
+        feedbackButtonLockTimer = null;
+        updateFeedbackButtonState();
+      }, ms);
+    }
+
+    function feedbackDuplicateSignature(answer) {
+      const problemId = selectedProblem ? selectedProblem.problemId : "";
+      return [
+        userId(),
+        problemId,
+        normalizeSubmittedAnswer(answer)
+      ].join("::");
+    }
+
+    function normalizeSubmittedAnswer(answer) {
+      return String(answer || "").replace(/\s+/g, " ").trim();
+    }
+
+    function isDuplicateFeedbackSubmission(signature, windowMs = 20000) {
+      return !!signature && signature === recentFeedbackSignature && Date.now() - recentFeedbackSignatureAt < windowMs;
+    }
+
+    function rememberFeedbackSubmission(signature) {
+      recentFeedbackSignature = signature;
+      recentFeedbackSignatureAt = Date.now();
+    }
+
+    function rememberSuccessfulFeedback(problemId, answer) {
+      if (!problemId) return;
+      lastSuccessfulFeedbackByProblem[problemId] = normalizeSubmittedAnswer(answer);
+    }
+
+    function latestSuccessfulAnswerForProblem(problemId) {
+      const cached = lastSuccessfulFeedbackByProblem[problemId];
+      if (cached) return cached;
+      const item = (writingHistory || []).find((historyItem) => (
+        historyItem &&
+        historyItem.problemId === problemId &&
+        historyItem.answer
+      ));
+      return item ? normalizeSubmittedAnswer(item.answer) : "";
+    }
+
+    function isUnchangedSinceLastFeedback(problemId, answer) {
+      if (!problemId) return false;
+      const previousAnswer = latestSuccessfulAnswerForProblem(problemId);
+      return !!previousAnswer && previousAnswer === normalizeSubmittedAnswer(answer);
+    }
+
+    function currentPasteStatus() {
+      const problemId = selectedProblem ? selectedProblem.problemId : "";
+      if (!problemId) return { detected: false, longPaste: false, charCount: 0, confirmed: false };
+      if (!pasteStatusByProblem[problemId]) {
+        pasteStatusByProblem[problemId] = { detected: false, longPaste: false, charCount: 0, confirmed: false };
+      }
+      return pasteStatusByProblem[problemId];
+    }
+
+    function resetOwnWordsConfirmation(problemId) {
+      if (!problemId || !pasteStatusByProblem[problemId]) return;
+      pasteStatusByProblem[problemId].confirmed = false;
+    }
+
+    function markAnswerPaste(event) {
+      const text = event.clipboardData ? event.clipboardData.getData("text") : "";
+      const pastedLength = String(text || "").trim().length;
+      const status = currentPasteStatus();
+      status.detected = true;
+      status.charCount = Math.max(Number(status.charCount || 0), pastedLength);
+      if (pastedLength >= 50) {
+        status.longPaste = true;
+        status.confirmed = false;
+        showMessage("長い文章が貼り付けられました。バックアップや下書きの利用は問題ありません。送信前に、自分の言葉で整理できているか確認してください。", "info");
+      }
+    }
+
+    function confirmOwnWordsIfNeeded() {
+      const status = currentPasteStatus();
+      if (!status.longPaste || status.confirmed) return true;
+      const message = [
+        "長い文章が貼り付けられています。",
+        "",
+        "バックアップや下書きを使うことは問題ありません。",
+        "参考にした内容は、そのまま写すのではなく、自分の理解で言い直した回答にしてください。",
+        "",
+        "この回答は、自分の言葉で整理したものですか？"
+      ].join("\n");
+      if (!window.confirm(message)) {
+        showMessage("送信を止めました。自分の言葉で整理してから、もう一度送信してください。", "info");
+        return false;
+      }
+      status.confirmed = true;
+      return true;
+    }
+
+    function updateRestoreClearButton() {
+      const button = el("restore-clear-btn");
+      if (!button) return;
+      button.classList.toggle("hidden", !(lastClearedAnswer && lastClearedAnswer.text));
+    }
+
+    function clearAnswerWithConfirmation() {
+      const answer = el("answer");
+      const text = answer.value;
+      if (!text.trim()) {
+        showMessage("消す回答がありません。", "info");
+        return;
+      }
+      showMessage("回答を消す前に確認してください。", "info");
+      if (!window.confirm("本当に消しますか？")) return;
+      lastClearedAnswer = {
+        text,
+        problemId: selectedProblem ? selectedProblem.problemId : "",
+        clearedAt: Date.now()
+      };
+      answer.value = "";
+      renderPeerExamples([]);
+      updateCharCount();
+      updateRestoreClearButton();
+      showMessage("回答を消しました。必要なら Restore で戻せます。", "ok");
+    }
+
+    function restoreClearedAnswer() {
+      if (!lastClearedAnswer || !lastClearedAnswer.text) {
+        showMessage("戻せる回答がありません。", "info");
+        updateRestoreClearButton();
+        return;
+      }
+      const targetProblemId = lastClearedAnswer.problemId;
+      if (targetProblemId && (!selectedProblem || selectedProblem.problemId !== targetProblemId)) {
+        const exists = writingProblems.some((problem) => problem.problemId === targetProblemId);
+        if (exists) selectProblem(targetProblemId, { keepMessage: true, keepPeerExamples: true });
+      }
+      el("answer").value = lastClearedAnswer.text;
+      lastClearedAnswer = null;
+      updateCharCount();
+      updateRestoreClearButton();
+      showMessage("消した回答を戻しました。", "ok");
+    }
+
+    async function syncWriting(options = {}) {
+      const preserveProblemId = options && typeof options === "object"
+        ? String(options.preserveProblemId || (selectedProblem && selectedProblem.problemId) || "")
+        : String((selectedProblem && selectedProblem.problemId) || "");
+      try {
+        if (!GAS_URL || GAS_URL.includes("PASTE_DEPLOYED")) {
+          throw new Error("GAS_URLが未設定です。Apps ScriptのWebアプリURLを設定してください。");
+        }
+        const params = { action: "syncWriting", id: SPREADSHEET_ID };
+        if (isProfileReady()) {
+          params.userId = userId();
+          params.userName = normalizeUserName(el("user-name").value);
+          params.userClass = el("user-class").value.trim();
+          params.userNumber = el("user-number").value.trim();
+          params.schoolCode = userSchoolCode();
+          Object.assign(params, themePayload());
+        }
+        const data = await fetchJson(params);
+        if (!Array.isArray(data.problems)) {
+          throw new Error("GASが記述問題用の syncWriting に対応していない可能性があります。Apps Scriptに最新のGAS.txtを貼り替えて再デプロイしてください。");
+        }
+        writingProblems = data.problems;
+        writingConfig = { ...writingConfig, ...(data.config || {}) };
+        usage = data.usage || {};
+        writingHistory = Array.isArray(data.myHistory) ? data.myHistory : [];
+        historyVisibleCount = 5;
+        renderLimits();
+        renderProblems({ preserveProblemId });
+        renderWritingHistory();
+      } catch (err) {
+        showMessage(`同期に失敗しました: ${err.message}`, "error");
+      }
+    }
+
+    async function requestFeedback() {
+      if (feedbackSubmitting || Date.now() < feedbackButtonLockedUntil) {
+        showMessage("現在確認中です。結果が表示されるまでお待ちください。", "info");
+        return;
+      }
+      if (!selectedProblem) return showMessage("記述問題を選んでください。", "error");
+      if (!isProfileReady()) return showMessage("中学/高校・学年・クラス・番号・名前を保存してください。", "error");
+      const attemptsUnlimited = selectedProblem.attemptsUnlimited || Number(selectedProblem.maxAttempts || 0) === 0;
+      if (!attemptsUnlimited && Number(selectedProblem.attemptsRemaining || 0) <= 0) return showMessage(`この問題のフィードバック上限に達しています。同じ問題は最大${selectedProblem.maxAttempts || writingConfig.writingMaxAttemptsPerProblem || 3}回までです。`, "error");
+      const answer = el("answer").value.trim();
+      if (!answer) return showMessage("回答が空欄です。", "error");
+      if (answer.length > selectedProblem.maxChars) return showMessage(`回答が上限の${selectedProblem.maxChars}字を超えています。`, "error");
+      if (!writingConfig.writingAiEnabled) return showMessage("現在、記述AIフィードバックはOFFです。", "error");
+      if (isUnchangedSinceLastFeedback(selectedProblem.problemId, answer)) {
+        showMessage("前回のフィードバック後、回答が変更されていません。直してからもう一度送信してください。", "info");
+        return;
+      }
+      if (!confirmOwnWordsIfNeeded()) return;
+      const duplicateSignature = feedbackDuplicateSignature(answer);
+      if (isDuplicateFeedbackSubmission(duplicateSignature)) {
+        showMessage("現在確認中です。同じ回答の連続送信は少し待ってから行ってください。", "info");
+        return;
+      }
+
+      feedbackSubmitting = true;
+      rememberFeedbackSubmission(duplicateSignature);
+      lockFeedbackButton(6000);
+      showMessage("現在確認中です。フィードバックを作成しています...", "info");
+      try {
+        const data = await fetchJson({
+          action: "gradeWriting",
+          id: SPREADSHEET_ID,
+          userId: userId(),
+          userName: normalizeUserName(el("user-name").value),
+          userClass: el("user-class").value.trim(),
+          userNumber: el("user-number").value.trim(),
+          schoolStage: el("user-stage").value,
+          schoolGrade: el("user-grade").value,
+          schoolCode: userSchoolCode(),
+          ...themePayload(),
+          problemId: selectedProblem.problemId,
+          feedbackLevel: feedbackLevel(),
+          pasteDetected: currentPasteStatus().detected ? "TRUE" : "FALSE",
+          longPasteDetected: currentPasteStatus().longPaste ? "TRUE" : "FALSE",
+          pasteCharCount: String(currentPasteStatus().charCount || 0),
+          ownWordsConfirmed: currentPasteStatus().confirmed ? "TRUE" : "FALSE",
+          answer
+        });
+        const feedback = data.feedback || {};
+        renderFeedback(feedback);
+        renderPeerExamples(isImpressionTask(activeAssignmentType(feedback)) ? [] : (data.peerExamples || []));
+        showMessage("フィードバックを記録しました。", "ok");
+        const submittedProblemId = selectedProblem.problemId;
+        rememberSuccessfulFeedback(submittedProblemId, answer);
+        await syncWriting({ preserveProblemId: submittedProblemId });
+      } catch (err) {
+        showMessage(err.message, "error");
+      } finally {
+        feedbackSubmitting = false;
+        updateFeedbackButtonState();
+      }
+    }
+
+    function isBlankFeedbackField(value) {
+      const text = String(value || "").trim();
+      return !text || text === "--" || text === "コメントはありません。";
+    }
+
+    function weakCriteriaLabels(criteria) {
+      const list = Array.isArray(criteria) ? criteria : [];
+      return list
+        .filter((item) => item && ["×", "△"].includes(String(item.status || "").trim()))
+        .map((item) => String(item.label || "").trim())
+        .filter(Boolean)
+        .slice(0, 2);
+    }
+
+    function completeFeedbackForDisplay(feedback = {}) {
+      const filled = { ...feedback };
+      if (isImpressionTask(activeAssignmentType(filled))) return filled;
+      const evaluation = normalizeEvaluationLabel(filled.evaluation);
+      const weakLabels = weakCriteriaLabels(filled.criteria);
+      const weakText = weakLabels.length ? `「${weakLabels.join("」「")}」` : "問題で聞かれている内容";
+      if (isBlankFeedbackField(filled.overall)) {
+        filled.overall = evaluation === "F" || evaluation === "C"
+          ? "問題で求められている内容がまだ十分に説明できていません。まず、必要な要素を一つずつ整理しましょう。"
+          : "要点の一部は見えますが、説明をもう少し具体的につなげるとよいです。";
+      }
+      if (isBlankFeedbackField(filled.good)) {
+        filled.good = "短くても回答を書き始めています。ここから、問題で求められている用語や関係を足していきましょう。";
+      }
+      if (isBlankFeedbackField(filled.improve)) {
+        filled.improve = `${weakText}を中心に、具体的な内容や関係を本文に入れるとよいです。`;
+      }
+      if (isBlankFeedbackField(filled.next)) {
+        filled.next = "問題文を小さく分け、聞かれていることを一つずつ短い文で説明してからつなげましょう。";
+      }
+      return filled;
+    }
+
+    function renderFeedback(feedback) {
+      feedback = completeFeedbackForDisplay(feedback || {});
+      el("feedback-panel").classList.remove("hidden");
+      const assignmentType = activeAssignmentType(feedback);
+      const impression = isImpressionTask(assignmentType);
+      const evaluation = normalizeEvaluationLabel(feedback.evaluation);
+      const stars = evaluationStars(evaluation);
+      el("evaluation").classList.toggle("hidden", impression);
+      el("evaluation").innerHTML = `<div class="eval-letter">${escapeHtml(evaluation)}</div>${stars ? `<div class="eval-stars">${escapeHtml(stars)}</div>` : ""}`;
+      setTexText("overall", feedback.overall || "コメントはありません。");
+      setTexText("good", feedback.good || "--");
+      setTexText("improve", feedback.improve || "--");
+      setTexText("next", feedback.next || "--");
+      renderCriteria(impression ? [] : (feedback.criteria || []));
+      setTexText("key-point", feedback.keyPoint || "");
+      el("key-point-box").classList.toggle("hidden", !feedback.keyPoint);
+      const hasExamples = !impression && !!(feedback.revisedAnswer || feedback.modelAnswer);
+      setTexText("revised-answer", feedback.revisedAnswer || "--");
+      setTexText("model-answer", feedback.modelAnswer || "--");
+      el("example-controls").classList.toggle("hidden", !hasExamples);
+      el("answer-examples").classList.add("hidden");
+      el("toggle-examples-btn").innerHTML = `<i class="fa-solid fa-eye"></i> 解答例を見る`;
+      const notes = [];
+      if (feedback.scienceNote) notes.push(`<div><b class="text-cyan-200">理科の補足:</b> <span class="tex-content">${textToHtml(feedback.scienceNote)}</span></div>`);
+      el("extra-notes").innerHTML = notes.join("");
+      renderTexIn(el("extra-notes"));
+      const rememberItems = String(feedback.remember || "")
+        .split(/[\/／\n]/)
+        .map((item) => item.replace(/^・/, "").trim())
+        .filter(Boolean)
+        .slice(0, 3);
+      el("remember-box").classList.toggle("hidden", rememberItems.length === 0);
+      el("remember-list").innerHTML = rememberItems.map((item) => `<span class="tex-content rounded-full bg-white/10 border border-white/10 px-3 py-2 text-xs font-bold text-slate-100">${textToHtml(item)}</span>`).join("");
+      renderTexIn(el("remember-list"));
+    }
+
+    function criterionClass(status) {
+      if (status === "○") return "criterion-ok";
+      if (status === "△") return "criterion-mid";
+      return "criterion-ng";
+    }
+
+    function criteriaMarkup(criteria) {
+      const list = Array.isArray(criteria) ? criteria.filter((item) => item && item.label && item.status && item.comment).slice(0, 5) : [];
+      return list.map((item) => `
+        <div class="flex gap-3 rounded-2xl border border-white/10 bg-slate-950/35 p-3">
+          <div class="criterion-mark ${criterionClass(item.status)}">${escapeHtml(item.status)}</div>
+          <div class="min-w-0">
+            <div class="text-xs font-black text-slate-100">${escapeHtml(item.label)}</div>
+            <div class="tex-content mt-1 text-sm leading-relaxed text-slate-300">${textToHtml(item.comment)}</div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderCriteria(criteria) {
+      const html = criteriaMarkup(criteria);
+      el("criteria-box").classList.toggle("hidden", !html);
+      el("criteria-list").innerHTML = html;
+      renderTexIn(el("criteria-list"));
+    }
+
+    function renderPeerExamples(examples) {
+      const list = Array.isArray(examples) ? examples : [];
+      const panel = el("peer-example-panel");
+      const body = el("peer-examples");
+      panel.classList.toggle("hidden", list.length === 0);
+      body.classList.add("hidden");
+      el("toggle-peer-examples-btn").innerHTML = `<i class="fa-solid fa-users"></i> 他の人の解答例を見る`;
+      if (!list.length) {
+        body.innerHTML = "";
+        return;
+      }
+      body.innerHTML = list.map((item, index) => `
+        <div class="rounded-2xl border border-slate-700/70 bg-slate-950/55 p-4">
+          <div class="mb-2 text-[10px] font-black tracking-[0.18em] text-cyan-200 uppercase">Example ${index + 1}</div>
+          <p class="tex-content example-copy text-slate-100">${textToHtml(item.answer)}</p>
+        </div>
+      `).join("");
+      renderTexIn(body);
+    }
+
+    function historyTimeValue(item) {
+      const value = Date.parse(String(item.date || '').replace(/\//g, "-"));
+      return Number.isNaN(value) ? 0 : value;
+    }
+
+    function filteredWritingHistory() {
+      const problemFilter = el("history-problem-filter") ? el("history-problem-filter").value : "all";
+      const sortMode = el("history-sort") ? el("history-sort").value : "newest";
+      return (writingHistory || [])
+        .filter((item) => problemFilter === "all" || String(item.problemId || "") === problemFilter)
+        .sort((a, b) => sortMode === "oldest" ? historyTimeValue(a) - historyTimeValue(b) : historyTimeValue(b) - historyTimeValue(a));
+    }
+
+    function renderWritingHistory() {
+      const list = el("history-list");
+      if (!list) return;
+      const filtered = filteredWritingHistory();
+      const visible = filtered.slice(0, historyVisibleCount);
+      el("history-count").textContent = `${filtered.length} records`;
+      el("history-more-btn").classList.toggle("hidden", visible.length >= filtered.length);
+      if (!isProfileReady()) {
+        list.innerHTML = `<div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">ユーザー情報を保存すると、自分の履歴を表示できます。</div>`;
+        return;
+      }
+      if (!filtered.length) {
+        list.innerHTML = `<div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">表示できる履歴はまだありません。</div>`;
+        return;
+      }
+      list.innerHTML = visible.map((item) => {
+        const title = item.prompt || (writingProblems.find((problem) => problem.problemId === item.problemId) || {}).prompt || item.problemId || "問題";
+        const meta = [item.date, item.unit, item.grade].filter(Boolean).map(escapeHtml).join(" / ");
+        const assignmentType = normalizeAssignmentType(item.assignmentType || ((writingProblems.find((problem) => problem.problemId === item.problemId) || {}).assignmentType));
+        const impression = isImpressionTask(assignmentType);
+        const displayItem = completeFeedbackForDisplay(item);
+        return `
+          <details class="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-4">
+            <summary class="cursor-pointer list-none">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="text-[11px] font-bold text-slate-400">${meta}</div>
+                  <div class="tex-content mt-1 text-sm font-black leading-relaxed text-slate-100">${textToHtml(title)}</div>
+                </div>
+                ${impression ? `<span class="shrink-0 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-slate-200">記録</span>` : `<span class="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-sm font-black text-cyan-100">${escapeHtml(evaluationDisplay(displayItem.evaluation))}</span>`}
+              </div>
+            </summary>
+            <div class="mt-4 grid gap-3">
+              <div class="rounded-2xl bg-white/5 border border-white/10 p-3">
+                <div class="mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Your Answer</div>
+                <p class="tex-content leading-relaxed text-slate-100">${textToHtml(item.answer || "--")}</p>
+              </div>
+              <div class="rounded-2xl bg-cyan-400/10 border border-cyan-300/20 p-3">
+                <div class="mb-1 text-[10px] font-black tracking-[0.16em] text-cyan-200 uppercase">Feedback</div>
+                <p class="tex-content leading-relaxed text-slate-100">${textToHtml(displayItem.overall || "--")}</p>
+              </div>
+              <div class="grid md:grid-cols-2 gap-3">
+                <div class="rounded-2xl bg-emerald-400/10 border border-emerald-300/20 p-3">
+                  <div class="mb-1 text-[10px] font-black text-emerald-200">良い点</div>
+                  <p class="tex-content leading-relaxed text-slate-100">${textToHtml(displayItem.good || "--")}</p>
+                </div>
+                <div class="rounded-2xl bg-amber-400/10 border border-amber-300/20 p-3">
+                  <div class="mb-1 text-[10px] font-black text-amber-200">直すと良い点</div>
+                  <p class="tex-content leading-relaxed text-slate-100">${textToHtml(displayItem.improve || "--")}</p>
+                </div>
+              </div>
+              ${!impression && criteriaMarkup(displayItem.criteria) ? `<div class="rounded-2xl bg-white/5 border border-white/10 p-3"><div class="mb-3 text-[10px] font-black tracking-[0.16em] text-slate-300 uppercase">理解の整理</div><div class="space-y-2">${criteriaMarkup(displayItem.criteria)}</div></div>` : ""}
+              ${impression ? "" : `<div class="rounded-2xl bg-violet-400/10 border border-violet-300/20 p-3">
+                <div class="mb-1 text-[10px] font-black text-violet-200">模範解答</div>
+                <p class="tex-content leading-relaxed text-slate-100 no-copy">${textToHtml(displayItem.modelAnswer || "--")}</p>
+              </div>`}
+              ${displayItem.keyPoint || displayItem.scienceNote ? `<div class="rounded-2xl bg-rose-400/10 border border-rose-300/20 p-3"><div class="mb-1 text-[10px] font-black text-rose-200">理科の補足</div><p class="tex-content leading-relaxed text-slate-100">${textToHtml(displayItem.keyPoint || displayItem.scienceNote)}</p></div>` : ""}
+            </div>
+          </details>
+        `;
+      }).join("");
+      renderTexIn(list);
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    }
+
+    function textToHtml(value) {
+      return escapeHtml(value || "--").replace(/\r?\n/g, "<br>");
+    }
+
+    function ensureKatexCss(doc = document) {
+      if (!doc || !doc.head || doc.getElementById("katex-css")) return;
+      const css = doc.createElement("link");
+      css.id = "katex-css";
+      css.rel = "stylesheet";
+      css.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
+      doc.head.appendChild(css);
+    }
+
+    let mathRendererPromise = null;
+
+    function loadMathRenderer() {
+      if (window.katex && window.renderMathInElement) return Promise.resolve(true);
+      if (mathRendererPromise) return mathRendererPromise;
+      ensureKatexCss(document);
+      mathRendererPromise = new Promise((resolve) => {
+        const loadScript = (id, src, done) => {
+          const existing = document.getElementById(id);
+          if (existing) {
+            existing.addEventListener("load", done, { once: true });
+            existing.addEventListener("error", () => resolve(false), { once: true });
+            return;
+          }
+          const script = document.createElement("script");
+          script.id = id;
+          script.src = src;
+          script.async = true;
+          script.onload = done;
+          script.onerror = () => resolve(false);
+          document.head.appendChild(script);
+        };
+        loadScript("katex-script", "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js", () => {
+          loadScript("katex-auto-render-script", "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js", () => resolve(true));
+        });
+      }).catch(() => false);
+      return mathRendererPromise;
+    }
+
+    function renderMathInNode(node) {
+      if (!node) return;
+      const doc = node.ownerDocument || document;
+      ensureKatexCss(doc);
+      loadMathRenderer().then((ready) => {
+        if (!ready || !window.renderMathInElement) return;
+        window.renderMathInElement(node, {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "\\[", right: "\\]", display: true },
+            { left: "$", right: "$", display: false },
+            { left: "\\(", right: "\\)", display: false }
+          ],
+          ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code", "option"],
+          throwOnError: false,
+          strict: "ignore",
+          trust: false
+        });
+      });
+    }
+
+    function renderTexIn(root) {
+      if (!root) return;
+      const targets = root.classList && root.classList.contains("tex-content")
+        ? [root]
+        : Array.from(root.querySelectorAll ? root.querySelectorAll(".tex-content") : []);
+      targets.forEach(renderMathInNode);
+    }
+
+    function setTexText(id, value) {
+      const node = el(id);
+      if (!node) return;
+      node.innerHTML = textToHtml(value || "--");
+      node.classList.add("tex-content");
+      renderMathInNode(node);
+    }
+
+    el("save-profile-btn").addEventListener("click", saveProfile);
+    el("logout-btn").addEventListener("click", logoutProfile);
+    el("sync-btn").addEventListener("click", syncWriting);
+    el("grade-filter-toggle").addEventListener("click", handleGradeFilterTap);
+    ["user-stage", "user-grade"].forEach((id) => {
+      el(id).addEventListener("change", () => {
+        handleProfileEditChanged();
+        libraryGradeOverride = "";
+        el("grade-unlock-select").classList.add("hidden");
+        gradeTapCount = 0;
+        selectedSubjectFilter = "all";
+        selectedUnitFilter = "all";
+        renderProblems(false);
+      });
+    });
+    ["user-class", "user-number", "user-name"].forEach((id) => {
+      el(id).addEventListener("input", handleProfileEditChanged);
+    });
+    el("subject-filter").addEventListener("change", () => {
+      selectedSubjectFilter = el("subject-filter").value || "all";
+      selectedUnitFilter = "all";
+      renderProblems(false);
+    });
+    el("grade-unlock-select").addEventListener("change", () => {
+      applyGradeUnlockSelection(el("grade-unlock-select").value);
+    });
+    el("unit-filter").addEventListener("change", () => {
+      selectedUnitFilter = el("unit-filter").value || "all";
+      renderProblems(false);
+    });
+    el("theme-btn").addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleThemeMenu();
+    });
+    document.querySelectorAll("[data-theme]").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        applyTheme(btn.dataset.theme);
+        toggleThemeMenu(false);
+      });
+    });
+    document.addEventListener("click", (event) => {
+      if (!el("theme-picker").contains(event.target)) toggleThemeMenu(false);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") toggleThemeMenu(false);
+    });
+    el("feedback-btn").addEventListener("click", requestFeedback);
+    el("voice-input-btn").addEventListener("click", toggleVoiceInput);
+    el("toggle-examples-btn").addEventListener("click", () => {
+      const examples = el("answer-examples");
+      const willShow = examples.classList.contains("hidden");
+      examples.classList.toggle("hidden", !willShow);
+      el("toggle-examples-btn").innerHTML = willShow
+        ? `<i class="fa-solid fa-eye-slash"></i> 解答例を隠す`
+        : `<i class="fa-solid fa-eye"></i> 解答例を見る`;
+    });
+    el("toggle-peer-examples-btn").addEventListener("click", () => {
+      const examples = el("peer-examples");
+      const willShow = examples.classList.contains("hidden");
+      examples.classList.toggle("hidden", !willShow);
+      el("toggle-peer-examples-btn").innerHTML = willShow
+        ? `<i class="fa-solid fa-users-slash"></i> 他の人の解答例を隠す`
+        : `<i class="fa-solid fa-users"></i> 他の人の解答例を見る`;
+    });
+    el("feedback-level").addEventListener("change", () => localStorage.setItem("writing_feedback_level", feedbackLevel()));
+    el("history-problem-filter").addEventListener("change", () => {
+      historyVisibleCount = 5;
+      renderWritingHistory();
+    });
+    el("history-sort").addEventListener("change", () => {
+      historyVisibleCount = 5;
+      renderWritingHistory();
+    });
+    el("history-more-btn").addEventListener("click", () => {
+      historyVisibleCount += 5;
+      renderWritingHistory();
+    });
+    el("history-browse-btn").addEventListener("click", () => exportStudentHistory("browse"));
+    el("history-print-btn").addEventListener("click", () => exportStudentHistory("print"));
+    el("admin-entry-btn").addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      adminFooterTapCount += 1;
+      window.setTimeout(() => { adminFooterTapCount = 0; }, 1800);
+      if (adminFooterTapCount >= 5) {
+        adminFooterTapCount = 0;
+        openAdminPanel();
+      }
+    });
+    document.querySelectorAll(".admin-tab").forEach((button) => {
+      button.addEventListener("click", () => {
+        adminActiveTab = button.dataset.adminTab || "class";
+        renderAdmin();
+      });
+    });
+    ["admin-grade-filter", "admin-class-filter", "admin-user-filter", "admin-problem-filter"].forEach((id) => {
+      el(id).addEventListener("change", () => {
+        if (id === "admin-grade-filter" || id === "admin-class-filter") updateAdminFilters();
+        renderAdmin();
+      });
+    });
+    el("admin-refresh-btn").addEventListener("click", loadAdminData);
+    el("admin-close-btn").addEventListener("click", closeAdminPanel);
+    el("clear-btn").addEventListener("click", clearAnswerWithConfirmation);
+    el("restore-clear-btn").addEventListener("click", restoreClearedAnswer);
+    el("answer").addEventListener("input", handleAnswerInput);
+    el("answer").addEventListener("paste", markAnswerPaste);
+    document.querySelectorAll("[data-font-size]").forEach((btn) => {
+      btn.addEventListener("click", () => applyFontSizeMode(btn.dataset.fontSize));
+    });
+    function selectionTouchesNoCopy() {
+      const selection = window.getSelection && window.getSelection();
+      if (!selection || selection.rangeCount === 0) return false;
+      const node = selection.getRangeAt(0).commonAncestorContainer;
+      const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+      return !!(element && element.closest && element.closest(".no-copy"));
+    }
+
+    ["copy", "cut", "contextmenu", "dragstart"].forEach((eventName) => {
+      document.addEventListener(eventName, (event) => {
+        const targetBlocked = event.target && event.target.closest && event.target.closest(".no-copy");
+        if (targetBlocked || selectionTouchesNoCopy()) event.preventDefault();
+      });
+    });
+
+    renderFeedback({
+      evaluation: "-",
+      overall: "フィードバックはここに表示されます。回答を書いてから送信してください。",
+      good: "--",
+      improve: "--",
+      next: "--"
+    });
+    loadProfile();
+    loadVoiceInputSettings();
+    initVoiceInput();
+    applyFontSizeMode(localStorage.getItem(FONT_SIZE_STORAGE_KEY) || "standard");
+    applyTheme(localStorage.getItem("ethics_theme_mode") || "modeA");
+    syncWriting();
+  </script>
+</body>
+</html>
