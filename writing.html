@@ -22,10 +22,6 @@
       --accent-soft: rgba(34, 211, 238, 0.12);
       --accent-line: rgba(34, 211, 238, 0.34);
     }
-    html {
-      min-height: 100%;
-      background: #08111f !important;
-    }
     body.theme-lime { --accent: #a3e635; --accent-soft: rgba(163, 230, 53, 0.12); --accent-line: rgba(163, 230, 53, 0.34); }
     body.theme-amber { --accent: #fbbf24; --accent-soft: rgba(251, 191, 36, 0.12); --accent-line: rgba(251, 191, 36, 0.34); }
     body.theme-rose { --accent: #fb7185; --accent-soft: rgba(251, 113, 133, 0.12); --accent-line: rgba(251, 113, 133, 0.34); }
@@ -34,7 +30,7 @@
       background:
         radial-gradient(circle at 12% 18%, rgba(34, 211, 238, 0.18), transparent 32rem),
         radial-gradient(circle at 82% 6%, rgba(163, 230, 53, 0.13), transparent 26rem),
-        linear-gradient(135deg, #08111f 0%, #111827 54%, #0f172a 100%) !important;
+        linear-gradient(135deg, #08111f 0%, #111827 54%, #0f172a 100%);
       color: #e5f4ff;
       font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
     }
@@ -113,17 +109,6 @@
     .feedback-copy { font-size: calc(1.02rem * var(--writing-text-scale)); line-height: 1.78; }
     .problem-card-text { font-size: calc(0.95rem * var(--writing-text-scale)); }
     .example-copy { font-size: calc(1rem * var(--writing-text-scale)); line-height: 1.85; }
-    .tex-render .katex { font-size: 1.03em; }
-    .tex-render .katex-display { margin: 0.45rem 0; overflow-x: auto; overflow-y: hidden; }
-    @keyframes messagePulse {
-      0%, 100% { box-shadow: 0 0 0 rgba(34, 211, 238, 0); transform: translateY(0); }
-      45% { box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.18), 0 0 28px rgba(34, 211, 238, 0.32); transform: translateY(-1px); }
-    }
-    .message-pulse {
-      animation: messagePulse 1.05s ease-in-out infinite;
-      border-color: rgba(103, 232, 249, 0.75) !important;
-      background: rgba(8, 145, 178, 0.22) !important;
-    }
     .no-copy { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
     .criterion-mark { width: 2.25rem; height: 2.25rem; display: grid; place-items: center; border-radius: 999px; font-weight: 900; }
     .criterion-ok { background: rgba(16, 185, 129, 0.16); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.34); }
@@ -677,7 +662,7 @@
       updateFeedbackButtonState();
     }
 
-    function showMessage(text, type = "info", options = {}) {
+    function showMessage(text, type = "info") {
       const box = el("message");
       box.className = "rounded-2xl p-4 text-sm";
       box.classList.remove("hidden");
@@ -687,7 +672,6 @@
         ok: "bg-lime-400/10 border border-lime-300/20 text-lime-100"
       };
       box.className += " " + (styles[type] || styles.info);
-      if (options.pulse) box.classList.add("message-pulse");
       box.textContent = text;
     }
 
@@ -782,14 +766,12 @@
       document.documentElement.style.setProperty("--accent-line", `${t.accent}66`);
       const bgMid = t.bgMid || "#111827";
       const bgEnd = t.bgEnd || "#020617";
-      const themeBackground = `
+      document.body.style.background = `
         radial-gradient(circle at 12% 18%, ${t.accent}24, transparent 32rem),
         radial-gradient(circle at 82% 6%, rgba(255, 255, 255, 0.08), transparent 26rem),
         linear-gradient(135deg, ${t.bg} 0%, ${bgMid} 58%, ${bgEnd} 100%)
       `;
-      document.documentElement.style.setProperty("background", bgEnd, "important");
-      document.body.style.setProperty("background", themeBackground, "important");
-      document.body.style.setProperty("color", t.text, "important");
+      document.body.style.color = t.text;
       localStorage.setItem("ethics_theme_mode", safeTheme);
       const themeButton = el("theme-btn");
       if (themeButton) themeButton.innerHTML = `<i class="fa-solid fa-palette"></i> ${themeDisplayName(safeTheme)}`;
@@ -1144,7 +1126,6 @@
       container.querySelectorAll("[data-admin-user][data-admin-problem]").forEach((button) => {
         button.addEventListener("click", () => renderAdminDetail(button.dataset.adminUser, button.dataset.adminProblem));
       });
-      renderMathInNode(container);
     }
 
     function renderAdminUserView() {
@@ -1178,7 +1159,6 @@
       `;
       container.querySelector("[data-admin-browse-user]")?.addEventListener("click", () => exportAdminUserHistory(selected, "browse"));
       container.querySelector("[data-admin-print-user]")?.addEventListener("click", () => exportAdminUserHistory(selected, "print"));
-      renderMathInNode(container);
     }
 
     function renderAdminProblemView() {
@@ -1214,7 +1194,6 @@
       container.querySelectorAll("[data-admin-user][data-admin-problem]").forEach((button) => {
         button.addEventListener("click", () => renderAdminDetail(button.dataset.adminUser, button.dataset.adminProblem));
       });
-      renderMathInNode(container);
     }
 
     function adminHistoryCard(item) {
@@ -1279,7 +1258,6 @@
           <div class="grid gap-3">${adminDetailMarkup(items)}</div>
         </div>
       `;
-      renderMathInNode(el("admin-detail-view"));
       el("admin-detail-view").scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
@@ -1438,7 +1416,6 @@
       const html = buildPrintExportHtml(payload);
       if (!html) return false;
       el("print-export-content").innerHTML = html;
-      renderMathInNode(el("print-export-content"));
       return true;
     }
 
@@ -1449,9 +1426,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
   <style>
     body { margin: 0; background: #f3f4f6; color: #111827; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .print-toolbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end; gap: 0.5rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.94); border-bottom: 1px solid #d1d5db; }
@@ -1469,8 +1443,6 @@
     .print-block { margin: 0.42rem 0; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.5rem; background: #fff; box-sizing: border-box; }
     .print-label { font-size: 0.72rem; font-weight: 900; color: #374151; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem; }
     .print-text { white-space: pre-wrap; line-height: 1.55; font-size: 0.84rem; margin: 0; overflow-wrap: anywhere; }
-    .katex { font-size: 1.02em; }
-    .katex-display { margin: 0.35rem 0; overflow-x: auto; overflow-y: hidden; }
     .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
     .print-criteria { display: grid; gap: 0.35rem; margin-top: 0.25rem; }
     .print-criterion { display: grid; grid-template-columns: 1.6rem minmax(4.5rem, 7rem) 1fr; gap: 0.3rem; align-items: start; font-size: 0.78rem; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.32rem; box-sizing: border-box; }
@@ -1491,21 +1463,6 @@
     <button type="button" onclick="window.close()">閉じる</button>
   </div>
   ${bodyHtml}
-  <script>
-    window.addEventListener("load", function() {
-      if (window.renderMathInElement) {
-        window.renderMathInElement(document.body, {
-          delimiters: [
-            { left: "$$", right: "$$", display: true },
-            { left: "\\\\[", right: "\\\\]", display: true },
-            { left: "$", right: "$", display: false },
-            { left: "\\\\(", right: "\\\\)", display: false }
-          ],
-          throwOnError: false
-        });
-      }
-    });
-  <\/script>
 </body>
 </html>`;
     }
@@ -1578,7 +1535,7 @@
         return;
       }
       if (renderPrintExport(payload)) {
-        window.setTimeout(() => window.print(), 500);
+        window.setTimeout(() => window.print(), 100);
         setStatus(usedFallback ? "同期済み履歴でPDF用一覧を開きました。印刷画面からPDF保存できます。" : "PDF用一覧を開きました。印刷画面からPDF保存できます。", "ok");
       }
     }
@@ -1598,7 +1555,7 @@
         return;
       }
       if (renderPrintExport(payload)) {
-        window.setTimeout(() => window.print(), 500);
+        window.print();
       }
     }
 
@@ -1621,7 +1578,6 @@
       const enabled = !!writingConfig.announcementEnabled && !!text;
       box.classList.toggle("hidden", !enabled);
       el("announcement-text").textContent = enabled ? text : "";
-      if (enabled) renderMathInNode(el("announcement-text"));
     }
 
     function normalizeGradeKey(value) {
@@ -1851,7 +1807,6 @@
         button.addEventListener("click", () => selectProblem(problem.problemId));
         list.appendChild(button);
       });
-      renderMathInNode(list);
       const matchingSelectedProblem = preserveProblemId
         ? problems.find((problem) => problem.problemId === preserveProblemId)
         : null;
@@ -1924,7 +1879,6 @@
       el("registered-date").textContent = registered ? `登録日 ${registered}` : "";
       el("registered-date").classList.toggle("hidden", !registered);
       el("prompt").textContent = selectedProblem.prompt;
-      renderMathInNode(el("prompt"));
       renderProblemImage(selectedProblem.image || null);
       if (!options.keepPeerExamples) renderPeerExamples([]);
       updateCharCount();
@@ -2054,7 +2008,7 @@
       if (pastedLength >= 50) {
         status.longPaste = true;
         status.confirmed = false;
-        showMessage("長い文章が貼り付けられました。バックアップや下書きの利用は問題ありません。送信前に、自分の言葉で整理できているか確認してください。", "info", { pulse: true });
+        showMessage("長い文章が貼り付けられました。バックアップや下書きの利用は問題ありません。送信前に、自分の言葉で整理できているか確認してください。", "info");
       }
     }
 
@@ -2288,7 +2242,6 @@
         .slice(0, 3);
       el("remember-box").classList.toggle("hidden", rememberItems.length === 0);
       el("remember-list").innerHTML = rememberItems.map((item) => `<span class="rounded-full bg-white/10 border border-white/10 px-3 py-2 text-xs font-bold text-slate-100">${escapeHtml(item)}</span>`).join("");
-      renderMathInNode(el("feedback-panel"));
     }
 
     function criterionClass(status) {
@@ -2314,7 +2267,6 @@
       const html = criteriaMarkup(criteria);
       el("criteria-box").classList.toggle("hidden", !html);
       el("criteria-list").innerHTML = html;
-      renderMathInNode(el("criteria-list"));
     }
 
     function renderPeerExamples(examples) {
@@ -2334,7 +2286,6 @@
           <p class="example-copy text-slate-100">${escapeHtml(item.answer)}</p>
         </div>
       `).join("");
-      renderMathInNode(body);
     }
 
     function historyTimeValue(item) {
@@ -2411,51 +2362,6 @@
           </details>
         `;
       }).join("");
-      renderMathInNode(list);
-    }
-
-    let mathRendererPromise = null;
-
-    function loadMathRenderer() {
-      if (window.katex && window.renderMathInElement) return Promise.resolve(true);
-      if (mathRendererPromise) return mathRendererPromise;
-      mathRendererPromise = new Promise((resolve, reject) => {
-        if (!document.getElementById("katex-css")) {
-          const css = document.createElement("link");
-          css.id = "katex-css";
-          css.rel = "stylesheet";
-          css.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
-          document.head.appendChild(css);
-        }
-        const loadScript = (id, src, callback) => {
-          const existing = document.getElementById(id);
-          if (existing) {
-            if (window.renderMathInElement || id === "katex-script") callback();
-            else existing.addEventListener("load", callback, { once: true });
-            return;
-          }
-          const script = document.createElement("script");
-          script.id = id;
-          script.src = src;
-          script.defer = true;
-          script.onload = callback;
-          script.onerror = () => reject(new Error(`TeX renderer failed to load: ${src}`));
-          document.head.appendChild(script);
-        };
-        loadScript("katex-script", "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js", () => {
-          loadScript("katex-auto-render-script", "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js", () => resolve(true));
-        });
-      }).catch((err) => {
-        console.warn(err);
-        return false;
-      });
-      return mathRendererPromise;
-    }
-
-    function renderMathInNode(node) {
-      // Temporarily disabled: the KaTeX auto-render pass can mutate normal UI nodes.
-      // Keep TeX source text visible until math rendering is isolated from the app UI.
-      return;
     }
 
     function escapeHtml(value) {
