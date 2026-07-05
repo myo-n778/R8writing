@@ -426,6 +426,7 @@
               <span class="font-tech text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Grade</span>
               <span id="active-grade-filter" class="text-xs font-black text-cyan-100">未設定</span>
             </div>
+            <select id="grade-unlock-select" class="input-compact hidden w-full px-3 py-2 text-sm"></select>
             <select id="subject-filter" class="input-compact w-full px-3 py-2 text-sm"></select>
             <select id="unit-filter" class="input-compact hidden w-full px-3 py-2 text-sm"></select>
           </div>
@@ -568,7 +569,7 @@
     let adminData = null;
     let adminPassword = "";
     let adminActiveTab = "class";
-    let allGradeLibraryMode = false;
+    let libraryGradeOverride = "";
     let gradeTapCount = 0;
     let lastGradeTapAt = 0;
     let adminFooterTapCount = 0;
@@ -1698,9 +1699,26 @@
       return Array.from(new Set(values.filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "ja"));
     }
 
+    function displayGradeChoiceLabel(grade) {
+      const normalized = normalizeGradeKey(grade);
+      const labels = { M1: "M1 / 中1", M2: "M2 / 中2", M3: "M3 / 中3", H1: "H1 / 高1", H2: "H2 / 高2", H3: "H3 / 高3" };
+      return labels[normalized] || normalized || "未設定";
+    }
+
+    function concreteProblemGrades() {
+      const grades = (writingProblems || [])
+        .flatMap((problem) => splitGradeKeys(problem.grade))
+        .filter((grade) => /^M[1-3]$|^H[1-3]$/.test(grade));
+      return uniqueSorted(grades);
+    }
+
+    function activeLibraryGradeKey() {
+      return libraryGradeOverride && libraryGradeOverride !== "all" ? libraryGradeOverride : activeGradeKey();
+    }
+
     function gradeFilteredProblems() {
-      const grade = activeGradeKey();
-      if (allGradeLibraryMode) return writingProblems || [];
+      const grade = activeLibraryGradeKey();
+      if (libraryGradeOverride === "all") return writingProblems || [];
       if (!grade) return [];
       return (writingProblems || []).filter((problem) => problemAppliesToGrade(problem.grade, grade));
     }
@@ -1714,8 +1732,14 @@
     }
 
     function renderProblemFilters() {
-      const grade = activeGradeKey();
-      el("active-grade-filter").textContent = allGradeLibraryMode ? "全学年" : (grade || "未設定");
+      const grade = activeLibraryGradeKey();
+      const gradeLabel = libraryGradeOverride === "all"
+        ? "全学年"
+        : libraryGradeOverride
+          ? `${displayGradeChoiceLabel(libraryGradeOverride)}`
+          : (grade || "未設定");
+      el("active-grade-filter").textContent = gradeLabel;
+      renderGradeUnlockSelect();
       const byGrade = gradeFilteredProblems();
       const subjects = uniqueSorted(byGrade.map(problemSubject));
       if (selectedSubjectFilter !== "all" && !subjects.includes(selectedSubjectFilter)) {
@@ -1768,7 +1792,7 @@
         const number = problemNumber(problem, index);
         button.innerHTML = `
           <div class="flex justify-between gap-3 mb-2">
-            <span class="text-[10px] text-cyan-200 font-black">${allGradeLibraryMode ? `${escapeHtml(normalizeGradeKey(problem.grade) || problem.grade || "学年未設定")} / ` : ""}${escapeHtml(problemSubject(problem))} / ${escapeHtml(problemUnit(problem))}</span>
+            <span class="text-[10px] text-cyan-200 font-black">${libraryGradeOverride ? `${escapeHtml(normalizeGradeKey(problem.grade) || problem.grade || "学年未設定")} / ` : ""}${escapeHtml(problemSubject(problem))} / ${escapeHtml(problemUnit(problem))}</span>
             ${registered ? `<span class="shrink-0 text-[10px] text-slate-500 font-bold">${escapeHtml(registered)}</span>` : ""}
           </div>
           <div class="flex items-center gap-2">
@@ -1800,11 +1824,34 @@
       lastGradeTapAt = now;
       if (gradeTapCount < 5) return;
       gradeTapCount = 0;
-      allGradeLibraryMode = !allGradeLibraryMode;
+      const select = el("grade-unlock-select");
+      renderGradeUnlockSelect();
+      select.classList.remove("hidden");
+      select.focus();
+      showMessage("表示する学年を選択できます。", "info");
+    }
+
+    function renderGradeUnlockSelect() {
+      const select = el("grade-unlock-select");
+      if (!select) return;
+      const current = libraryGradeOverride || "profile";
+      const grades = concreteProblemGrades();
+      select.innerHTML = [
+        `<option value="profile">選択中の学年だけ</option>`,
+        `<option value="all">全学年</option>`,
+        ...grades.map((grade) => `<option value="${escapeHtml(grade)}">${escapeHtml(displayGradeChoiceLabel(grade))}</option>`)
+      ].join("");
+      select.value = Array.from(select.options).some((option) => option.value === current) ? current : "profile";
+    }
+
+    function applyGradeUnlockSelection(value) {
+      const selected = String(value || "profile");
+      libraryGradeOverride = selected === "profile" ? "" : selected;
       selectedSubjectFilter = "all";
       selectedUnitFilter = "all";
       renderProblems({ preserveProblemId: selectedProblem && selectedProblem.problemId });
-      showMessage(allGradeLibraryMode ? "全学年の問題を表示します。" : "選択中の学年だけを表示します。", "info");
+      const label = libraryGradeOverride === "all" ? "全学年" : libraryGradeOverride ? displayGradeChoiceLabel(libraryGradeOverride) : "選択中の学年";
+      showMessage(`${label}の問題を表示します。`, "info");
     }
 
     function renderHistoryControls() {
@@ -2328,7 +2375,8 @@
     ["user-stage", "user-grade"].forEach((id) => {
       el(id).addEventListener("change", () => {
         handleProfileEditChanged();
-        allGradeLibraryMode = false;
+        libraryGradeOverride = "";
+        el("grade-unlock-select").classList.add("hidden");
         gradeTapCount = 0;
         selectedSubjectFilter = "all";
         selectedUnitFilter = "all";
@@ -2342,6 +2390,9 @@
       selectedSubjectFilter = el("subject-filter").value || "all";
       selectedUnitFilter = "all";
       renderProblems(false);
+    });
+    el("grade-unlock-select").addEventListener("change", () => {
+      applyGradeUnlockSelection(el("grade-unlock-select").value);
     });
     el("unit-filter").addEventListener("change", () => {
       selectedUnitFilter = el("unit-filter").value || "all";
