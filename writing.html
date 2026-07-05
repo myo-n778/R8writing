@@ -111,6 +111,15 @@
     .example-copy { font-size: calc(1rem * var(--writing-text-scale)); line-height: 1.85; }
     .tex-render .katex { font-size: 1.03em; }
     .tex-render .katex-display { margin: 0.45rem 0; overflow-x: auto; overflow-y: hidden; }
+    @keyframes messagePulse {
+      0%, 100% { box-shadow: 0 0 0 rgba(34, 211, 238, 0); transform: translateY(0); }
+      45% { box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.18), 0 0 28px rgba(34, 211, 238, 0.32); transform: translateY(-1px); }
+    }
+    .message-pulse {
+      animation: messagePulse 1.05s ease-in-out infinite;
+      border-color: rgba(103, 232, 249, 0.75) !important;
+      background: rgba(8, 145, 178, 0.22) !important;
+    }
     .no-copy { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
     .criterion-mark { width: 2.25rem; height: 2.25rem; display: grid; place-items: center; border-radius: 999px; font-weight: 900; }
     .criterion-ok { background: rgba(16, 185, 129, 0.16); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.34); }
@@ -664,7 +673,7 @@
       updateFeedbackButtonState();
     }
 
-    function showMessage(text, type = "info") {
+    function showMessage(text, type = "info", options = {}) {
       const box = el("message");
       box.className = "rounded-2xl p-4 text-sm";
       box.classList.remove("hidden");
@@ -674,6 +683,7 @@
         ok: "bg-lime-400/10 border border-lime-300/20 text-lime-100"
       };
       box.className += " " + (styles[type] || styles.info);
+      if (options.pulse) box.classList.add("message-pulse");
       box.textContent = text;
     }
 
@@ -2038,7 +2048,7 @@
       if (pastedLength >= 50) {
         status.longPaste = true;
         status.confirmed = false;
-        showMessage("長い文章が貼り付けられました。バックアップや下書きの利用は問題ありません。送信前に、自分の言葉で整理できているか確認してください。", "info");
+        showMessage("長い文章が貼り付けられました。バックアップや下書きの利用は問題ありません。送信前に、自分の言葉で整理できているか確認してください。", "info", { pulse: true });
       }
     }
 
