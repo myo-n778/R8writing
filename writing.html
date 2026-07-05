@@ -778,12 +778,14 @@
       document.documentElement.style.setProperty("--accent-line", `${t.accent}66`);
       const bgMid = t.bgMid || "#111827";
       const bgEnd = t.bgEnd || "#020617";
-      document.body.style.background = `
+      const themeBackground = `
         radial-gradient(circle at 12% 18%, ${t.accent}24, transparent 32rem),
         radial-gradient(circle at 82% 6%, rgba(255, 255, 255, 0.08), transparent 26rem),
         linear-gradient(135deg, ${t.bg} 0%, ${bgMid} 58%, ${bgEnd} 100%)
       `;
-      document.body.style.color = t.text;
+      document.documentElement.style.setProperty("background", bgEnd, "important");
+      document.body.style.setProperty("background", themeBackground, "important");
+      document.body.style.setProperty("color", t.text, "important");
       localStorage.setItem("ethics_theme_mode", safeTheme);
       const themeButton = el("theme-btn");
       if (themeButton) themeButton.innerHTML = `<i class="fa-solid fa-palette"></i> ${themeDisplayName(safeTheme)}`;
