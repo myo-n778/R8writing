@@ -109,6 +109,8 @@
     .feedback-copy { font-size: calc(1.02rem * var(--writing-text-scale)); line-height: 1.78; }
     .problem-card-text { font-size: calc(0.95rem * var(--writing-text-scale)); }
     .example-copy { font-size: calc(1rem * var(--writing-text-scale)); line-height: 1.85; }
+    .tex-render .katex { font-size: 1.03em; }
+    .tex-render .katex-display { margin: 0.45rem 0; overflow-x: auto; overflow-y: hidden; }
     .no-copy { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
     .criterion-mark { width: 2.25rem; height: 2.25rem; display: grid; place-items: center; border-radius: 999px; font-weight: 900; }
     .criterion-ok { background: rgba(16, 185, 129, 0.16); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.34); }
@@ -1126,6 +1128,7 @@
       container.querySelectorAll("[data-admin-user][data-admin-problem]").forEach((button) => {
         button.addEventListener("click", () => renderAdminDetail(button.dataset.adminUser, button.dataset.adminProblem));
       });
+      renderMathInNode(container);
     }
 
     function renderAdminUserView() {
@@ -1159,6 +1162,7 @@
       `;
       container.querySelector("[data-admin-browse-user]")?.addEventListener("click", () => exportAdminUserHistory(selected, "browse"));
       container.querySelector("[data-admin-print-user]")?.addEventListener("click", () => exportAdminUserHistory(selected, "print"));
+      renderMathInNode(container);
     }
 
     function renderAdminProblemView() {
@@ -1194,6 +1198,7 @@
       container.querySelectorAll("[data-admin-user][data-admin-problem]").forEach((button) => {
         button.addEventListener("click", () => renderAdminDetail(button.dataset.adminUser, button.dataset.adminProblem));
       });
+      renderMathInNode(container);
     }
 
     function adminHistoryCard(item) {
@@ -1258,6 +1263,7 @@
           <div class="grid gap-3">${adminDetailMarkup(items)}</div>
         </div>
       `;
+      renderMathInNode(el("admin-detail-view"));
       el("admin-detail-view").scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
@@ -1416,6 +1422,7 @@
       const html = buildPrintExportHtml(payload);
       if (!html) return false;
       el("print-export-content").innerHTML = html;
+      renderMathInNode(el("print-export-content"));
       return true;
     }
 
@@ -1426,6 +1433,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
   <style>
     body { margin: 0; background: #f3f4f6; color: #111827; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .print-toolbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end; gap: 0.5rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.94); border-bottom: 1px solid #d1d5db; }
@@ -1443,6 +1453,8 @@
     .print-block { margin: 0.42rem 0; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.5rem; background: #fff; box-sizing: border-box; }
     .print-label { font-size: 0.72rem; font-weight: 900; color: #374151; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem; }
     .print-text { white-space: pre-wrap; line-height: 1.55; font-size: 0.84rem; margin: 0; overflow-wrap: anywhere; }
+    .katex { font-size: 1.02em; }
+    .katex-display { margin: 0.35rem 0; overflow-x: auto; overflow-y: hidden; }
     .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
     .print-criteria { display: grid; gap: 0.35rem; margin-top: 0.25rem; }
     .print-criterion { display: grid; grid-template-columns: 1.6rem minmax(4.5rem, 7rem) 1fr; gap: 0.3rem; align-items: start; font-size: 0.78rem; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.32rem; box-sizing: border-box; }
@@ -1463,6 +1475,21 @@
     <button type="button" onclick="window.close()">閉じる</button>
   </div>
   ${bodyHtml}
+  <script>
+    window.addEventListener("load", function() {
+      if (window.renderMathInElement) {
+        window.renderMathInElement(document.body, {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "\\\\[", right: "\\\\]", display: true },
+            { left: "$", right: "$", display: false },
+            { left: "\\\\(", right: "\\\\)", display: false }
+          ],
+          throwOnError: false
+        });
+      }
+    });
+  <\/script>
 </body>
 </html>`;
     }
@@ -1535,7 +1562,7 @@
         return;
       }
       if (renderPrintExport(payload)) {
-        window.setTimeout(() => window.print(), 100);
+        window.setTimeout(() => window.print(), 500);
         setStatus(usedFallback ? "同期済み履歴でPDF用一覧を開きました。印刷画面からPDF保存できます。" : "PDF用一覧を開きました。印刷画面からPDF保存できます。", "ok");
       }
     }
@@ -1555,7 +1582,7 @@
         return;
       }
       if (renderPrintExport(payload)) {
-        window.print();
+        window.setTimeout(() => window.print(), 500);
       }
     }
 
@@ -1578,6 +1605,7 @@
       const enabled = !!writingConfig.announcementEnabled && !!text;
       box.classList.toggle("hidden", !enabled);
       el("announcement-text").textContent = enabled ? text : "";
+      if (enabled) renderMathInNode(el("announcement-text"));
     }
 
     function normalizeGradeKey(value) {
@@ -1807,6 +1835,7 @@
         button.addEventListener("click", () => selectProblem(problem.problemId));
         list.appendChild(button);
       });
+      renderMathInNode(list);
       const matchingSelectedProblem = preserveProblemId
         ? problems.find((problem) => problem.problemId === preserveProblemId)
         : null;
@@ -1879,6 +1908,7 @@
       el("registered-date").textContent = registered ? `登録日 ${registered}` : "";
       el("registered-date").classList.toggle("hidden", !registered);
       el("prompt").textContent = selectedProblem.prompt;
+      renderMathInNode(el("prompt"));
       renderProblemImage(selectedProblem.image || null);
       if (!options.keepPeerExamples) renderPeerExamples([]);
       updateCharCount();
@@ -2242,6 +2272,7 @@
         .slice(0, 3);
       el("remember-box").classList.toggle("hidden", rememberItems.length === 0);
       el("remember-list").innerHTML = rememberItems.map((item) => `<span class="rounded-full bg-white/10 border border-white/10 px-3 py-2 text-xs font-bold text-slate-100">${escapeHtml(item)}</span>`).join("");
+      renderMathInNode(el("feedback-panel"));
     }
 
     function criterionClass(status) {
@@ -2267,6 +2298,7 @@
       const html = criteriaMarkup(criteria);
       el("criteria-box").classList.toggle("hidden", !html);
       el("criteria-list").innerHTML = html;
+      renderMathInNode(el("criteria-list"));
     }
 
     function renderPeerExamples(examples) {
@@ -2286,6 +2318,7 @@
           <p class="example-copy text-slate-100">${escapeHtml(item.answer)}</p>
         </div>
       `).join("");
+      renderMathInNode(body);
     }
 
     function historyTimeValue(item) {
@@ -2362,6 +2395,62 @@
           </details>
         `;
       }).join("");
+      renderMathInNode(list);
+    }
+
+    let mathRendererPromise = null;
+
+    function loadMathRenderer() {
+      if (window.katex && window.renderMathInElement) return Promise.resolve(true);
+      if (mathRendererPromise) return mathRendererPromise;
+      mathRendererPromise = new Promise((resolve, reject) => {
+        if (!document.getElementById("katex-css")) {
+          const css = document.createElement("link");
+          css.id = "katex-css";
+          css.rel = "stylesheet";
+          css.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
+          document.head.appendChild(css);
+        }
+        const loadScript = (id, src, callback) => {
+          const existing = document.getElementById(id);
+          if (existing) {
+            if (window.renderMathInElement || id === "katex-script") callback();
+            else existing.addEventListener("load", callback, { once: true });
+            return;
+          }
+          const script = document.createElement("script");
+          script.id = id;
+          script.src = src;
+          script.defer = true;
+          script.onload = callback;
+          script.onerror = () => reject(new Error(`TeX renderer failed to load: ${src}`));
+          document.head.appendChild(script);
+        };
+        loadScript("katex-script", "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js", () => {
+          loadScript("katex-auto-render-script", "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js", () => resolve(true));
+        });
+      }).catch((err) => {
+        console.warn(err);
+        return false;
+      });
+      return mathRendererPromise;
+    }
+
+    function renderMathInNode(node) {
+      if (!node) return;
+      node.classList.add("tex-render");
+      loadMathRenderer().then((ready) => {
+        if (!ready || !window.renderMathInElement) return;
+        window.renderMathInElement(node, {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "\\[", right: "\\]", display: true },
+            { left: "$", right: "$", display: false },
+            { left: "\\(", right: "\\)", display: false }
+          ],
+          throwOnError: false
+        });
+      });
     }
 
     function escapeHtml(value) {
