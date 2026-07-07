@@ -109,8 +109,6 @@
     .feedback-copy { font-size: calc(1.02rem * var(--writing-text-scale)); line-height: 1.78; }
     .problem-card-text { font-size: calc(0.95rem * var(--writing-text-scale)); }
     .example-copy { font-size: calc(1rem * var(--writing-text-scale)); line-height: 1.85; }
-    .tex-content .katex { font-size: 1.03em; }
-    .tex-content .katex-display { margin: 0.45rem 0; overflow-x: auto; overflow-y: hidden; }
     .no-copy { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
     .criterion-mark { width: 2.25rem; height: 2.25rem; display: grid; place-items: center; border-radius: 999px; font-weight: 900; }
     .criterion-ok { background: rgba(16, 185, 129, 0.16); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.34); }
@@ -918,46 +916,11 @@
 
     async function fetchJson(params) {
       const url = `${GAS_URL}?${new URLSearchParams(params).toString()}`;
-      let data;
-      try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        data = await res.json();
-      } catch (err) {
-        const action = String(params && params.action || "");
-        if (!["syncWriting", "historyExport", "adminSummary", "getQuestions"].includes(action)) throw err;
-        data = await fetchJsonp(params);
-      }
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
       if (data.error) throw new Error(data.error);
       return data;
-    }
-
-    function fetchJsonp(params) {
-      return new Promise((resolve, reject) => {
-        const callbackName = `__r8WritingJsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        const script = document.createElement("script");
-        const cleanup = () => {
-          delete window[callbackName];
-          script.remove();
-        };
-        const timer = window.setTimeout(() => {
-          cleanup();
-          reject(new Error("GAS通信がタイムアウトしました"));
-        }, 15000);
-        window[callbackName] = (data) => {
-          window.clearTimeout(timer);
-          cleanup();
-          resolve(data);
-        };
-        const query = new URLSearchParams({ ...params, callback: callbackName }).toString();
-        script.src = `${GAS_URL}?${query}`;
-        script.onerror = () => {
-          window.clearTimeout(timer);
-          cleanup();
-          reject(new Error("GAS通信に失敗しました"));
-        };
-        document.head.appendChild(script);
-      });
     }
 
     function showAdminMessage(text, type = "info") {
@@ -1262,14 +1225,14 @@
               <div class="text-xs font-black text-cyan-100">${escapeHtml(impression ? "記録" : evaluationDisplay(item.evaluation))}</div>
             </div>
             <div class="mt-3 grid gap-3">
-              <div class="rounded-2xl bg-white/5 border border-white/10 p-3"><div class="mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Answer</div><p class="tex-content leading-relaxed text-slate-100">${textToHtml(item.answer || "--")}</p></div>
-              <div class="rounded-2xl bg-cyan-400/10 border border-cyan-300/20 p-3"><div class="mb-1 text-[10px] font-black text-cyan-200">全体コメント</div><p class="tex-content leading-relaxed text-slate-100">${textToHtml(item.overall || "--")}</p></div>
+              <div class="rounded-2xl bg-white/5 border border-white/10 p-3"><div class="mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Answer</div><p class="leading-relaxed text-slate-100">${escapeHtml(item.answer || "--")}</p></div>
+              <div class="rounded-2xl bg-cyan-400/10 border border-cyan-300/20 p-3"><div class="mb-1 text-[10px] font-black text-cyan-200">全体コメント</div><p class="leading-relaxed text-slate-100">${escapeHtml(item.overall || "--")}</p></div>
               <div class="grid md:grid-cols-2 gap-3">
-                <div class="rounded-2xl bg-emerald-400/10 border border-emerald-300/20 p-3"><div class="mb-1 text-[10px] font-black text-emerald-200">良い点</div><p class="tex-content leading-relaxed text-slate-100">${textToHtml(item.good || "--")}</p></div>
-                <div class="rounded-2xl bg-amber-400/10 border border-amber-300/20 p-3"><div class="mb-1 text-[10px] font-black text-amber-200">直すと良い点</div><p class="tex-content leading-relaxed text-slate-100">${textToHtml(item.improve || "--")}</p></div>
+                <div class="rounded-2xl bg-emerald-400/10 border border-emerald-300/20 p-3"><div class="mb-1 text-[10px] font-black text-emerald-200">良い点</div><p class="leading-relaxed text-slate-100">${escapeHtml(item.good || "--")}</p></div>
+                <div class="rounded-2xl bg-amber-400/10 border border-amber-300/20 p-3"><div class="mb-1 text-[10px] font-black text-amber-200">直すと良い点</div><p class="leading-relaxed text-slate-100">${escapeHtml(item.improve || "--")}</p></div>
               </div>
               ${!impression && criteriaMarkup(item.criteria) ? `<div class="rounded-2xl bg-white/5 border border-white/10 p-3"><div class="mb-3 text-[10px] font-black tracking-[0.16em] text-slate-300 uppercase">理解の整理</div><div class="space-y-2">${criteriaMarkup(item.criteria)}</div></div>` : ""}
-              ${!impression ? `<div class="rounded-2xl bg-violet-400/10 border border-violet-300/20 p-3"><div class="mb-1 text-[10px] font-black text-violet-200">模範解答</div><p class="tex-content leading-relaxed text-slate-100 no-copy">${textToHtml(item.modelAnswer || "--")}</p></div>` : ""}
+              ${!impression ? `<div class="rounded-2xl bg-violet-400/10 border border-violet-300/20 p-3"><div class="mb-1 text-[10px] font-black text-violet-200">模範解答</div><p class="leading-relaxed text-slate-100 no-copy">${escapeHtml(item.modelAnswer || "--")}</p></div>` : ""}
             </div>
           </div>
         `;
@@ -1295,7 +1258,6 @@
           <div class="grid gap-3">${adminDetailMarkup(items)}</div>
         </div>
       `;
-      renderTexIn(el("admin-detail-view"));
       el("admin-detail-view").scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
@@ -1353,7 +1315,7 @@
               <div class="print-criterion">
                 <strong>${escapeHtml(item.status)}</strong>
                 <strong>${escapeHtml(item.label)}</strong>
-                <span class="tex-content">${textToHtml(item.comment)}</span>
+                <span>${escapeHtml(item.comment)}</span>
               </div>
             `).join("")}
           </div>
@@ -1386,31 +1348,31 @@
           </div>
           <div class="print-block">
             <div class="print-label">回答</div>
-            <p class="print-text tex-content">${textToHtml(item.answer || "--")}</p>
+            <p class="print-text">${escapeHtml(item.answer || "--")}</p>
           </div>
           <div class="print-block">
             <div class="print-label">Feedback</div>
-            <p class="print-text tex-content">${textToHtml(item.overall || "--")}</p>
+            <p class="print-text">${escapeHtml(item.overall || "--")}</p>
           </div>
           <div class="print-grid">
             <div class="print-block">
               <div class="print-label">良い点</div>
-              <p class="print-text tex-content">${textToHtml(item.good || "--")}</p>
+              <p class="print-text">${escapeHtml(item.good || "--")}</p>
             </div>
             <div class="print-block">
               <div class="print-label">直すと良い点</div>
-              <p class="print-text tex-content">${textToHtml(item.improve || "--")}</p>
+              <p class="print-text">${escapeHtml(item.improve || "--")}</p>
             </div>
           </div>
           <div class="print-block">
             <div class="print-label">書くときのポイント</div>
-            <p class="print-text tex-content">${textToHtml(item.next || "--")}</p>
+            <p class="print-text">${escapeHtml(item.next || "--")}</p>
           </div>
           ${impression ? "" : printCriteriaMarkup(item.criteria)}
           ${!impression && item.revisedAnswer ? `
           <div class="print-block">
             <div class="print-label">添削後の解答例</div>
-            <p class="print-text tex-content">${textToHtml(item.revisedAnswer)}</p>
+            <p class="print-text">${escapeHtml(item.revisedAnswer)}</p>
           </div>
           ` : ""}
         </section>
@@ -1440,7 +1402,7 @@
                 <div class="print-problem-meta">${escapeHtml(meta)}</div>
                 <div class="print-block">
                   <div class="print-label">問題</div>
-                  <p class="print-text tex-content">${textToHtml(prompt || "--")}</p>
+                  <p class="print-text">${escapeHtml(prompt || "--")}</p>
                 </div>
                 ${group.attempts.map((item, index) => renderPrintAttempt(item, index, problem)).join("")}
               </section>
@@ -1454,7 +1416,6 @@
       const html = buildPrintExportHtml(payload);
       if (!html) return false;
       el("print-export-content").innerHTML = html;
-      renderTexIn(el("print-export-content"));
       return true;
     }
 
@@ -1465,7 +1426,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <style>
     body { margin: 0; background: #f3f4f6; color: #111827; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .print-toolbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end; gap: 0.5rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.94); border-bottom: 1px solid #d1d5db; }
@@ -1482,9 +1442,7 @@
     .print-evaluation { display: inline-flex; align-items: center; gap: 0.2rem; border: 1px solid #d1d5db; border-radius: 999px; padding: 0.08rem 0.45rem; font-weight: 900; }
     .print-block { margin: 0.42rem 0; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.5rem; background: #fff; box-sizing: border-box; }
     .print-label { font-size: 0.72rem; font-weight: 900; color: #374151; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem; }
-	    .print-text { white-space: pre-wrap; line-height: 1.55; font-size: 0.84rem; margin: 0; overflow-wrap: anywhere; }
-	    .tex-content .katex { font-size: 1.02em; }
-	    .tex-content .katex-display { margin: 0.35rem 0; overflow-x: auto; overflow-y: hidden; }
+    .print-text { white-space: pre-wrap; line-height: 1.55; font-size: 0.84rem; margin: 0; overflow-wrap: anywhere; }
     .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
     .print-criteria { display: grid; gap: 0.35rem; margin-top: 0.25rem; }
     .print-criterion { display: grid; grid-template-columns: 1.6rem minmax(4.5rem, 7rem) 1fr; gap: 0.3rem; align-items: start; font-size: 0.78rem; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.32rem; box-sizing: border-box; }
@@ -1522,7 +1480,6 @@
       openedWindow.document.open();
       openedWindow.document.write(printWindowHtml({ title: payload.title, bodyHtml }));
       openedWindow.document.close();
-      window.setTimeout(() => renderTexIn(openedWindow.document), 0);
       return true;
     }
 
@@ -1620,7 +1577,7 @@
       const text = String(writingConfig.announcementText || "").trim();
       const enabled = !!writingConfig.announcementEnabled && !!text;
       box.classList.toggle("hidden", !enabled);
-      setTexText("announcement-text", enabled ? text : "");
+      el("announcement-text").textContent = enabled ? text : "";
     }
 
     function normalizeGradeKey(value) {
@@ -1921,7 +1878,7 @@
       el("max-chars").textContent = `${selectedProblem.maxChars || writingConfig.writingMaxChars}字まで`;
       el("registered-date").textContent = registered ? `登録日 ${registered}` : "";
       el("registered-date").classList.toggle("hidden", !registered);
-      setTexText("prompt", selectedProblem.prompt);
+      el("prompt").textContent = selectedProblem.prompt;
       renderProblemImage(selectedProblem.image || null);
       if (!options.keepPeerExamples) renderPeerExamples([]);
       updateCharCount();
@@ -2262,31 +2219,29 @@
       const stars = evaluationStars(evaluation);
       el("evaluation").classList.toggle("hidden", impression);
       el("evaluation").innerHTML = `<div class="eval-letter">${escapeHtml(evaluation)}</div>${stars ? `<div class="eval-stars">${escapeHtml(stars)}</div>` : ""}`;
-      setTexText("overall", feedback.overall || "コメントはありません。");
-      setTexText("good", feedback.good || "--");
-      setTexText("improve", feedback.improve || "--");
-      setTexText("next", feedback.next || "--");
+      el("overall").textContent = feedback.overall || "コメントはありません。";
+      el("good").textContent = feedback.good || "--";
+      el("improve").textContent = feedback.improve || "--";
+      el("next").textContent = feedback.next || "--";
       renderCriteria(impression ? [] : (feedback.criteria || []));
-      setTexText("key-point", feedback.keyPoint || "");
+      el("key-point").textContent = feedback.keyPoint || "";
       el("key-point-box").classList.toggle("hidden", !feedback.keyPoint);
       const hasExamples = !impression && !!(feedback.revisedAnswer || feedback.modelAnswer);
-      setTexText("revised-answer", feedback.revisedAnswer || "--");
-      setTexText("model-answer", feedback.modelAnswer || "--");
+      el("revised-answer").textContent = feedback.revisedAnswer || "--";
+      el("model-answer").textContent = feedback.modelAnswer || "--";
       el("example-controls").classList.toggle("hidden", !hasExamples);
       el("answer-examples").classList.add("hidden");
       el("toggle-examples-btn").innerHTML = `<i class="fa-solid fa-eye"></i> 解答例を見る`;
       const notes = [];
-      if (feedback.scienceNote) notes.push(`<div><b class="text-cyan-200">理科の補足:</b> <span class="tex-content">${textToHtml(feedback.scienceNote)}</span></div>`);
+      if (feedback.scienceNote) notes.push(`<div><b class="text-cyan-200">理科の補足:</b> ${escapeHtml(feedback.scienceNote)}</div>`);
       el("extra-notes").innerHTML = notes.join("");
-      renderTexIn(el("extra-notes"));
       const rememberItems = String(feedback.remember || "")
         .split(/[\/／\n]/)
         .map((item) => item.replace(/^・/, "").trim())
         .filter(Boolean)
         .slice(0, 3);
       el("remember-box").classList.toggle("hidden", rememberItems.length === 0);
-      el("remember-list").innerHTML = rememberItems.map((item) => `<span class="tex-content rounded-full bg-white/10 border border-white/10 px-3 py-2 text-xs font-bold text-slate-100">${textToHtml(item)}</span>`).join("");
-      renderTexIn(el("remember-list"));
+      el("remember-list").innerHTML = rememberItems.map((item) => `<span class="rounded-full bg-white/10 border border-white/10 px-3 py-2 text-xs font-bold text-slate-100">${escapeHtml(item)}</span>`).join("");
     }
 
     function criterionClass(status) {
@@ -2302,7 +2257,7 @@
           <div class="criterion-mark ${criterionClass(item.status)}">${escapeHtml(item.status)}</div>
           <div class="min-w-0">
             <div class="text-xs font-black text-slate-100">${escapeHtml(item.label)}</div>
-            <div class="tex-content mt-1 text-sm leading-relaxed text-slate-300">${textToHtml(item.comment)}</div>
+            <div class="mt-1 text-sm leading-relaxed text-slate-300">${escapeHtml(item.comment)}</div>
           </div>
         </div>
       `).join("");
@@ -2312,7 +2267,6 @@
       const html = criteriaMarkup(criteria);
       el("criteria-box").classList.toggle("hidden", !html);
       el("criteria-list").innerHTML = html;
-      renderTexIn(el("criteria-list"));
     }
 
     function renderPeerExamples(examples) {
@@ -2329,10 +2283,9 @@
       body.innerHTML = list.map((item, index) => `
         <div class="rounded-2xl border border-slate-700/70 bg-slate-950/55 p-4">
           <div class="mb-2 text-[10px] font-black tracking-[0.18em] text-cyan-200 uppercase">Example ${index + 1}</div>
-          <p class="tex-content example-copy text-slate-100">${textToHtml(item.answer)}</p>
+          <p class="example-copy text-slate-100">${escapeHtml(item.answer)}</p>
         </div>
       `).join("");
-      renderTexIn(body);
     }
 
     function historyTimeValue(item) {
@@ -2375,7 +2328,7 @@
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                   <div class="text-[11px] font-bold text-slate-400">${meta}</div>
-                  <div class="tex-content mt-1 text-sm font-black leading-relaxed text-slate-100">${textToHtml(title)}</div>
+                  <div class="mt-1 text-sm font-black leading-relaxed text-slate-100">${escapeHtml(title)}</div>
                 </div>
                 ${impression ? `<span class="shrink-0 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-slate-200">記録</span>` : `<span class="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-sm font-black text-cyan-100">${escapeHtml(evaluationDisplay(displayItem.evaluation))}</span>`}
               </div>
@@ -2383,116 +2336,36 @@
             <div class="mt-4 grid gap-3">
               <div class="rounded-2xl bg-white/5 border border-white/10 p-3">
                 <div class="mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Your Answer</div>
-                <p class="tex-content leading-relaxed text-slate-100">${textToHtml(item.answer || "--")}</p>
+                <p class="leading-relaxed text-slate-100">${escapeHtml(item.answer || "--")}</p>
               </div>
               <div class="rounded-2xl bg-cyan-400/10 border border-cyan-300/20 p-3">
                 <div class="mb-1 text-[10px] font-black tracking-[0.16em] text-cyan-200 uppercase">Feedback</div>
-                <p class="tex-content leading-relaxed text-slate-100">${textToHtml(displayItem.overall || "--")}</p>
+                <p class="leading-relaxed text-slate-100">${escapeHtml(displayItem.overall || "--")}</p>
               </div>
               <div class="grid md:grid-cols-2 gap-3">
                 <div class="rounded-2xl bg-emerald-400/10 border border-emerald-300/20 p-3">
                   <div class="mb-1 text-[10px] font-black text-emerald-200">良い点</div>
-                  <p class="tex-content leading-relaxed text-slate-100">${textToHtml(displayItem.good || "--")}</p>
+                  <p class="leading-relaxed text-slate-100">${escapeHtml(displayItem.good || "--")}</p>
                 </div>
                 <div class="rounded-2xl bg-amber-400/10 border border-amber-300/20 p-3">
                   <div class="mb-1 text-[10px] font-black text-amber-200">直すと良い点</div>
-                  <p class="tex-content leading-relaxed text-slate-100">${textToHtml(displayItem.improve || "--")}</p>
+                  <p class="leading-relaxed text-slate-100">${escapeHtml(displayItem.improve || "--")}</p>
                 </div>
               </div>
               ${!impression && criteriaMarkup(displayItem.criteria) ? `<div class="rounded-2xl bg-white/5 border border-white/10 p-3"><div class="mb-3 text-[10px] font-black tracking-[0.16em] text-slate-300 uppercase">理解の整理</div><div class="space-y-2">${criteriaMarkup(displayItem.criteria)}</div></div>` : ""}
               ${impression ? "" : `<div class="rounded-2xl bg-violet-400/10 border border-violet-300/20 p-3">
                 <div class="mb-1 text-[10px] font-black text-violet-200">模範解答</div>
-                <p class="tex-content leading-relaxed text-slate-100 no-copy">${textToHtml(displayItem.modelAnswer || "--")}</p>
+                <p class="leading-relaxed text-slate-100 no-copy">${escapeHtml(displayItem.modelAnswer || "--")}</p>
               </div>`}
-              ${displayItem.keyPoint || displayItem.scienceNote ? `<div class="rounded-2xl bg-rose-400/10 border border-rose-300/20 p-3"><div class="mb-1 text-[10px] font-black text-rose-200">理科の補足</div><p class="tex-content leading-relaxed text-slate-100">${textToHtml(displayItem.keyPoint || displayItem.scienceNote)}</p></div>` : ""}
+              ${displayItem.keyPoint || displayItem.scienceNote ? `<div class="rounded-2xl bg-rose-400/10 border border-rose-300/20 p-3"><div class="mb-1 text-[10px] font-black text-rose-200">理科の補足</div><p class="leading-relaxed text-slate-100">${escapeHtml(displayItem.keyPoint || displayItem.scienceNote)}</p></div>` : ""}
             </div>
           </details>
         `;
       }).join("");
-      renderTexIn(list);
     }
 
     function escapeHtml(value) {
       return String(value || "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
-    }
-
-    function textToHtml(value) {
-      return escapeHtml(value || "--").replace(/\r?\n/g, "<br>");
-    }
-
-    function ensureKatexCss(doc = document) {
-      if (!doc || !doc.head || doc.getElementById("katex-css")) return;
-      const css = doc.createElement("link");
-      css.id = "katex-css";
-      css.rel = "stylesheet";
-      css.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
-      doc.head.appendChild(css);
-    }
-
-    let mathRendererPromise = null;
-
-    function loadMathRenderer() {
-      if (window.katex && window.renderMathInElement) return Promise.resolve(true);
-      if (mathRendererPromise) return mathRendererPromise;
-      ensureKatexCss(document);
-      mathRendererPromise = new Promise((resolve) => {
-        const loadScript = (id, src, done) => {
-          const existing = document.getElementById(id);
-          if (existing) {
-            existing.addEventListener("load", done, { once: true });
-            existing.addEventListener("error", () => resolve(false), { once: true });
-            return;
-          }
-          const script = document.createElement("script");
-          script.id = id;
-          script.src = src;
-          script.async = true;
-          script.onload = done;
-          script.onerror = () => resolve(false);
-          document.head.appendChild(script);
-        };
-        loadScript("katex-script", "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js", () => {
-          loadScript("katex-auto-render-script", "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js", () => resolve(true));
-        });
-      }).catch(() => false);
-      return mathRendererPromise;
-    }
-
-    function renderMathInNode(node) {
-      if (!node) return;
-      const doc = node.ownerDocument || document;
-      ensureKatexCss(doc);
-      loadMathRenderer().then((ready) => {
-        if (!ready || !window.renderMathInElement) return;
-        window.renderMathInElement(node, {
-          delimiters: [
-            { left: "$$", right: "$$", display: true },
-            { left: "\\[", right: "\\]", display: true },
-            { left: "$", right: "$", display: false },
-            { left: "\\(", right: "\\)", display: false }
-          ],
-          ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code", "option"],
-          throwOnError: false,
-          strict: "ignore",
-          trust: false
-        });
-      });
-    }
-
-    function renderTexIn(root) {
-      if (!root) return;
-      const targets = root.classList && root.classList.contains("tex-content")
-        ? [root]
-        : Array.from(root.querySelectorAll ? root.querySelectorAll(".tex-content") : []);
-      targets.forEach(renderMathInNode);
-    }
-
-    function setTexText(id, value) {
-      const node = el(id);
-      if (!node) return;
-      node.innerHTML = textToHtml(value || "--");
-      node.classList.add("tex-content");
-      renderMathInNode(node);
     }
 
     el("save-profile-btn").addEventListener("click", saveProfile);
