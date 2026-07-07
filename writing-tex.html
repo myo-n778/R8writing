@@ -116,6 +116,35 @@
     .criterion-ok { background: rgba(16, 185, 129, 0.16); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.34); }
     .criterion-mid { background: rgba(251, 191, 36, 0.16); color: #fde68a; border: 1px solid rgba(251, 191, 36, 0.34); }
     .criterion-ng { background: rgba(244, 63, 94, 0.14); color: #fecdd3; border: 1px solid rgba(244, 63, 94, 0.32); }
+    @media (min-width: 768px) and (max-width: 1279px) {
+      .writing-main-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+        grid-template-areas:
+          "answer library"
+          "feedback library";
+      }
+      .writing-answer-panel { grid-area: answer; }
+      .writing-feedback-panel { grid-area: feedback; }
+      .writing-library-panel {
+        grid-area: library;
+        position: sticky;
+        top: 1rem;
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
+      }
+    }
+    @media (min-width: 1000px) and (max-width: 1279px) {
+      .writing-main-layout {
+        grid-template-columns: minmax(360px, 1.05fr) minmax(340px, 1fr) minmax(240px, 0.72fr);
+        grid-template-areas: "answer feedback library";
+      }
+      .writing-feedback-panel {
+        position: sticky;
+        top: 1rem;
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
+      }
+    }
     .admin-table-wrap { max-height: 70vh; overflow: auto; border-radius: 1.2rem; border: 1px solid rgba(148, 163, 184, 0.2); }
     .admin-table { border-collapse: separate; border-spacing: 0; min-width: max-content; width: 100%; }
     .admin-table th, .admin-table td { border-right: 1px solid rgba(148, 163, 184, 0.15); border-bottom: 1px solid rgba(148, 163, 184, 0.15); background: rgba(15, 23, 42, 0.9); }
@@ -311,8 +340,8 @@
       </div>
     </section>
 
-    <section class="grid xl:grid-cols-[500px_minmax(520px,1fr)_300px] gap-4 items-start">
-      <section class="glass rounded-[1.8rem] p-4 md:p-5 min-h-[40rem]">
+    <section class="writing-main-layout grid xl:grid-cols-[500px_minmax(520px,1fr)_300px] gap-4 items-start">
+      <section class="writing-answer-panel glass rounded-[1.8rem] p-4 md:p-5 min-h-[40rem]">
         <div id="message" class="hidden rounded-2xl p-4 text-sm mb-4"></div>
 
         <div id="empty-state" class="h-full min-h-[32rem] grid place-items-center text-center text-slate-400">
@@ -374,7 +403,7 @@
         </div>
       </section>
 
-      <section id="feedback-panel" class="glass rounded-[1.8rem] p-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
+      <section id="feedback-panel" class="writing-feedback-panel glass rounded-[1.8rem] p-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
         <div class="flex gap-3 items-start mb-3">
           <div id="evaluation" class="eval-badge">-</div>
           <div>
@@ -417,7 +446,7 @@
         </div>
       </section>
 
-      <aside class="space-y-4 xl:sticky xl:top-4">
+      <aside class="writing-library-panel space-y-4 xl:sticky xl:top-4">
         <section class="glass rounded-[1.8rem] p-4">
           <div class="flex items-center justify-between gap-3 mb-3">
             <h2 class="font-tech text-xs font-black uppercase tracking-[0.18em] text-cyan-200">Session Library</h2>
