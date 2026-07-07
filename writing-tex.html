@@ -1887,13 +1887,17 @@
       select.value = Array.from(select.options).some((option) => option.value === current) ? current : "profile";
     }
 
-    function applyGradeUnlockSelection(value) {
+    async function applyGradeUnlockSelection(value) {
       const selected = String(value || "profile");
       libraryGradeOverride = selected === "profile" ? "" : selected;
       selectedSubjectFilter = "all";
       selectedUnitFilter = "all";
-      renderProblems({ preserveProblemId: selectedProblem && selectedProblem.problemId });
       const label = libraryGradeOverride === "all" ? "全学年" : libraryGradeOverride ? displayGradeChoiceLabel(libraryGradeOverride) : "選択中の学年";
+      showMessage(`${label}の問題を読み込んでいます。`, "info");
+      await syncWriting({
+        preserveProblemId: selectedProblem && selectedProblem.problemId,
+        problemGradeScope: selected === "profile" ? "" : selected
+      });
       showMessage(`${label}の問題を表示します。`, "info");
     }
 
@@ -2128,6 +2132,10 @@
           throw new Error("GAS_URLが未設定です。Apps ScriptのWebアプリURLを設定してください。");
         }
         const params = { action: "syncWriting", id: SPREADSHEET_ID };
+        const problemGradeScope = options && typeof options === "object"
+          ? String(options.problemGradeScope || libraryGradeOverride || "")
+          : String(libraryGradeOverride || "");
+        if (problemGradeScope) params.problemGradeScope = problemGradeScope;
         if (isProfileReady()) {
           params.userId = userId();
           params.userName = normalizeUserName(el("user-name").value);
