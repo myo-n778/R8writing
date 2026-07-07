@@ -916,11 +916,26 @@
 
     async function fetchJson(params) {
       const action = String(params && params.action || "");
-      if (["syncWriting", "historyExport", "adminSummary", "getQuestions"].includes(action)) {
-        return fetchJsonp(params);
+      const readOnlyAction = ["syncWriting", "historyExport", "adminSummary", "getQuestions"].includes(action);
+      try {
+        return await fetchJsonDirect(params);
+      } catch (err) {
+        if (!readOnlyAction) throw err;
+        try {
+          return await fetchJsonp(params);
+        } catch (jsonpErr) {
+          throw new Error(`GAS通信に失敗しました。fetch: ${err.message} / JSONP: ${jsonpErr.message}`);
+        }
       }
-      const url = `${GAS_URL}?${new URLSearchParams(params).toString()}`;
-      const res = await fetch(url);
+    }
+
+    async function fetchJsonDirect(params) {
+      const queryParams = Object.assign({}, params, { _ts: String(Date.now()) });
+      const url = `${GAS_URL}?${new URLSearchParams(queryParams).toString()}`;
+      const res = await Promise.race([
+        fetch(url, { cache: "no-store" }),
+        new Promise((_, reject) => window.setTimeout(() => reject(new Error("fetch timeout")), 12000))
+      ]);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -945,7 +960,7 @@
           if (data && data.error) reject(new Error(data.error));
           else resolve(data);
         };
-        const queryParams = Object.assign({}, params, { callback: callbackName });
+        const queryParams = Object.assign({}, params, { callback: callbackName, _ts: String(Date.now()) });
         const query = new URLSearchParams(queryParams).toString();
         script.src = `${GAS_URL}?${query}`;
         script.onerror = () => {
