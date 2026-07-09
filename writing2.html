@@ -255,6 +255,18 @@
     body.fs-orange-mode [class*="bg-lime"] {
       background-color: rgba(236, 116, 48, 0.14) !important;
     }
+    body.fs-orange-mode #announcement-box {
+      position: relative;
+      z-index: 1;
+      background: #101018 !important;
+      border-color: rgba(236, 116, 48, 0.46) !important;
+      box-shadow: inset 0 0 0 1px rgba(255, 180, 120, 0.06);
+      color: #fff7ed !important;
+    }
+    body.fs-orange-mode #announcement-box .fa-bullhorn,
+    body.fs-orange-mode #announcement-box .font-tech {
+      color: #ff8a2a !important;
+    }
     #print-export-root { display: none; }
     .print-page { background: #fff; color: #111827; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; box-sizing: border-box; overflow-wrap: anywhere; }
     .print-header { border-bottom: 2px solid #111827; padding-bottom: 0.6rem; margin-bottom: 0.8rem; }
@@ -378,7 +390,7 @@
           <div>
             <i class="fa-solid fa-pen-nib text-4xl text-cyan-300 mb-4"></i>
             <p class="font-bold">右側から記述問題を選んでください。</p>
-            <p class="text-xs mt-2">問題が出ない場合は、スプレッドシートの `記述問題` シートを確認してください。</p>
+            <p class="text-xs mt-2">問題が出ない場合は、ネットワークを確認し、再読み込みをしてください。</p>
           </div>
         </div>
 
