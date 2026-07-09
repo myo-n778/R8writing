@@ -137,10 +137,15 @@
       text-shadow: 0 0 10px rgba(236, 254, 255, 0.68);
     }
     .paste-mini-tag {
-      border: 1px solid rgba(251, 113, 133, 0.7);
-      background: rgba(127, 29, 29, 0.72);
-      color: #fecdd3;
-      box-shadow: 0 0 12px rgba(251, 113, 133, 0.42);
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      animation: pasteNeonPulse 1.05s ease-in-out infinite;
+      border: 1px solid rgba(251, 113, 133, 0.85);
+      background: linear-gradient(135deg, rgba(127, 29, 29, 0.92), rgba(249, 115, 22, 0.78));
+      color: #fff7ed;
+      box-shadow: 0 0 12px rgba(251, 113, 133, 0.52), 0 0 26px rgba(249, 115, 22, 0.36);
+      text-shadow: 0 0 9px rgba(255, 237, 213, 0.7);
     }
     .criterion-mark { width: 2.25rem; height: 2.25rem; display: grid; place-items: center; border-radius: 999px; font-weight: 900; }
     .criterion-ok { background: rgba(16, 185, 129, 0.16); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.34); }
@@ -208,6 +213,18 @@
     .credit-glow-amber { color: #f59e0b; text-shadow: 0 0 8px rgba(245, 158, 11, 0.6); }
     .copyright-text { letter-spacing: 0.4em; opacity: 0.3; transition: opacity 0.3s; }
     footer:hover .copyright-text { opacity: 0.6; }
+    #announcement-box {
+      position: relative;
+      z-index: 1;
+      background: #101018 !important;
+      border-color: var(--accent-line) !important;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+      color: #fff7ed !important;
+    }
+    #announcement-box .fa-bullhorn,
+    #announcement-box .font-tech {
+      color: var(--accent) !important;
+    }
     body.fs-orange-mode {
       background: linear-gradient(180deg, #101018 0%, #101018 12%, #281408 12%, #281408 100%) !important;
       color: #fff7ed;
@@ -254,18 +271,6 @@
     body.fs-orange-mode [class*="bg-cyan"],
     body.fs-orange-mode [class*="bg-lime"] {
       background-color: rgba(236, 116, 48, 0.14) !important;
-    }
-    body.fs-orange-mode #announcement-box {
-      position: relative;
-      z-index: 1;
-      background: #101018 !important;
-      border-color: rgba(236, 116, 48, 0.46) !important;
-      box-shadow: inset 0 0 0 1px rgba(255, 180, 120, 0.06);
-      color: #fff7ed !important;
-    }
-    body.fs-orange-mode #announcement-box .fa-bullhorn,
-    body.fs-orange-mode #announcement-box .font-tech {
-      color: #ff8a2a !important;
     }
     #print-export-root { display: none; }
     .print-page { background: #fff; color: #111827; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; box-sizing: border-box; overflow-wrap: anywhere; }
@@ -1919,6 +1924,7 @@
           : `試行 ${Number(problem.attemptCount || 0)} / ${problem.maxAttempts || writingConfig.writingMaxAttemptsPerProblem || usage.maxAttemptsPerProblem || 3}`;
         const registered = formatRegisteredDate(problem);
         const number = problemNumber(problem, index);
+        const pasteTag = problemPasteTag(problem);
         button.innerHTML = `
           <div class="flex justify-between gap-3 mb-2">
             <span class="text-[10px] text-cyan-200 font-black">${libraryGradeOverride ? `${escapeHtml(normalizeGradeKey(problem.grade) || problem.grade || "学年未設定")} / ` : ""}${escapeHtml(problemSubject(problem))} / ${escapeHtml(problemUnit(problem))}</span>
@@ -1929,7 +1935,7 @@
             <div class="problem-card-text min-w-0 truncate font-black leading-relaxed">${escapeHtml(problemTitle(problem))}</div>
           </div>
           <div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
-            <span>${bestText}</span>
+            <span class="flex min-w-0 flex-wrap items-center gap-2">${bestText}${pasteTag}</span>
             <span>${escapeHtml(attemptsText)}</span>
           </div>
         `;
@@ -2518,8 +2524,21 @@
 
     function pasteHistoryTag(item) {
       return historyHasPasteUse(item)
-        ? `<span class="paste-mini-tag shrink-0 rounded-full px-2 py-1 text-[10px] font-black" title="コピペ使用">コピペ</span>`
+        ? `<span class="paste-mini-tag shrink-0 rounded-full px-2 py-1 text-[10px] font-black" title="コピペ使用">コピペ使用</span>`
         : "";
+    }
+
+    function latestHistoryForProblem(problemId) {
+      const id = String(problemId || "");
+      if (!id) return null;
+      return (writingHistory || [])
+        .filter((item) => String(item.problemId || "") === id)
+        .sort((a, b) => historyTimeValue(b) - historyTimeValue(a))[0] || null;
+    }
+
+    function problemPasteTag(problem) {
+      const latest = latestHistoryForProblem(problem && problem.problemId);
+      return pasteHistoryTag(latest || problem);
     }
 
     function renderWritingHistory() {
