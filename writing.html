@@ -110,6 +110,23 @@
     .problem-card-text { font-size: calc(0.95rem * var(--writing-text-scale)); }
     .example-copy { font-size: calc(1rem * var(--writing-text-scale)); line-height: 1.85; }
     .no-copy { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+    @keyframes pasteNeonPulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 12px rgba(251, 113, 133, 0.65), 0 0 28px rgba(249, 115, 22, 0.38); }
+      50% { opacity: 0.72; box-shadow: 0 0 22px rgba(251, 113, 133, 0.95), 0 0 42px rgba(249, 115, 22, 0.62); }
+    }
+    .paste-neon-alert {
+      animation: pasteNeonPulse 1.1s ease-in-out infinite;
+      border: 1px solid rgba(251, 113, 133, 0.75);
+      background: linear-gradient(135deg, rgba(127, 29, 29, 0.78), rgba(124, 45, 18, 0.82));
+      color: #fff7ed;
+      text-shadow: 0 0 12px rgba(255, 237, 213, 0.58);
+    }
+    .paste-mini-tag {
+      border: 1px solid rgba(251, 113, 133, 0.7);
+      background: rgba(127, 29, 29, 0.72);
+      color: #fecdd3;
+      box-shadow: 0 0 12px rgba(251, 113, 133, 0.42);
+    }
     .criterion-mark { width: 2.25rem; height: 2.25rem; display: grid; place-items: center; border-radius: 999px; font-weight: 900; }
     .criterion-ok { background: rgba(16, 185, 129, 0.16); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.34); }
     .criterion-mid { background: rgba(251, 191, 36, 0.16); color: #fde68a; border: 1px solid rgba(251, 191, 36, 0.34); }
@@ -371,6 +388,10 @@
                 <label for="answer" class="font-tech text-[10px] font-black uppercase text-slate-300 tracking-[0.18em]">Your Answer</label>
                 <span id="char-count" class="text-xs text-slate-400">0 / 300</span>
               </div>
+              <div id="paste-warning" class="paste-neon-alert hidden mb-3 rounded-2xl px-4 py-3 text-sm font-black">
+                <i class="fa-solid fa-triangle-exclamation"></i> コピペ使用
+                <span class="ml-2 text-xs font-bold opacity-90">このまま送信すると、コピペ使用として記録されます。</span>
+              </div>
               <textarea id="answer" class="writing-text w-full bg-slate-950/70 border border-slate-700 rounded-2xl p-4 leading-relaxed outline-none focus:border-cyan-400" placeholder="ここに自分の考えを書きます。短くても送れます。"></textarea>
             </div>
           </div>
@@ -382,6 +403,7 @@
             <button id="voice-input-btn" type="button" class="bg-cyan-400/10 hover:bg-cyan-400/15 border border-cyan-300/25 text-cyan-100 rounded-2xl px-5 py-4 text-sm font-black uppercase">
               <i class="fa-solid fa-microphone"></i> 音声入力
             </button>
+            <button id="restore-draft-btn" type="button" class="hidden bg-indigo-400/10 hover:bg-indigo-400/15 border border-indigo-300/25 text-indigo-100 rounded-2xl px-5 py-4 text-sm font-black uppercase">Restore Draft</button>
             <button id="clear-btn" class="bg-white/10 hover:bg-white/15 border border-white/10 text-slate-200 rounded-2xl px-5 py-4 text-sm font-black uppercase">Clear</button>
             <button id="restore-clear-btn" type="button" class="hidden bg-amber-400/10 hover:bg-amber-400/15 border border-amber-300/25 text-amber-100 rounded-2xl px-5 py-4 text-sm font-black uppercase">Restore</button>
           </div>
@@ -614,6 +636,7 @@
     let lastClearedAnswer = null;
     let pasteStatusByProblem = {};
     let profileSaved = false;
+    const DRAFT_STORAGE_PREFIX = "writingFeedbackDraft:";
     const FEEDBACK_LEVELS = ["中学生", "高校生", "先生"];
     const THEMES = {
       modeA: { bg: "#0f172a", panel: "rgba(30, 41, 59, 0.85)", accent: "#6366f1", text: "#f8fafc" },
@@ -1915,6 +1938,8 @@
       renderProblemImage(selectedProblem.image || null);
       if (!options.keepPeerExamples) renderPeerExamples([]);
       updateCharCount();
+      updatePasteWarningState();
+      updateRestoreDraftButton();
       renderLimits();
       updateFeedbackButtonState();
     }
@@ -1946,7 +1971,10 @@
 
     function handleAnswerInput() {
       if (selectedProblem) resetOwnWordsConfirmation(selectedProblem.problemId);
+      saveAnswerDraft();
       updateCharCount();
+      updatePasteWarningState();
+      updateRestoreDraftButton();
     }
 
     function updateFeedbackButtonState() {
@@ -1960,7 +1988,9 @@
       button.classList.toggle("cursor-not-allowed", blocked);
       button.innerHTML = feedbackSubmitting
         ? `<i class="fa-solid fa-spinner fa-spin"></i> 現在確認中です`
-        : `<i class="fa-solid fa-comments"></i> フィードバックを見る`;
+        : currentPasteStatus().longPaste
+          ? `<i class="fa-solid fa-triangle-exclamation"></i> コピペ使用として送信`
+          : `<i class="fa-solid fa-comments"></i> フィードバックを見る`;
     }
 
     function lockFeedbackButton(ms = 6000) {
@@ -2043,6 +2073,65 @@
         status.confirmed = false;
         showMessage("長い文章が貼り付けられました。バックアップや下書きの利用は問題ありません。送信前に、自分の言葉で整理できているか確認してください。", "info");
       }
+      setTimeout(() => {
+        saveAnswerDraft();
+        updatePasteWarningState();
+        updateRestoreDraftButton();
+        updateFeedbackButtonState();
+      }, 0);
+    }
+
+    function updatePasteWarningState() {
+      const warning = el("paste-warning");
+      if (!warning) return;
+      warning.classList.toggle("hidden", !currentPasteStatus().longPaste);
+    }
+
+    function draftStorageKey(problemId = selectedProblem && selectedProblem.problemId) {
+      if (!problemId) return "";
+      return `${DRAFT_STORAGE_PREFIX}${userId() || "guest"}:${problemId}`;
+    }
+
+    function readAnswerDraft() {
+      const key = draftStorageKey();
+      if (!key) return null;
+      try {
+        const parsed = JSON.parse(localStorage.getItem(key) || "null");
+        return parsed && typeof parsed.text === "string" ? parsed : null;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function saveAnswerDraft() {
+      const key = draftStorageKey();
+      if (!key) return;
+      try {
+        localStorage.setItem(key, JSON.stringify({ text: el("answer").value, updatedAt: Date.now() }));
+      } catch (err) {
+        // localStorage may be unavailable in restricted browser modes.
+      }
+    }
+
+    function updateRestoreDraftButton() {
+      const button = el("restore-draft-btn");
+      if (!button) return;
+      const draft = readAnswerDraft();
+      button.classList.toggle("hidden", !(draft && draft.text && draft.text !== el("answer").value));
+    }
+
+    function restoreAnswerDraft() {
+      const draft = readAnswerDraft();
+      if (!draft || !draft.text) {
+        showMessage("戻せる下書きがありません。", "info");
+        updateRestoreDraftButton();
+        return;
+      }
+      el("answer").value = draft.text;
+      updateCharCount();
+      updatePasteWarningState();
+      updateRestoreDraftButton();
+      showMessage("保存されていた下書きを戻しました。", "ok");
     }
 
     function confirmOwnWordsIfNeeded() {
@@ -2088,6 +2177,7 @@
       renderPeerExamples([]);
       updateCharCount();
       updateRestoreClearButton();
+      updateRestoreDraftButton();
       showMessage("回答を消しました。必要なら Restore で戻せます。", "ok");
     }
 
@@ -2106,6 +2196,7 @@
       lastClearedAnswer = null;
       updateCharCount();
       updateRestoreClearButton();
+      updateRestoreDraftButton();
       showMessage("消した回答を戻しました。", "ok");
     }
 
@@ -2338,6 +2429,20 @@
         .sort((a, b) => sortMode === "oldest" ? historyTimeValue(a) - historyTimeValue(b) : historyTimeValue(b) - historyTimeValue(a));
     }
 
+    function truthyFlag(value) {
+      return value === true || String(value || "").trim().toLowerCase() === "true";
+    }
+
+    function historyHasPasteUse(item) {
+      return !!item && (truthyFlag(item.longPasteDetected) || truthyFlag(item.pasteDetected) || truthyFlag(item["長文貼り付けあり"]) || truthyFlag(item["貼り付けあり"]));
+    }
+
+    function pasteHistoryTag(item) {
+      return historyHasPasteUse(item)
+        ? `<span class="paste-mini-tag shrink-0 rounded-full px-2 py-1 text-[10px] font-black" title="コピペ使用">コピペ</span>`
+        : "";
+    }
+
     function renderWritingHistory() {
       const list = el("history-list");
       if (!list) return;
@@ -2359,6 +2464,7 @@
         const assignmentType = normalizeAssignmentType(item.assignmentType || ((writingProblems.find((problem) => problem.problemId === item.problemId) || {}).assignmentType));
         const impression = isImpressionTask(assignmentType);
         const displayItem = completeFeedbackForDisplay(item);
+        const pasteTag = pasteHistoryTag(item);
         return `
           <details class="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-4">
             <summary class="cursor-pointer list-none">
@@ -2367,7 +2473,10 @@
                   <div class="text-[11px] font-bold text-slate-400">${meta}</div>
                   <div class="mt-1 text-sm font-black leading-relaxed text-slate-100">${escapeHtml(title)}</div>
                 </div>
-                ${impression ? `<span class="shrink-0 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-slate-200">記録</span>` : `<span class="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-sm font-black text-cyan-100">${escapeHtml(evaluationDisplay(displayItem.evaluation))}</span>`}
+                <div class="shrink-0 flex flex-wrap items-center justify-end gap-2">
+                  ${impression ? `<span class="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-slate-200">記録</span>` : `<span class="rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-sm font-black text-cyan-100">${escapeHtml(evaluationDisplay(displayItem.evaluation))}</span>`}
+                  ${pasteTag}
+                </div>
               </div>
             </summary>
             <div class="mt-4 grid gap-3">
@@ -2511,6 +2620,7 @@
     el("admin-close-btn").addEventListener("click", closeAdminPanel);
     el("clear-btn").addEventListener("click", clearAnswerWithConfirmation);
     el("restore-clear-btn").addEventListener("click", restoreClearedAnswer);
+    el("restore-draft-btn").addEventListener("click", restoreAnswerDraft);
     el("answer").addEventListener("input", handleAnswerInput);
     el("answer").addEventListener("paste", markAnswerPaste);
     document.querySelectorAll("[data-font-size]").forEach((btn) => {
