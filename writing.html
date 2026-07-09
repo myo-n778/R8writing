@@ -2071,7 +2071,7 @@
       if (pastedLength >= 50) {
         status.longPaste = true;
         status.confirmed = false;
-        showMessage("長い文章が貼り付けられました。送信前に、自分の言葉で整理できているか確認してください。", "info");
+        showMessage("貼りつけを使わず、自分で入力しましょう。", "info");
       }
       setTimeout(() => {
         saveAnswerDraft();
@@ -2138,12 +2138,13 @@
       const status = currentPasteStatus();
       if (!status.longPaste || status.confirmed) return true;
       const message = [
-        "長い文章が貼り付けられています。",
+        "長い文章が貼りつけられています。",
         "",
-        "参考にした内容は、そのまま写すのではなく、自分の理解で言い直した回答にしてください。",
+        "この記述は、自分で考えて入力するためのものです。",
+        "貼りつけを使った回答は、コピペ使用として記録・表示されます。",
+        "自分で入力し直す場合は「キャンセル」を押してください。",
         "",
-        "この回答は、自分の言葉で整理したものですか？",
-        "このまま送信すると、コピペ使用の記録・表示が残ります。本当に送信してよろしいですか？"
+        "このまま送信しますか？"
       ].join("\n");
       if (!window.confirm(message)) {
         showMessage("送信を止めました。自分の言葉で整理してから、もう一度送信してください。", "info");
