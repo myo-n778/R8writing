@@ -121,6 +121,13 @@
       color: #fff7ed;
       text-shadow: 0 0 12px rgba(255, 237, 213, 0.58);
     }
+    .paste-neon-button {
+      animation: pasteNeonPulse 0.95s ease-in-out infinite;
+      border-color: rgba(251, 113, 133, 0.9) !important;
+      background: linear-gradient(135deg, #fb7185, #f97316) !important;
+      color: #1f0f0b !important;
+      text-shadow: 0 0 10px rgba(255, 247, 237, 0.62);
+    }
     .paste-mini-tag {
       border: 1px solid rgba(251, 113, 133, 0.7);
       background: rgba(127, 29, 29, 0.72);
@@ -1986,6 +1993,7 @@
       button.disabled = blocked;
       button.classList.toggle("opacity-60", blocked);
       button.classList.toggle("cursor-not-allowed", blocked);
+      button.classList.toggle("paste-neon-button", !feedbackSubmitting && currentPasteStatus().longPaste);
       button.innerHTML = feedbackSubmitting
         ? `<i class="fa-solid fa-spinner fa-spin"></i> 現在確認中です`
         : currentPasteStatus().longPaste
