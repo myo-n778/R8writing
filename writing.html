@@ -647,7 +647,7 @@
     let selectedProblem = null;
     let selectedSubjectFilter = "all";
     let selectedUnitFilter = "all";
-    let writingConfig = { writingAiEnabled: false, writingMaxChars: 300, writingModel: "gpt-5.4-nano", writingMaxAttemptsPerProblem: 3 };
+    let writingConfig = { writingAiEnabled: false, writingMaxChars: 300, writingModel: "gpt-5.6-luna", writingMaxAttemptsPerProblem: 3 };
     let usage = {};
     let writingHistory = [];
     let historyVisibleCount = 5;
@@ -1655,7 +1655,7 @@
       const remaining = selectedProblem ? Math.max(0, Number(selectedProblem.attemptsRemaining || 0)) : "--";
       const used = selectedProblem ? Math.max(0, Number(selectedProblem.attemptCount || 0)) : "--";
       const limitLine = unlimited ? `${limitLabel}: <b>${used}回</b>` : `${limitLabel}: <b>${used} / ${maxAttempts}回</b><br>残り: <b>${remaining}回</b>`;
-      el("limit-status").innerHTML = `AIフィードバック: <b>${state}</b><br>${limitLine}<br>model: <b>${writingConfig.writingModel || "gpt-5.4-nano"}</b>`;
+      el("limit-status").innerHTML = `AIフィードバック: <b>${state}</b><br>${limitLine}<br>model: <b>${writingConfig.writingModel || "gpt-5.6-luna"}</b>`;
       renderAnnouncement();
     }
 
