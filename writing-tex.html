@@ -2065,16 +2065,25 @@
       if (!button) return;
       const locked = Date.now() < feedbackButtonLockedUntil;
       const unlimited = selectedProblem && (selectedProblem.attemptsUnlimited || Number(selectedProblem.maxAttempts || 0) === 0);
-      const blocked = !isProfileReady() || !selectedProblem || feedbackSubmitting || locked || !!(selectedProblem && !unlimited && Number(selectedProblem.attemptsRemaining || 0) <= 0);
+      const limitReached = !!(selectedProblem && !unlimited && Number(selectedProblem.attemptsRemaining || 0) <= 0);
+      const blocked = !isProfileReady() || !selectedProblem || feedbackSubmitting || locked;
       button.disabled = blocked;
       button.classList.toggle("opacity-60", blocked);
       button.classList.toggle("cursor-not-allowed", blocked);
       button.classList.toggle("paste-neon-button", !feedbackSubmitting && currentPasteStatus().longPaste);
       button.innerHTML = feedbackSubmitting
         ? `<i class="fa-solid fa-spinner fa-spin"></i> 現在確認中です`
-        : currentPasteStatus().longPaste
+        : limitReached
+          ? `<i class="fa-solid fa-circle-exclamation"></i> フィードバック回数上限です`
+          : currentPasteStatus().longPaste
           ? `<i class="fa-solid fa-triangle-exclamation"></i> コピペ使用として送信`
           : `<i class="fa-solid fa-comments"></i> フィードバックを見る`;
+    }
+
+    function feedbackAttemptLimitMessage(problem = selectedProblem) {
+      const maxAttempts = Number(problem && problem.maxAttempts) || Number(writingConfig.writingMaxAttemptsPerProblem) || 3;
+      const attemptCount = Math.max(0, Number(problem && problem.attemptCount) || 0);
+      return `この問題はフィードバック回数の上限です。最大${maxAttempts}回までで、現在${attemptCount}回提出済みです。`;
     }
 
     function lockFeedbackButton(ms = 6000) {
@@ -2331,7 +2340,7 @@
       if (!selectedProblem) return showMessage("記述問題を選んでください。", "error");
       if (!isProfileReady()) return showMessage("中学/高校・学年・クラス・番号・名前を保存してください。", "error");
       const attemptsUnlimited = selectedProblem.attemptsUnlimited || Number(selectedProblem.maxAttempts || 0) === 0;
-      if (!attemptsUnlimited && Number(selectedProblem.attemptsRemaining || 0) <= 0) return showMessage(`この問題のフィードバック上限に達しています。同じ問題は最大${selectedProblem.maxAttempts || writingConfig.writingMaxAttemptsPerProblem || 3}回までです。`, "error");
+      if (!attemptsUnlimited && Number(selectedProblem.attemptsRemaining || 0) <= 0) return showMessage(feedbackAttemptLimitMessage(), "error");
       const answer = el("answer").value.trim();
       if (!answer) return showMessage("回答が空欄です。", "error");
       if (answer.length > selectedProblem.maxChars) return showMessage(`回答が上限の${selectedProblem.maxChars}字を超えています。`, "error");
