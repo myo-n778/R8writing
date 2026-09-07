@@ -153,9 +153,9 @@
     .criterion-ok { background: rgba(16, 185, 129, 0.16); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.34); }
     .criterion-mid { background: rgba(251, 191, 36, 0.16); color: #fde68a; border: 1px solid rgba(251, 191, 36, 0.34); }
     .criterion-ng { background: rgba(244, 63, 94, 0.14); color: #fecdd3; border: 1px solid rgba(244, 63, 94, 0.32); }
-    @media (min-width: 768px) and (max-width: 1279px) {
+    @media (min-width: 640px) and (max-width: 1279px) {
       .writing-main-layout {
-        grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
         grid-template-areas:
           "answer library"
           "feedback library";
@@ -389,7 +389,7 @@
       </div>
     </section>
 
-    <section class="writing-main-layout grid xl:grid-cols-[500px_minmax(520px,1fr)_300px] gap-4 items-start">
+    <section class="writing-main-layout grid xl:grid-cols-[minmax(360px,1.05fr)_minmax(340px,1fr)_minmax(240px,0.72fr)] gap-4 items-start">
       <section class="writing-answer-panel glass rounded-[1.8rem] p-4 md:p-5 min-h-[40rem]">
         <div id="message" class="hidden rounded-2xl p-4 text-sm mb-4"></div>
 
@@ -469,7 +469,7 @@
             <p id="overall" class="text-slate-100 font-bold mt-2 leading-relaxed feedback-copy"></p>
           </div>
         </div>
-        <div class="space-y-2 text-sm">
+        <div id="feedback-details" class="space-y-2 text-sm">
           <div class="rounded-2xl bg-emerald-400/10 border border-emerald-300/20 p-3"><div class="text-emerald-200 font-black text-xs mb-1">良い点</div><p id="good" class="feedback-copy"></p></div>
           <div class="rounded-2xl bg-amber-400/10 border border-amber-300/20 p-3"><div class="text-amber-200 font-black text-xs mb-1">直すと良い点</div><p id="improve" class="feedback-copy"></p></div>
           <div class="rounded-2xl bg-cyan-400/10 border border-cyan-300/20 p-3"><div class="text-cyan-200 font-black text-xs mb-1">書くときのポイント</div><p id="next" class="feedback-copy"></p></div>
@@ -516,6 +516,8 @@
               <span id="active-grade-filter" class="text-xs font-black text-cyan-100">未設定</span>
             </div>
             <select id="grade-unlock-select" class="input-compact hidden w-full px-3 py-2 text-sm"></select>
+            <input id="problem-search" type="search" class="input-compact w-full px-3 py-2 text-sm" placeholder="番号・タイトルで検索">
+            <button id="featured-filter" type="button" class="hidden w-full rounded-2xl border border-amber-300/25 bg-amber-400/10 px-3 py-2 text-left text-xs font-black text-amber-100 transition-colors hover:bg-amber-400/20">★ 今日の1題</button>
             <select id="subject-filter" class="input-compact w-full px-3 py-2 text-sm"></select>
             <select id="unit-filter" class="input-compact hidden w-full px-3 py-2 text-sm"></select>
           </div>
@@ -653,6 +655,9 @@
     let selectedProblem = null;
     let selectedSubjectFilter = "all";
     let selectedUnitFilter = "all";
+    let selectedSearchQuery = "";
+    let featuredOnly = false;
+    let syncSubmitting = false;
     let writingConfig = { writingAiEnabled: false, writingMaxChars: 300, writingModel: "gpt-5.6-luna", writingMaxAttemptsPerProblem: 3 };
     let usage = {};
     let writingHistory = [];
@@ -1008,17 +1013,29 @@
     }
 
     async function fetchJson(params) {
-      const url = `${GAS_URL}?${new URLSearchParams(params).toString()}`;
-      let data;
+      const action = String(params && params.action || "");
+      const readOnlyAction = ["syncWriting", "historyExport", "adminSummary", "getQuestions"].includes(action);
       try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        data = await res.json();
+        return await fetchJsonDirect(params);
       } catch (err) {
-        const action = String(params && params.action || "");
-        if (!["syncWriting", "historyExport", "adminSummary", "getQuestions"].includes(action)) throw err;
-        data = await fetchJsonp(params);
+        if (!readOnlyAction) throw err;
+        try {
+          return await fetchJsonp(params);
+        } catch (jsonpErr) {
+          throw new Error(`GAS通信に失敗しました。fetch: ${err.message} / JSONP: ${jsonpErr.message}`);
+        }
       }
+    }
+
+    async function fetchJsonDirect(params) {
+      const queryParams = Object.assign({}, params, { _ts: String(Date.now()) });
+      const url = `${GAS_URL}?${new URLSearchParams(queryParams).toString()}`;
+      const res = await Promise.race([
+        fetch(url, { cache: "no-store" }),
+        new Promise((_, reject) => window.setTimeout(() => reject(new Error("fetch timeout")), 25000))
+      ]);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
       if (data.error) throw new Error(data.error);
       return data;
     }
@@ -1034,13 +1051,13 @@
         const timer = window.setTimeout(() => {
           cleanup();
           reject(new Error("GAS通信がタイムアウトしました"));
-        }, 15000);
+        }, 25000);
         window[callbackName] = (data) => {
           window.clearTimeout(timer);
           cleanup();
           resolve(data);
         };
-        const query = new URLSearchParams({ ...params, callback: callbackName }).toString();
+        const query = new URLSearchParams({ ...params, callback: callbackName, _ts: String(Date.now()) }).toString();
         script.src = `${GAS_URL}?${query}`;
         script.onerror = () => {
           window.clearTimeout(timer);
@@ -1858,9 +1875,16 @@
     }
 
     function visibleProblems() {
+      const query = String(selectedSearchQuery || "").trim().toLocaleLowerCase("ja");
       return gradeFilteredProblems().filter((problem) => {
         if (selectedSubjectFilter !== "all" && problemSubject(problem) !== selectedSubjectFilter) return false;
         if (selectedUnitFilter !== "all" && problemUnit(problem) !== selectedUnitFilter) return false;
+        if (featuredOnly && !problem.featured) return false;
+        if (query) {
+          const searchable = [problemNumber(problem, 0), problemTitle(problem), problemSubject(problem), problemUnit(problem), problem.subunit, problem.prompt]
+            .filter(Boolean).join(" ").toLocaleLowerCase("ja");
+          if (!searchable.includes(query)) return false;
+        }
         return true;
       });
     }
@@ -1875,6 +1899,13 @@
       el("active-grade-filter").textContent = gradeLabel;
       renderGradeUnlockSelect();
       const byGrade = gradeFilteredProblems();
+      const hasFeatured = byGrade.some((problem) => !!problem.featured);
+      if (!hasFeatured) featuredOnly = false;
+      const featuredButton = el("featured-filter");
+      featuredButton.classList.toggle("hidden", !hasFeatured);
+      featuredButton.classList.toggle("bg-amber-400/25", featuredOnly);
+      featuredButton.textContent = featuredOnly ? "★ 今日の1題を表示中" : "★ 今日の1題";
+      el("problem-search").value = selectedSearchQuery;
       const subjects = uniqueSorted(byGrade.map(problemSubject));
       if (selectedSubjectFilter !== "all" && !subjects.includes(selectedSubjectFilter)) {
         selectedSubjectFilter = "all";
@@ -1897,6 +1928,7 @@
       el("writing-area").classList.add("hidden");
       el("message").classList.add("hidden");
       renderPeerExamples([]);
+      renderFeedback({ initial: true, evaluation: "-", overall: "問題を選び、回答を送信するとここにフィードバックが表示されます。" });
     }
 
     function renderProblems(options = {}) {
@@ -1986,11 +2018,11 @@
       selectedUnitFilter = "all";
       const label = libraryGradeOverride === "all" ? "全学年" : libraryGradeOverride ? displayGradeChoiceLabel(libraryGradeOverride) : "選択中の学年";
       showMessage(`${label}の問題を読み込んでいます。`, "info");
-      await syncWriting({
+      const synced = await syncWriting({
         preserveProblemId: selectedProblem && selectedProblem.problemId,
         problemGradeScope: selected === "profile" ? "" : selected
       });
-      showMessage(`${label}の問題を表示します。`, "info");
+      if (synced) showMessage(`${label}の問題を表示します。`, "info");
     }
 
     function renderHistoryControls() {
@@ -2005,6 +2037,10 @@
     }
 
     function selectProblem(problemId, options = {}) {
+      if (feedbackSubmitting && (!selectedProblem || selectedProblem.problemId !== problemId)) {
+        showMessage("現在確認中です。フィードバックが完了してから問題を切り替えてください。", "working");
+        return;
+      }
       selectedProblem = writingProblems.find((p) => p.problemId === problemId) || null;
       if (!selectedProblem) return;
       document.querySelectorAll(".problem-card").forEach((card) => card.classList.toggle("active", card.dataset.problemId === problemId));
@@ -2295,6 +2331,16 @@
     }
 
     async function syncWriting(options = {}) {
+      if (syncSubmitting) {
+        showMessage("現在同期中です。完了までお待ちください。", "working");
+        return false;
+      }
+      syncSubmitting = true;
+      const syncButton = el("sync-btn");
+      if (syncButton) {
+        syncButton.disabled = true;
+        syncButton.classList.add("opacity-60", "cursor-not-allowed");
+      }
       const preserveProblemId = options && typeof options === "object"
         ? String(options.preserveProblemId || (selectedProblem && selectedProblem.problemId) || "")
         : String((selectedProblem && selectedProblem.problemId) || "");
@@ -2327,8 +2373,16 @@
         renderLimits();
         renderProblems({ preserveProblemId });
         renderWritingHistory();
+        return true;
       } catch (err) {
         showMessage(`同期に失敗しました: ${err.message}`, "error");
+        return false;
+      } finally {
+        syncSubmitting = false;
+        if (syncButton) {
+          syncButton.disabled = false;
+          syncButton.classList.remove("opacity-60", "cursor-not-allowed");
+        }
       }
     }
 
@@ -2339,13 +2393,15 @@
       }
       if (!selectedProblem) return showMessage("記述問題を選んでください。", "error");
       if (!isProfileReady()) return showMessage("中学/高校・学年・クラス・番号・名前を保存してください。", "error");
-      const attemptsUnlimited = selectedProblem.attemptsUnlimited || Number(selectedProblem.maxAttempts || 0) === 0;
-      if (!attemptsUnlimited && Number(selectedProblem.attemptsRemaining || 0) <= 0) return showMessage(feedbackAttemptLimitMessage(), "error");
+      const submissionProblem = { ...selectedProblem };
+      const submittedProblemId = submissionProblem.problemId;
+      const attemptsUnlimited = submissionProblem.attemptsUnlimited || Number(submissionProblem.maxAttempts || 0) === 0;
+      if (!attemptsUnlimited && Number(submissionProblem.attemptsRemaining || 0) <= 0) return showMessage(feedbackAttemptLimitMessage(), "error");
       const answer = el("answer").value.trim();
       if (!answer) return showMessage("回答が空欄です。", "error");
-      if (answer.length > selectedProblem.maxChars) return showMessage(`回答が上限の${selectedProblem.maxChars}字を超えています。`, "error");
+      if (answer.length > submissionProblem.maxChars) return showMessage(`回答が上限の${submissionProblem.maxChars}字を超えています。`, "error");
       if (!writingConfig.writingAiEnabled) return showMessage("現在、記述AIフィードバックはOFFです。", "error");
-      if (isUnchangedSinceLastFeedback(selectedProblem.problemId, answer)) {
+      if (isUnchangedSinceLastFeedback(submittedProblemId, answer)) {
         showMessage("前回のフィードバック後、回答が変更されていません。直してからもう一度送信してください。", "info");
         return;
       }
@@ -2372,7 +2428,7 @@
           schoolGrade: el("user-grade").value,
           schoolCode: userSchoolCode(),
           ...themePayload(),
-          problemId: selectedProblem.problemId,
+          problemId: submittedProblemId,
           feedbackLevel: feedbackLevel(),
           pasteDetected: currentPasteStatus().detected ? "TRUE" : "FALSE",
           longPasteDetected: currentPasteStatus().longPaste ? "TRUE" : "FALSE",
@@ -2384,7 +2440,6 @@
         renderFeedback(feedback);
         renderPeerExamples(isImpressionTask(activeAssignmentType(feedback)) ? [] : (data.peerExamples || []));
         showMessage("フィードバックを記録しました。", "ok");
-        const submittedProblemId = selectedProblem.problemId;
         rememberSuccessfulFeedback(submittedProblemId, answer);
         await syncWriting({ preserveProblemId: submittedProblemId });
       } catch (err) {
@@ -2433,8 +2488,10 @@
     }
 
     function renderFeedback(feedback) {
-      feedback = completeFeedbackForDisplay(feedback || {});
+      const initial = !!(feedback && feedback.initial);
+      feedback = initial ? (feedback || {}) : completeFeedbackForDisplay(feedback || {});
       el("feedback-panel").classList.remove("hidden");
+      el("feedback-details").classList.toggle("hidden", initial);
       const assignmentType = activeAssignmentType(feedback);
       const impression = isImpressionTask(assignmentType);
       const evaluation = normalizeEvaluationLabel(feedback.evaluation);
@@ -2723,6 +2780,14 @@
     ["user-class", "user-number", "user-name"].forEach((id) => {
       el(id).addEventListener("input", handleProfileEditChanged);
     });
+    el("problem-search").addEventListener("input", () => {
+      selectedSearchQuery = el("problem-search").value || "";
+      renderProblems({ preserveProblemId: selectedProblem && selectedProblem.problemId });
+    });
+    el("featured-filter").addEventListener("click", () => {
+      featuredOnly = !featuredOnly;
+      renderProblems({ preserveProblemId: selectedProblem && selectedProblem.problemId });
+    });
     el("subject-filter").addEventListener("change", () => {
       selectedSubjectFilter = el("subject-filter").value || "all";
       selectedUnitFilter = "all";
@@ -2833,8 +2898,9 @@
     });
 
     renderFeedback({
+      initial: true,
       evaluation: "-",
-      overall: "フィードバックはここに表示されます。回答を書いてから送信してください。",
+      overall: "問題を選び、回答を送信するとここにフィードバックが表示されます。",
       good: "--",
       improve: "--",
       next: "--"
