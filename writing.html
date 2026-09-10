@@ -653,6 +653,8 @@
     let selectedSearchQuery = "";
     let featuredOnly = false;
     let syncSubmitting = false;
+    let syncRequest = null;
+    let syncedUserId = "";
     let writingConfig = { writingAiEnabled: false, writingMaxChars: 300, writingModel: "gpt-5.6-luna", writingMaxAttemptsPerProblem: 3 };
     let usage = {};
     let writingHistory = [];
@@ -785,7 +787,7 @@
       el("user-name").value = name;
       profileSaved = true;
       updateProfileMode();
-      showMessage("ユーザー情報を保存しました。", "ok");
+      showMessage("ユーザー情報を端末に保存しました。問題と過去の取り組みを読み込んでいます。", "working");
       syncWriting();
     }
 
@@ -802,6 +804,8 @@
     }
 
     function logoutProfile() {
+      syncedUserId = "";
+      writingHistory = [];
       localStorage.removeItem("ethics_user_stage");
       localStorage.removeItem("ethics_user_grade");
       localStorage.removeItem("ethics_user_class");
@@ -818,11 +822,15 @@
       selectedUnitFilter = "all";
       renderProblems(false);
       showMessage("ユーザー情報を解除しました。", "info");
+      renderWritingHistory();
     }
 
     function handleProfileEditChanged() {
+      syncedUserId = "";
+      writingHistory = [];
       profileSaved = false;
       updateProfileMode();
+      renderWritingHistory();
     }
 
     function feedbackLevel() {
@@ -1009,6 +1017,7 @@
 
     async function fetchJson(params) {
       const action = String(params && params.action || "");
+      if (action === "syncWriting") return fetchJsonDirect(params);
       const readOnlyAction = ["syncWriting", "historyExport", "adminSummary", "getQuestions"].includes(action);
       try {
         return await fetchJsonDirect(params);
@@ -1022,12 +1031,11 @@
       }
     }
 
-    async function fetchJsonDirect(params) {
+    async function fetchJsonDirect(params, controller = new AbortController()) {
       const queryParams = Object.assign({}, params, { _ts: String(Date.now()) });
       const url = `${GAS_URL}?${new URLSearchParams(queryParams).toString()}`;
-      const timeoutMs = params.action === "gradeWriting" ? 120000 : 25000;
+      const timeoutMs = ["gradeWriting", "syncWriting"].includes(params.action) ? 120000 : 25000;
       const label = params.action === "gradeWriting" ? "採点" : params.action === "submissionStatus" ? "提出結果の確認" : params.action === "syncWriting" ? "問題・履歴の読み込み" : "データの読み込み";
-      const controller = new AbortController();
       let timer;
       try {
         return await Promise.race([
@@ -2116,7 +2124,7 @@
       const locked = Date.now() < feedbackButtonLockedUntil;
       const unlimited = selectedProblem && (selectedProblem.attemptsUnlimited || Number(selectedProblem.maxAttempts || 0) === 0);
       const limitReached = !!(selectedProblem && !unlimited && Number(selectedProblem.attemptsRemaining || 0) <= 0);
-      const blocked = !isProfileReady() || !selectedProblem || feedbackSubmitting || locked;
+      const blocked = !isProfileReady() || syncedUserId !== userId() || !selectedProblem || feedbackSubmitting || locked;
       button.disabled = blocked;
       button.classList.toggle("opacity-60", blocked);
       button.classList.toggle("cursor-not-allowed", blocked);
@@ -2345,59 +2353,71 @@
     }
 
     async function syncWriting(options = {}) {
-      if (syncSubmitting) {
-        showMessage("現在同期中です。完了までお待ちください。", "working");
-        return false;
-      }
+      const params = { action: "syncWriting", id: SPREADSHEET_ID };
+      const scope = String(options.problemGradeScope || libraryGradeOverride || "");
+      if (scope) params.problemGradeScope = scope;
+      if (isProfileReady()) Object.assign(params, {
+        userId: userId(), userName: normalizeUserName(el("user-name").value),
+        userClass: el("user-class").value.trim(), userNumber: el("user-number").value.trim(),
+        schoolCode: userSchoolCode(), ...themePayload()
+      });
+      const signature = JSON.stringify(params);
+      if (syncRequest && syncRequest.signature === signature) return syncRequest.promise;
+      // A changed profile supersedes the anonymous/previous user's request.
+      if (syncRequest) syncRequest.controller.abort();
+      const preserveProblemId = String(options.preserveProblemId || (selectedProblem && selectedProblem.problemId) || "");
+      const request = { signature, controller: new AbortController(), promise: null };
+      syncRequest = request;
       syncSubmitting = true;
-      const syncButton = el("sync-btn");
-      if (syncButton) {
-        syncButton.disabled = true;
-        syncButton.classList.add("opacity-60", "cursor-not-allowed");
-      }
-      const preserveProblemId = options && typeof options === "object"
-        ? String(options.preserveProblemId || (selectedProblem && selectedProblem.problemId) || "")
-        : String((selectedProblem && selectedProblem.problemId) || "");
-      try {
-        if (!GAS_URL || GAS_URL.includes("PASTE_DEPLOYED")) {
-          throw new Error("GAS_URLが未設定です。Apps ScriptのWebアプリURLを設定してください。");
-        }
-        const params = { action: "syncWriting", id: SPREADSHEET_ID };
-        const problemGradeScope = options && typeof options === "object"
-          ? String(options.problemGradeScope || libraryGradeOverride || "")
-          : String(libraryGradeOverride || "");
-        if (problemGradeScope) params.problemGradeScope = problemGradeScope;
-        if (isProfileReady()) {
-          params.userId = userId();
-          params.userName = normalizeUserName(el("user-name").value);
-          params.userClass = el("user-class").value.trim();
-          params.userNumber = el("user-number").value.trim();
-          params.schoolCode = userSchoolCode();
-          Object.assign(params, themePayload());
-        }
-        const data = await fetchJson(params);
-        if (!Array.isArray(data.problems)) {
-          throw new Error("GASが記述問題用の syncWriting に対応していない可能性があります。Apps Scriptに最新のGAS.txtを貼り替えて再デプロイしてください。");
-        }
-        writingProblems = data.problems;
-        writingConfig = { ...writingConfig, ...(data.config || {}) };
-        usage = data.usage || {};
-        writingHistory = Array.isArray(data.myHistory) ? data.myHistory : [];
-        historyVisibleCount = 5;
-        renderLimits();
-        renderProblems({ preserveProblemId });
+      if (syncedUserId !== (params.userId || "")) {
+        writingHistory = [];
         renderWritingHistory();
-        return true;
-      } catch (err) {
-        showMessage(`同期に失敗しました: ${err.message}`, "error");
-        return false;
-      } finally {
-        syncSubmitting = false;
-        if (syncButton) {
-          syncButton.disabled = false;
-          syncButton.classList.remove("opacity-60", "cursor-not-allowed");
-        }
       }
+      const button = el("sync-btn");
+      if (button) {
+        button.disabled = true;
+        button.classList.add("opacity-60", "cursor-not-allowed");
+      }
+      showMessage("問題と過去の取り組みを読み込んでいます。", "working");
+      request.promise = (async () => {
+        try {
+          if (!GAS_URL || GAS_URL.includes("PASTE_DEPLOYED")) throw new Error("GAS_URLが未設定です。");
+          const data = await fetchJsonDirect(params, request.controller);
+          const activeUserId = isProfileReady() ? userId() : "";
+          if (syncRequest !== request || activeUserId !== (params.userId || "")) return false;
+          if (!Array.isArray(data.problems) || (params.userId && !Array.isArray(data.myHistory))) {
+            throw new Error("問題または履歴の応答が不完全です。取得済みデータは更新していません。");
+          }
+          writingProblems = data.problems;
+          writingConfig = { ...writingConfig, ...(data.config || {}) };
+          usage = data.usage || {};
+          writingHistory = Array.isArray(data.myHistory) ? data.myHistory : [];
+          syncedUserId = params.userId || "";
+          historyVisibleCount = 5;
+          renderLimits();
+          renderHistoryControls();
+          renderProblems({ preserveProblemId });
+          renderWritingHistory();
+          showMessage(params.userId ? "問題と過去の取り組みを読み込みました。" : "問題を読み込みました。", "ok");
+          return true;
+        } catch (err) {
+          const activeUserId = isProfileReady() ? userId() : "";
+          if (syncRequest !== request || activeUserId !== (params.userId || "")) return false;
+          showMessage(`同期に失敗しました: ${err.message} 取得済みのデータは保持しています。SYNCで再確認できます。`, "error");
+          return false;
+        } finally {
+          if (syncRequest === request) {
+            syncRequest = null;
+            syncSubmitting = false;
+            if (button) {
+              button.disabled = false;
+              button.classList.remove("opacity-60", "cursor-not-allowed");
+            }
+            updateFeedbackButtonState();
+          }
+        }
+      })();
+      return request.promise;
     }
 
     async function requestFeedback() {
@@ -2407,6 +2427,7 @@
       }
       if (!selectedProblem) return showMessage("記述問題を選んでください。", "error");
       if (!isProfileReady()) return showMessage("中学/高校・学年・クラス・番号・名前を保存してください。", "error");
+      if (syncedUserId !== userId()) return showMessage("過去の取り組みと提出回数を確認中です。同期完了後に送信してください。", "working");
       let pendingFeedback;
       try { pendingFeedback = readPendingFeedback(); } catch (err) {
         return showMessage("提出情報を保存・確認できません。ブラウザの保存設定を確認してください。送信はしていません。", "error");
@@ -2672,7 +2693,7 @@
     }
 
     function filteredWritingHistory() {
-      const problemFilter = el("history-problem-filter") ? el("history-problem-filter").value : "all";
+      const problemFilter = (el("history-problem-filter") && el("history-problem-filter").value) || "all";
       const sortMode = el("history-sort") ? el("history-sort").value : "newest";
       return (writingHistory || [])
         .filter((item) => problemFilter === "all" || String(item.problemId || "") === problemFilter)
@@ -2718,7 +2739,7 @@
         return;
       }
       if (!filtered.length) {
-        list.innerHTML = `<div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">表示できる履歴はまだありません。</div>`;
+        list.innerHTML = `<div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">${syncedUserId !== userId() ? "過去の取り組みは未取得です。同期完了をお待ちください。失敗した場合はSYNCで再確認できます。" : "表示できる履歴はまだありません。"}</div>`;
         return;
       }
       list.innerHTML = visible.map((item) => {
