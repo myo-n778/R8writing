@@ -390,6 +390,7 @@
     <section class="writing-main-layout grid xl:grid-cols-[minmax(360px,1.05fr)_minmax(340px,1fr)_minmax(240px,0.72fr)] gap-4 items-start">
       <section class="writing-answer-panel glass rounded-[1.8rem] p-4 md:p-5 min-h-[40rem]">
         <div id="message" class="hidden rounded-2xl p-4 text-sm mb-4"></div>
+        <button id="recover-feedback-btn" type="button" class="hidden mb-4 bg-cyan-400/10 border border-cyan-300/25 text-cyan-100 rounded-lg px-5 py-4 text-sm font-bold"><i class="fa-solid fa-rotate"></i> 未確認の提出結果を確認</button>
 
         <div id="empty-state" class="h-full min-h-[32rem] grid place-items-center text-center text-slate-400">
           <div>
@@ -640,7 +641,7 @@
   <script src="./common/science-shared.js"></script>
   <script>
     const SHARED = window.ScienceShared || {};
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbyt5DAfR86r5IJoiEhBSshC2gzRr5PqeGIt-O85Ou7yh_ToaT0dhb9MYtb15iDi6IQ/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxPE3wge9oRCiDHMXR8_K4oX9PjcDwM30_-hXoURK89dTET3cp2ThVv_xwWD9AMD_J-/exec";
     const SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/14Ryr1W1tH5jti2yf3ULIgbIY6SFLAx6u217DjUGNByo/edit";
     const SPREADSHEET_ID = (SPREADSHEET_URL.match(/\/d\/([^/]+)/) || [])[1] || "";
     const normalizeUserName = SHARED.normalizeUserName || ((name) => name ? name.normalize("NFKC").trim() : "");
@@ -1024,14 +1025,37 @@
     async function fetchJsonDirect(params) {
       const queryParams = Object.assign({}, params, { _ts: String(Date.now()) });
       const url = `${GAS_URL}?${new URLSearchParams(queryParams).toString()}`;
-      const res = await Promise.race([
-        fetch(url, { cache: "no-store" }),
-        new Promise((_, reject) => window.setTimeout(() => reject(new Error("fetch timeout")), 25000))
-      ]);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      return data;
+      const timeoutMs = params.action === "gradeWriting" ? 120000 : 25000;
+      const label = params.action === "gradeWriting" ? "採点" : params.action === "submissionStatus" ? "提出結果の確認" : params.action === "syncWriting" ? "問題・履歴の読み込み" : "データの読み込み";
+      const controller = new AbortController();
+      let timer;
+      try {
+        return await Promise.race([
+          (async () => {
+            const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data.error) {
+              const error = new Error(data.error);
+              error.serverResponse = true;
+              error.submissionStatus = data.submissionStatus;
+              throw error;
+            }
+            return data;
+          })(),
+          new Promise((_, reject) => {
+            timer = window.setTimeout(() => {
+              reject(new Error(`${label}の応答待ちが${timeoutMs / 1000}秒を超えました。`));
+              controller.abort();
+            }, timeoutMs);
+          })
+        ]);
+      } catch (err) {
+        if (!err.serverResponse && !err.message.startsWith(label)) err.message = `${label}に失敗しました: ${err.message}`;
+        throw err;
+      } finally {
+        window.clearTimeout(timer);
+      }
     }
 
     function fetchJsonp(params) {
@@ -2087,6 +2111,7 @@
     }
 
     function updateFeedbackButtonState() {
+      updateRecoveryButton();
       const button = el("feedback-btn");
       if (!button) return;
       const locked = Date.now() < feedbackButtonLockedUntil;
@@ -2383,7 +2408,16 @@
       }
       if (!selectedProblem) return showMessage("記述問題を選んでください。", "error");
       if (!isProfileReady()) return showMessage("中学/高校・学年・クラス・番号・名前を保存してください。", "error");
+      let pendingFeedback;
+      try { pendingFeedback = readPendingFeedback(); } catch (err) {
+        return showMessage("提出情報を保存・確認できません。ブラウザの保存設定を確認してください。送信はしていません。", "error");
+      }
+      if (pendingFeedback) {
+        updateRecoveryButton();
+        return showMessage("結果未確認の提出があります。「未確認の提出結果を確認」を押してください。新しい採点は送信していません。", "error");
+      }
       const submissionProblem = { ...selectedProblem };
+      const submittedUserId = userId();
       const submittedProblemId = submissionProblem.problemId;
       const attemptsUnlimited = submissionProblem.attemptsUnlimited || Number(submissionProblem.maxAttempts || 0) === 0;
       if (!attemptsUnlimited && Number(submissionProblem.attemptsRemaining || 0) <= 0) return showMessage(feedbackAttemptLimitMessage(), "error");
@@ -2407,10 +2441,10 @@
       lockFeedbackButton(6000);
       showMessage("現在確認中です。フィードバックを作成しています...", "working");
       try {
-        const data = await fetchJson({
+        const data = await submitFeedbackOnce({
           action: "gradeWriting",
           id: SPREADSHEET_ID,
-          userId: userId(),
+          userId: submittedUserId,
           userName: normalizeUserName(el("user-name").value),
           userClass: el("user-class").value.trim(),
           userNumber: el("user-number").value.trim(),
@@ -2427,8 +2461,11 @@
           answer
         });
         const feedback = data.feedback || {};
-        renderFeedback(feedback);
-        renderPeerExamples(isImpressionTask(activeAssignmentType(feedback)) ? [] : (data.peerExamples || []));
+        if (userId() !== submittedUserId) return;
+        if (selectedProblem && selectedProblem.problemId === submittedProblemId) {
+          renderFeedback(feedback);
+          renderPeerExamples(isImpressionTask(activeAssignmentType(feedback)) ? [] : (data.peerExamples || []));
+        }
         showMessage("フィードバックを記録しました。", "ok");
         rememberSuccessfulFeedback(submittedProblemId, answer);
         await syncWriting({ preserveProblemId: submittedProblemId });
@@ -2437,6 +2474,79 @@
       } finally {
         feedbackSubmitting = false;
         updateFeedbackButtonState();
+        updateRecoveryButton();
+      }
+    }
+
+    function pendingFeedbackKey() {
+      return `r8writing-pending:${SPREADSHEET_ID}:${userId()}`;
+    }
+
+    function readPendingFeedback() {
+      const raw = sessionStorage.getItem(pendingFeedbackKey());
+      return raw ? JSON.parse(raw) : null;
+    }
+
+    function updateRecoveryButton() {
+      const button = el("recover-feedback-btn");
+      if (!button) return;
+      let pending = false;
+      try { pending = !!readPendingFeedback(); } catch (err) { pending = true; }
+      button.classList.toggle("hidden", !pending);
+      button.disabled = feedbackSubmitting;
+    }
+
+    async function submitFeedbackOnce(params) {
+      const submissionId = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Array.from(crypto.getRandomValues(new Uint32Array(4))).join("-")}`;
+      const pending = { ...params, submissionId };
+      const key = pendingFeedbackKey();
+      // Persist before sending; storage failure must not start an untrackable request.
+      sessionStorage.setItem(key, JSON.stringify(pending));
+      updateRecoveryButton();
+      try {
+        const data = await fetchJson(pending);
+        if (!data.success) throw new Error("提出は現在確認中です。しばらく待ってから「未確認の提出結果を確認」を押してください。");
+        sessionStorage.removeItem(key);
+        return data;
+      } catch (err) {
+        if (["rejected", "failed"].includes(err.submissionStatus)) sessionStorage.removeItem(key);
+        else err.message += " 回答は再送していません。「未確認の提出結果を確認」で結果を確認してください。";
+        throw err;
+      }
+    }
+
+    async function recoverFeedback() {
+      if (feedbackSubmitting) return;
+      let pending;
+      try { pending = readPendingFeedback(); } catch (err) { return showMessage("提出情報を読み出せません。先生に確認してください。", "error"); }
+      if (!pending) return updateRecoveryButton();
+      const key = pendingFeedbackKey();
+      feedbackSubmitting = true;
+      updateFeedbackButtonState();
+      updateRecoveryButton();
+      showMessage("提出結果を確認しています。回答は再送しません。", "working");
+      try {
+        const data = await fetchJsonDirect({ ...pending, action: "submissionStatus" });
+        if (!data.success) {
+          showMessage(data.submissionStatus === "pending" ? "まだ処理中、または処理状況が未確定です。時間を置いて再度確認してください。" : "提出結果を確認できません。新しい採点は行わず、先生に確認してください。", "error");
+          return;
+        }
+        sessionStorage.removeItem(key);
+        if (pendingFeedbackKey() !== key) return;
+        rememberSuccessfulFeedback(pending.problemId, pending.answer);
+        if (selectedProblem && selectedProblem.problemId === pending.problemId) {
+          renderFeedback(data.feedback || {});
+          renderPeerExamples([]);
+        }
+        await syncWriting({ preserveProblemId: selectedProblem ? selectedProblem.problemId : pending.problemId });
+        showMessage("提出済みのフィードバックを確認しました。", "ok");
+      } catch (err) {
+        if (["rejected", "failed"].includes(err.submissionStatus)) sessionStorage.removeItem(key);
+        showMessage(err.message, "error");
+      } finally {
+        feedbackSubmitting = false;
+        updateFeedbackButtonState();
+        updateRecoveryButton();
       }
     }
 
@@ -2724,6 +2834,8 @@
       if (event.key === "Escape") toggleThemeMenu(false);
     });
     el("feedback-btn").addEventListener("click", requestFeedback);
+    el("recover-feedback-btn").addEventListener("click", recoverFeedback);
+    updateRecoveryButton();
     el("voice-input-btn").addEventListener("click", toggleVoiceInput);
     el("toggle-examples-btn").addEventListener("click", () => {
       const examples = el("answer-examples");
