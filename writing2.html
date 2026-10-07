@@ -512,6 +512,11 @@
             </div>
             <select id="grade-unlock-select" class="input-compact hidden w-full px-3 py-2 text-sm"></select>
             <input id="problem-search" type="search" class="input-compact w-full px-3 py-2 text-sm" placeholder="番号・タイトルで検索">
+            <select id="problem-sort" aria-label="問題の並び順" class="input-compact w-full px-3 py-2 text-sm">
+              <option value="newest" selected>新しい順</option>
+              <option value="oldest">古い順</option>
+              <option value="number">問題番号順</option>
+            </select>
             <button id="featured-filter" type="button" class="hidden w-full rounded-2xl border border-amber-300/25 bg-amber-400/10 px-3 py-2 text-left text-xs font-black text-amber-100 transition-colors hover:bg-amber-400/20">★ 今日の1題</button>
             <select id="subject-filter" class="input-compact w-full px-3 py-2 text-sm"></select>
             <select id="unit-filter" class="input-compact hidden w-full px-3 py-2 text-sm"></select>
@@ -1819,6 +1824,36 @@
       return value ? String(value).trim() : "";
     }
 
+
+    function problemRegistrationTime(problem) {
+      const value = formatRegisteredDate(problem);
+      const match = value.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})?)?$/);
+      if (!match) return null;
+      const [, year, month, day, hour = "0", minute = "0", second = "0", fraction = "", zone = "+09:00"] = match;
+      const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+      if (date.getUTCFullYear() !== Number(year) || date.getUTCMonth() !== Number(month) - 1 ||
+          date.getUTCDate() !== Number(day) || Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59) return null;
+      const stamp = Date.parse(`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hour.padStart(2, "0")}:${minute.padStart(2, "0")}:${second.padStart(2, "0")}${fraction}${zone}`);
+      return Number.isFinite(stamp) ? stamp : null;
+    }
+
+    function sortedProblems(problems) {
+      const mode = el("problem-sort").value;
+      const sourceIndex = new Map(writingProblems.map((problem, index) => [problem, index]));
+      return problems.slice().sort((a, b) => {
+        if (mode === "number") {
+          return problemNumber(a, sourceIndex.get(a)).localeCompare(problemNumber(b, sourceIndex.get(b)), "ja", { numeric: true }) ||
+            sourceIndex.get(a) - sourceIndex.get(b);
+        }
+        const aTime = problemRegistrationTime(a);
+        const bTime = problemRegistrationTime(b);
+        if (aTime === null && bTime !== null) return 1;
+        if (bTime === null && aTime !== null) return -1;
+        const difference = aTime === null ? 0 : aTime - bTime;
+        return (mode === "oldest" ? difference : -difference) || sourceIndex.get(a) - sourceIndex.get(b);
+      });
+    }
+
     function problemNumber(problem, index) {
       const raw = problem.problemNumber || problem.number || problem.no || "";
       const value = raw || (Number.isFinite(Number(problem.order)) ? String(Math.max(1, Number(problem.order) / 10)) : String((index || 0) + 1));
@@ -1960,7 +1995,7 @@
       renderProblemFilters();
       const list = el("problem-list");
       list.innerHTML = "";
-      const problems = visibleProblems();
+      const problems = sortedProblems(visibleProblems());
       const totalForGrade = gradeFilteredProblems().length;
       el("task-count").textContent = `${problems.length} / ${totalForGrade} tasks`;
       if (!problems.length) {
@@ -1977,7 +2012,7 @@
           ? `試行 ${Number(problem.attemptCount || 0)}回`
           : `試行 ${Number(problem.attemptCount || 0)} / ${problem.maxAttempts || writingConfig.writingMaxAttemptsPerProblem || usage.maxAttemptsPerProblem || 3}`;
         const registered = formatRegisteredDate(problem);
-        const number = problemNumber(problem, index);
+        const number = problemNumber(problem, writingProblems.indexOf(problem));
         const pasteTag = problemPasteTag(problem);
         button.innerHTML = `
           <div class="flex justify-between gap-3 mb-2">
@@ -2825,6 +2860,7 @@
       featuredOnly = !featuredOnly;
       renderProblems({ preserveProblemId: selectedProblem && selectedProblem.problemId });
     });
+    el("problem-sort").addEventListener("change", () => renderProblems());
     el("subject-filter").addEventListener("change", () => {
       selectedSubjectFilter = el("subject-filter").value || "all";
       selectedUnitFilter = "all";
