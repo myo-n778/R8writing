@@ -2559,15 +2559,24 @@
       // Persist before sending; storage failure must not start an untrackable request.
       sessionStorage.setItem(key, JSON.stringify(pending));
       updateRecoveryButton();
+      const delayNotice = window.setTimeout(() => {
+        if (pendingFeedbackKey() === key) showMessage("提出から60秒経過しました。処理に時間がかかっています。回答は再送せず、そのままお待ちください。", "working");
+      }, 60000);
       try {
         const data = await fetchJson(pending);
-        if (!data.success) throw new Error("提出は現在確認中です。しばらく待ってから「未確認の提出結果を確認」を押してください。");
+        if (!data.success) {
+          const error = new Error(data.message || "提出は現在確認中です。しばらく待ってから「未確認の提出結果を確認」を押してください。");
+          error.submissionStatus = data.submissionStatus;
+          throw error;
+        }
         sessionStorage.removeItem(key);
         return data;
       } catch (err) {
-        if (["rejected", "failed"].includes(err.submissionStatus)) sessionStorage.removeItem(key);
+        if (["rejected", "failed", "expired", "superseded"].includes(err.submissionStatus)) sessionStorage.removeItem(key);
         else err.message += " 回答は再送していません。「未確認の提出結果を確認」で結果を確認してください。";
         throw err;
+      } finally {
+        window.clearTimeout(delayNotice);
       }
     }
 
@@ -2583,8 +2592,10 @@
       showMessage("提出結果を確認しています。回答は再送しません。", "working");
       try {
         const data = await fetchJsonDirect({ ...pending, action: "submissionStatus" });
+        if (pendingFeedbackKey() !== key) return;
         if (!data.success) {
-          showMessage(data.submissionStatus === "pending" ? "まだ処理中、または処理状況が未確定です。時間を置いて再度確認してください。" : "提出結果を確認できません。新しい採点は行わず、先生に確認してください。", "error");
+          if (["expired", "superseded"].includes(data.submissionStatus)) sessionStorage.removeItem(key);
+          showMessage(data.message || (data.submissionStatus === "pending" ? "まだ処理中、または処理状況が未確定です。時間を置いて再度確認してください。" : "提出結果を確認できません。新しい採点は行わず、先生に確認してください。"), "error");
           return;
         }
         sessionStorage.removeItem(key);
@@ -2597,7 +2608,8 @@
         await syncWriting({ preserveProblemId: selectedProblem ? selectedProblem.problemId : pending.problemId });
         showMessage("提出済みのフィードバックを確認しました。", "ok");
       } catch (err) {
-        if (["rejected", "failed"].includes(err.submissionStatus)) sessionStorage.removeItem(key);
+        if (["rejected", "failed", "expired", "superseded"].includes(err.submissionStatus)) sessionStorage.removeItem(key);
+        if (pendingFeedbackKey() !== key) return;
         showMessage(err.message, "error");
       } finally {
         feedbackSubmitting = false;
