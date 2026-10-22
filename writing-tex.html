@@ -378,6 +378,7 @@
         </div>
       </div>
     </header>
+    <p id="profile-storage-warning" role="status" class="hidden mb-4 text-sm text-rose-300">ユーザー情報を端末に保存できません。この画面を閉じると、再入力が必要です。</p>
 
     <section id="announcement-box" class="hidden mb-4 rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-slate-100">
       <div class="flex items-start gap-3">
@@ -435,7 +436,11 @@
             </div>
           </div>
 
-          <div class="flex flex-col sm:flex-row gap-3">
+          <div class="flex items-center gap-3 min-h-12">
+            <button id="save-draft-btn" type="button" title="下書きを端末に保存" aria-label="下書きを端末に保存" class="border border-cyan-300/25 text-cyan-100 rounded-lg w-12 h-12 shrink-0"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i></button>
+            <span id="draft-status" role="status" aria-live="polite" class="text-xs text-slate-400 break-words"></span>
+          </div>
+          <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3">
             <button id="feedback-btn" class="bg-lime-400 hover:bg-lime-300 text-slate-950 rounded-2xl px-5 py-4 text-sm font-black uppercase flex-1">
               <i class="fa-solid fa-comments"></i> フィードバックを見る
             </button>
@@ -690,6 +695,13 @@
     let pasteStatusByProblem = {};
     let profileSaved = false;
     const DRAFT_STORAGE_PREFIX = "writingFeedbackDraft:";
+    const draftSessions = new Map();
+    let activeDraft = null;
+    const preferenceStorage = {
+      getItem(key) { try { return localStorage.getItem(key); } catch (err) { return null; } },
+      setItem(key, value) { try { localStorage.setItem(key, value); return true; } catch (err) { return false; } },
+      removeItem(key) { try { localStorage.removeItem(key); } catch (err) { /* Keep this session usable. */ } }
+    };
     const FEEDBACK_LEVELS = ["中学生", "高校生", "先生"];
     const THEMES = {
       modeA: { bg: "#0f172a", panel: "rgba(30, 41, 59, 0.85)", accent: "#6366f1", text: "#f8fafc" },
@@ -725,8 +737,8 @@
     }
 
     function ensureUserGradeControls() {
-      const stage = normalizeUserStage(el("user-stage").value || localStorage.getItem("ethics_user_stage") || "M");
-      const grade = normalizeUserGradeValue(el("user-grade").value || localStorage.getItem("ethics_user_grade") || "2");
+      const stage = normalizeUserStage(el("user-stage").value || preferenceStorage.getItem("ethics_user_stage") || "M");
+      const grade = normalizeUserGradeValue(el("user-grade").value || preferenceStorage.getItem("ethics_user_grade") || "2");
       el("user-stage").value = stage;
       el("user-grade").value = grade;
       return `${stage}${grade}`;
@@ -749,7 +761,7 @@
     }
 
     function updateAnswerInputGate() {
-      const ready = isProfileReady();
+      const ready = isProfileReady() && !!selectedProblem && !!activeDraft;
       const answer = el("answer");
       if (answer) {
         answer.disabled = !ready;
@@ -790,38 +802,42 @@
         showMessage("中学/高校・学年・クラス・番号・名前を入力してからSAVEしてください。", "error");
         return;
       }
-      localStorage.setItem("ethics_user_stage", el("user-stage").value);
-      localStorage.setItem("ethics_user_grade", el("user-grade").value);
-      localStorage.setItem("ethics_user_class", el("user-class").value.trim());
-      localStorage.setItem("ethics_user_number", el("user-number").value.trim());
-      localStorage.setItem("ethics_user_name", name);
+      const profileStored = [
+        ["ethics_user_stage", el("user-stage").value], ["ethics_user_grade", el("user-grade").value],
+        ["ethics_user_class", el("user-class").value.trim()], ["ethics_user_number", el("user-number").value.trim()],
+        ["ethics_user_name", name]
+      ].map(([key, value]) => preferenceStorage.setItem(key, value)).every(Boolean);
       el("user-name").value = name;
       profileSaved = true;
+      if (selectedProblem) selectProblem(selectedProblem.problemId, { keepMessage: true, keepPeerExamples: true });
       updateProfileMode();
-      showMessage("ユーザー情報を端末に保存しました。問題と過去の取り組みを読み込んでいます。", "working");
+      el("profile-storage-warning").classList.toggle("hidden", profileStored);
+      showMessage(profileStored ? "ユーザー情報を端末に保存しました。問題と過去の取り組みを読み込んでいます。" : "ユーザー情報はこの画面で保持しています。端末には保存できませんでした。", profileStored ? "working" : "error");
       syncWriting();
     }
 
     function loadProfile() {
-      el("user-stage").value = normalizeUserStage(localStorage.getItem("ethics_user_stage") || "M");
-      el("user-grade").value = normalizeUserGradeValue(localStorage.getItem("ethics_user_grade") || "2");
-      el("user-class").value = localStorage.getItem("ethics_user_class") || "";
-      el("user-number").value = localStorage.getItem("ethics_user_number") || "";
-      el("user-name").value = localStorage.getItem("ethics_user_name") || "";
-      const savedLevel = localStorage.getItem("writing_feedback_level") || "中学生";
+      el("user-stage").value = normalizeUserStage(preferenceStorage.getItem("ethics_user_stage") || "M");
+      el("user-grade").value = normalizeUserGradeValue(preferenceStorage.getItem("ethics_user_grade") || "2");
+      el("user-class").value = preferenceStorage.getItem("ethics_user_class") || "";
+      el("user-number").value = preferenceStorage.getItem("ethics_user_number") || "";
+      el("user-name").value = preferenceStorage.getItem("ethics_user_name") || "";
+      const savedLevel = preferenceStorage.getItem("writing_feedback_level") || "中学生";
       el("feedback-level").value = FEEDBACK_LEVELS.includes(savedLevel) ? savedLevel : "中学生";
       profileSaved = !!isProfileFieldsComplete();
       updateProfileMode();
     }
 
     function logoutProfile() {
+      detachAnswerDraft(true);
+      el("profile-storage-warning").classList.add("hidden");
       syncedUserId = "";
       writingHistory = [];
-      localStorage.removeItem("ethics_user_stage");
-      localStorage.removeItem("ethics_user_grade");
-      localStorage.removeItem("ethics_user_class");
-      localStorage.removeItem("ethics_user_number");
-      localStorage.removeItem("ethics_user_name");
+      preferenceStorage.removeItem("ethics_user_stage");
+      preferenceStorage.removeItem("ethics_user_grade");
+      preferenceStorage.removeItem("ethics_user_class");
+      preferenceStorage.removeItem("ethics_user_number");
+      preferenceStorage.removeItem("ethics_user_name");
       el("user-stage").value = "M";
       el("user-grade").value = "2";
       el("user-class").value = "";
@@ -837,6 +853,7 @@
     }
 
     function handleProfileEditChanged() {
+      detachAnswerDraft(true);
       syncedUserId = "";
       writingHistory = [];
       profileSaved = false;
@@ -850,7 +867,7 @@
     }
 
     function currentThemeMode() {
-      const stored = localStorage.getItem("ethics_theme_mode") || "modeA";
+      const stored = preferenceStorage.getItem("ethics_theme_mode") || "modeA";
       return THEMES[stored] ? stored : "modeA";
     }
 
@@ -884,7 +901,7 @@
         linear-gradient(135deg, ${t.bg} 0%, ${bgMid} 58%, ${bgEnd} 100%)
       `;
       document.body.style.color = t.text;
-      localStorage.setItem("ethics_theme_mode", safeTheme);
+      preferenceStorage.setItem("ethics_theme_mode", safeTheme);
       const themeButton = el("theme-btn");
       if (themeButton) themeButton.innerHTML = `<i class="fa-solid fa-palette"></i> ${themeDisplayName(safeTheme)}`;
       document.querySelectorAll("[data-theme]").forEach((btn) => {
@@ -911,7 +928,7 @@
       document.querySelectorAll("[data-font-size]").forEach((btn) => {
         btn.classList.toggle("active", btn.dataset.fontSize === normalized);
       });
-      localStorage.setItem(FONT_SIZE_STORAGE_KEY, normalized);
+      preferenceStorage.setItem(FONT_SIZE_STORAGE_KEY, normalized);
     }
 
     function speechRecognitionCtor() {
@@ -939,12 +956,13 @@
     }
 
     function appendRecognizedText(text) {
+      if (!isProfileReady() || !selectedProblem || !activeDraft) return;
       const answer = el("answer");
       const current = answer.value.trimEnd();
       const separator = current && !/[。！？\n]$/.test(current) ? "。" : "";
       answer.value = current ? `${current}${separator}${text}` : text;
       answer.focus();
-      updateCharCount();
+      handleAnswerInput();
     }
 
     function initVoiceInput() {
@@ -1018,9 +1036,9 @@
     function loadVoiceInputSettings() {
       const checkbox = el("voice-manual-stop");
       if (!checkbox) return;
-      checkbox.checked = localStorage.getItem(VOICE_MANUAL_STOP_STORAGE_KEY) === "true";
+      checkbox.checked = preferenceStorage.getItem(VOICE_MANUAL_STOP_STORAGE_KEY) === "true";
       checkbox.addEventListener("change", () => {
-        localStorage.setItem(VOICE_MANUAL_STOP_STORAGE_KEY, checkbox.checked ? "true" : "false");
+        preferenceStorage.setItem(VOICE_MANUAL_STOP_STORAGE_KEY, checkbox.checked ? "true" : "false");
         if (speechRecognition) speechRecognition.continuous = checkbox.checked;
         setVoiceStatus(checkbox.checked ? "手動停止モードにしました。停止を押すまで続けます。" : "自動終了モードにしました。短い入力向きです。", "info");
       });
@@ -1990,6 +2008,7 @@
     }
 
     function clearSelectedProblem() {
+      detachAnswerDraft();
       selectedProblem = null;
       el("empty-state").classList.remove("hidden");
       el("writing-area").classList.add("hidden");
@@ -2108,8 +2127,14 @@
         showMessage("現在確認中です。フィードバックが完了してから問題を切り替えてください。", "working");
         return;
       }
-      selectedProblem = writingProblems.find((p) => p.problemId === problemId) || null;
+      const nextProblem = writingProblems.find((p) => p.problemId === problemId) || null;
+      if (!nextProblem) return;
+      const nextKey = draftStorageKey(problemId);
+      if (!activeDraft || activeDraft.key !== nextKey) detachAnswerDraft();
+      selectedProblem = nextProblem;
       if (!selectedProblem) return;
+      if (!activeDraft && nextKey) loadAnswerDraft();
+      updateAnswerInputGate();
       document.querySelectorAll(".problem-card").forEach((card) => card.classList.toggle("active", card.dataset.problemId === problemId));
       el("empty-state").classList.add("hidden");
       el("writing-area").classList.remove("hidden");
@@ -2285,50 +2310,133 @@
     }
 
     function draftStorageKey(problemId = selectedProblem && selectedProblem.problemId) {
-      if (!problemId) return "";
-      return `${DRAFT_STORAGE_PREFIX}${userId() || "guest"}:${problemId}`;
+      if (!problemId || !isProfileReady()) return "";
+      return `${DRAFT_STORAGE_PREFIX}${userId()}:${problemId}`;
     }
 
-    function readAnswerDraft() {
-      const key = draftStorageKey();
-      if (!key) return null;
-      try {
-        const parsed = JSON.parse(localStorage.getItem(key) || "null");
-        return parsed && typeof parsed.text === "string" ? parsed : null;
-      } catch (err) {
-        return null;
-      }
+    function parseAnswerDraft(raw) {
+      if (raw === null) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed.text !== "string" || parsed.text.length > 200000 ||
+          !Number.isFinite(parsed.updatedAt) || parsed.updatedAt < 0) throw new Error("Invalid draft");
+      const paste = parsed.paste || {};
+      return { text: parsed.text, updatedAt: parsed.updatedAt, paste: {
+        detected: paste.detected === true, longPaste: paste.longPaste === true,
+        charCount: Number.isFinite(paste.charCount) && paste.charCount >= 0 ? paste.charCount : 0,
+        confirmed: false
+      } };
     }
 
-    function saveAnswerDraft() {
+    function setDraftStatus(text, failed = false) {
+      const status = el("draft-status");
+      if (!status) return;
+      status.textContent = text;
+      status.className = `text-xs break-words ${failed ? "text-rose-300" : "text-slate-400"}`;
+    }
+
+    function loadAnswerDraft() {
       const key = draftStorageKey();
       if (!key) return;
+      const previous = draftSessions.get(key);
+      activeDraft = previous || { key, problemId: selectedProblem.problemId, raw: undefined, text: "", paste: {}, dirty: false };
+      draftSessions.set(key, activeDraft);
       try {
-        localStorage.setItem(key, JSON.stringify({ text: el("answer").value, updatedAt: Date.now() }));
+        if (!activeDraft.dirty) {
+          const raw = localStorage.getItem(key);
+          const draft = parseAnswerDraft(raw);
+          Object.assign(activeDraft, { raw, text: draft ? draft.text : "", paste: draft ? draft.paste : {}, updatedAt: draft ? draft.updatedAt : 0 });
+        }
+        setDraftStatus(activeDraft.dirty ? "未保存の下書きがあります" : activeDraft.updatedAt ? "端末の下書きを復元しました" : "下書きなし", activeDraft.dirty);
       } catch (err) {
-        // localStorage may be unavailable in restricted browser modes.
+        setDraftStatus("下書きを読み込めません。端末への保存は未確認です", true);
       }
+      el("answer").value = activeDraft.text;
+      pasteStatusByProblem[activeDraft.problemId] = { detected: false, longPaste: false, charCount: 0, ...activeDraft.paste, confirmed: false };
+    }
+
+    function saveAnswerDraft(force = false) {
+      if (!activeDraft) return true;
+      activeDraft.text = el("answer").value;
+      activeDraft.paste = { ...currentPasteStatus(), confirmed: false };
+      try {
+        const previous = parseAnswerDraft(activeDraft.raw === undefined ? null : activeDraft.raw);
+        const oldPaste = previous ? previous.paste : { detected: false, longPaste: false, charCount: 0 };
+        const changed = activeDraft.text !== (previous ? previous.text : "") ||
+          ["detected", "longPaste", "charCount"].some((field) => activeDraft.paste[field] !== oldPaste[field]);
+        if (!changed && !force) {
+          activeDraft.dirty = false;
+          return true;
+        }
+        activeDraft.dirty = true;
+        const latest = localStorage.getItem(activeDraft.key);
+        if (latest !== activeDraft.raw && !force) {
+          setDraftStatus("別の画面で下書きが変わりました。保存先は上書きしていません", true);
+          updateRestoreDraftButton();
+          return false;
+        }
+        const updatedAt = Date.now();
+        const raw = JSON.stringify({ version: 2, text: activeDraft.text, paste: activeDraft.paste, updatedAt });
+        localStorage.setItem(activeDraft.key, raw);
+        if (localStorage.getItem(activeDraft.key) !== raw) throw new Error("Draft readback failed");
+        Object.assign(activeDraft, { raw, updatedAt, dirty: false });
+        setDraftStatus(`端末に保存済み ${new Date(updatedAt).toLocaleTimeString("ja-JP")}`);
+        return true;
+      } catch (err) {
+        activeDraft.dirty = true;
+        setDraftStatus("端末に保存できません。画面を閉じずに文章を控えてください", true);
+        return false;
+      }
+    }
+
+    function saveAnswerDraftManually() {
+      if (saveAnswerDraft()) return;
+      try {
+        if (activeDraft && localStorage.getItem(activeDraft.key) !== activeDraft.raw &&
+            window.confirm("別の画面で保存した下書き、または読み込めなかった下書きを、今の文章で上書きしますか？")) {
+          saveAnswerDraft(true);
+        }
+      } catch (err) { /* The failure is already visible beside the save button. */ }
+    }
+
+    function detachAnswerDraft(clearRestore = false) {
+      if (activeDraft) saveAnswerDraft();
+      activeDraft = null;
+      el("answer").value = "";
+      if (clearRestore) lastClearedAnswer = null;
+      pasteStatusByProblem = {};
+      setDraftStatus("");
+      updateRestoreClearButton();
     }
 
     function updateRestoreDraftButton() {
       const button = el("restore-draft-btn");
       if (!button) return;
-      const draft = readAnswerDraft();
-      button.classList.toggle("hidden", !(draft && draft.text && draft.text !== el("answer").value));
+      let different = false;
+      try {
+        const draft = activeDraft && parseAnswerDraft(localStorage.getItem(activeDraft.key));
+        different = !!(draft && draft.text !== el("answer").value);
+      } catch (err) { /* Do not mask a storage error with a success status. */ }
+      button.classList.toggle("hidden", !different);
     }
 
     function restoreAnswerDraft() {
-      const draft = readAnswerDraft();
-      if (!draft || !draft.text) {
-        showMessage("戻せる下書きがありません。", "info");
+      if (!activeDraft) return;
+      try {
+        const raw = localStorage.getItem(activeDraft.key);
+        const draft = parseAnswerDraft(raw);
+        if (!draft) return;
+        if (el("answer").value && el("answer").value !== draft.text &&
+            !window.confirm("今の文章を、端末に保存された下書きに置き換えますか？")) return;
+        Object.assign(activeDraft, draft, { raw, dirty: false });
+        el("answer").value = draft.text;
+        pasteStatusByProblem[activeDraft.problemId] = { ...draft.paste, confirmed: false };
+        updateCharCount();
+        updatePasteWarningState();
         updateRestoreDraftButton();
-        return;
+        setDraftStatus("端末の下書きを復元しました");
+      } catch (err) {
+        setDraftStatus("下書きを読み込めません。今の文章は変更していません", true);
       }
-      el("answer").value = draft.text;
-      updateCharCount();
-      updatePasteWarningState();
-      updateRestoreDraftButton();
-      showMessage("保存されていた下書きを戻しました。", "ok");
     }
 
     function confirmOwnWordsIfNeeded() {
@@ -2368,10 +2476,12 @@
       if (!window.confirm("本当に消しますか？")) return;
       lastClearedAnswer = {
         text,
+        paste: { ...currentPasteStatus(), confirmed: false },
         problemId: selectedProblem ? selectedProblem.problemId : "",
         clearedAt: Date.now()
       };
       answer.value = "";
+      saveAnswerDraft();
       renderPeerExamples([]);
       updateCharCount();
       updateRestoreClearButton();
@@ -2386,12 +2496,19 @@
         return;
       }
       const targetProblemId = lastClearedAnswer.problemId;
+      if (!targetProblemId || !writingProblems.some((problem) => problem.problemId === targetProblemId)) {
+        showMessage("元の問題が現在の一覧にないため、回答は戻していません。", "error");
+        return;
+      }
       if (targetProblemId && (!selectedProblem || selectedProblem.problemId !== targetProblemId)) {
         const exists = writingProblems.some((problem) => problem.problemId === targetProblemId);
         if (exists) selectProblem(targetProblemId, { keepMessage: true, keepPeerExamples: true });
       }
+      if (!selectedProblem || selectedProblem.problemId !== targetProblemId || !activeDraft) return;
       el("answer").value = lastClearedAnswer.text;
+      if (selectedProblem) pasteStatusByProblem[selectedProblem.problemId] = { ...lastClearedAnswer.paste, confirmed: false };
       lastClearedAnswer = null;
+      saveAnswerDraft();
       updateCharCount();
       updateRestoreClearButton();
       updateRestoreDraftButton();
@@ -3016,7 +3133,7 @@
         ? `<i class="fa-solid fa-users-slash"></i> 他の人の解答例を隠す`
         : `<i class="fa-solid fa-users"></i> 他の人の解答例を見る`;
     });
-    el("feedback-level").addEventListener("change", () => localStorage.setItem("writing_feedback_level", feedbackLevel()));
+    el("feedback-level").addEventListener("change", () => preferenceStorage.setItem("writing_feedback_level", feedbackLevel()));
     el("history-problem-filter").addEventListener("change", () => {
       historyVisibleCount = 5;
       renderWritingHistory();
@@ -3058,6 +3175,23 @@
     el("clear-btn").addEventListener("click", clearAnswerWithConfirmation);
     el("restore-clear-btn").addEventListener("click", restoreClearedAnswer);
     el("restore-draft-btn").addEventListener("click", restoreAnswerDraft);
+    el("save-draft-btn").addEventListener("click", saveAnswerDraftManually);
+    window.addEventListener("pagehide", () => saveAnswerDraft());
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") saveAnswerDraft();
+    });
+    window.addEventListener("beforeunload", (event) => {
+      if ([...draftSessions.values()].some((draft) => draft.dirty)) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    });
+    window.addEventListener("storage", (event) => {
+      if (activeDraft && (event.key === activeDraft.key || event.key === null)) {
+        setDraftStatus("別の画面で下書きが変わりました。現在の文章はそのままです", true);
+        updateRestoreDraftButton();
+      }
+    });
     el("answer").addEventListener("input", handleAnswerInput);
     el("answer").addEventListener("paste", markAnswerPaste);
     document.querySelectorAll("[data-font-size]").forEach((btn) => {
@@ -3089,8 +3223,8 @@
     loadProfile();
     loadVoiceInputSettings();
     initVoiceInput();
-    applyFontSizeMode(localStorage.getItem(FONT_SIZE_STORAGE_KEY) || "standard");
-    applyTheme(localStorage.getItem("ethics_theme_mode") || "modeA");
+    applyFontSizeMode(preferenceStorage.getItem(FONT_SIZE_STORAGE_KEY) || "standard");
+    applyTheme(preferenceStorage.getItem("ethics_theme_mode") || "modeA");
     syncWriting();
   </script>
 </body>
