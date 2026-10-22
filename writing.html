@@ -114,20 +114,6 @@
       0%, 100% { opacity: 1; box-shadow: 0 0 12px rgba(251, 113, 133, 0.65), 0 0 28px rgba(249, 115, 22, 0.38); }
       50% { opacity: 0.72; box-shadow: 0 0 22px rgba(251, 113, 133, 0.95), 0 0 42px rgba(249, 115, 22, 0.62); }
     }
-    .paste-neon-alert {
-      animation: pasteNeonPulse 1.1s ease-in-out infinite;
-      border: 1px solid rgba(251, 113, 133, 0.75);
-      background: linear-gradient(135deg, rgba(127, 29, 29, 0.78), rgba(124, 45, 18, 0.82));
-      color: #fff7ed;
-      text-shadow: 0 0 12px rgba(255, 237, 213, 0.58);
-    }
-    .paste-neon-button {
-      animation: pasteNeonPulse 0.95s ease-in-out infinite;
-      border-color: rgba(251, 113, 133, 0.9) !important;
-      background: linear-gradient(135deg, #fb7185, #f97316) !important;
-      color: #1f0f0b !important;
-      text-shadow: 0 0 10px rgba(255, 247, 237, 0.62);
-    }
     .working-neon-message {
       animation: pasteNeonPulse 1s ease-in-out infinite;
       border: 1px solid rgba(34, 211, 238, 0.78);
@@ -135,17 +121,6 @@
       color: #ecfeff;
       box-shadow: 0 0 16px rgba(34, 211, 238, 0.42), 0 0 34px rgba(236, 116, 48, 0.28);
       text-shadow: 0 0 10px rgba(236, 254, 255, 0.68);
-    }
-    .paste-mini-tag {
-      display: inline-flex;
-      align-items: center;
-      white-space: nowrap;
-      animation: pasteNeonPulse 1.05s ease-in-out infinite;
-      border: 1px solid rgba(251, 113, 133, 0.85);
-      background: linear-gradient(135deg, rgba(127, 29, 29, 0.92), rgba(249, 115, 22, 0.78));
-      color: #fff7ed;
-      box-shadow: 0 0 12px rgba(251, 113, 133, 0.52), 0 0 26px rgba(249, 115, 22, 0.36);
-      text-shadow: 0 0 9px rgba(255, 237, 213, 0.7);
     }
     .criterion-mark { width: 2.25rem; height: 2.25rem; display: grid; place-items: center; border-radius: 999px; font-weight: 900; }
     .criterion-ok { background: rgba(16, 185, 129, 0.16); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.34); }
@@ -421,10 +396,6 @@
               <div class="flex justify-between items-center mb-2">
                 <label for="answer" class="font-tech text-[10px] font-black uppercase text-slate-300 tracking-[0.18em]">Your Answer</label>
                 <span id="char-count" class="text-xs text-slate-400">0 / 300</span>
-              </div>
-              <div id="paste-warning" class="paste-neon-alert hidden mb-3 rounded-2xl px-4 py-3 text-sm font-black">
-                <i class="fa-solid fa-triangle-exclamation"></i> コピペ使用
-                <span class="ml-2 text-xs font-bold opacity-90">このまま送信すると、コピペ使用として記録されます。</span>
               </div>
               <textarea id="answer" class="writing-text w-full bg-slate-950/70 border border-slate-700 rounded-2xl p-4 leading-relaxed outline-none focus:border-cyan-400" placeholder="ここに自分の考えを書きます。短くても送れます。"></textarea>
             </div>
@@ -2031,7 +2002,6 @@
           : `試行 ${Number(problem.attemptCount || 0)} / ${problem.maxAttempts || writingConfig.writingMaxAttemptsPerProblem || usage.maxAttemptsPerProblem || 3}`;
         const registered = formatRegisteredDate(problem);
         const number = problemNumber(problem, writingProblems.indexOf(problem));
-        const pasteTag = problemPasteTag(problem);
         button.innerHTML = `
           <div class="flex justify-between gap-3 mb-2">
             <span class="text-[10px] text-cyan-200 font-black">${libraryGradeOverride ? `${escapeHtml(normalizeGradeKey(problem.grade) || problem.grade || "学年未設定")} / ` : ""}${escapeHtml(problemSubject(problem))} / ${escapeHtml(problemUnit(problem))}</span>
@@ -2042,7 +2012,7 @@
             <div class="problem-card-text min-w-0 truncate font-black leading-relaxed">${escapeHtml(problemTitle(problem))}</div>
           </div>
           <div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
-            <span class="flex min-w-0 flex-wrap items-center gap-2">${bestText}${pasteTag}</span>
+            <span class="flex min-w-0 flex-wrap items-center gap-2">${bestText}</span>
             <span>${escapeHtml(attemptsText)}</span>
           </div>
         `;
@@ -2138,7 +2108,6 @@
       renderProblemImage(selectedProblem.image || null);
       if (!options.keepPeerExamples) renderPeerExamples([]);
       updateCharCount();
-      updatePasteWarningState();
       updateRestoreDraftButton();
       renderLimits();
       updateFeedbackButtonState();
@@ -2173,7 +2142,6 @@
       if (selectedProblem) resetOwnWordsConfirmation(selectedProblem.problemId);
       saveAnswerDraft();
       updateCharCount();
-      updatePasteWarningState();
       updateRestoreDraftButton();
     }
 
@@ -2188,13 +2156,10 @@
       button.disabled = blocked;
       button.classList.toggle("opacity-60", blocked);
       button.classList.toggle("cursor-not-allowed", blocked);
-      button.classList.toggle("paste-neon-button", !feedbackSubmitting && currentPasteStatus().longPaste);
       button.innerHTML = feedbackSubmitting
         ? `<i class="fa-solid fa-spinner fa-spin"></i> 現在確認中です`
         : limitReached
           ? `<i class="fa-solid fa-circle-exclamation"></i> フィードバック回数上限です`
-          : currentPasteStatus().longPaste
-          ? `<i class="fa-solid fa-triangle-exclamation"></i> コピペ使用として送信`
           : `<i class="fa-solid fa-comments"></i> フィードバックを見る`;
     }
 
@@ -2282,20 +2247,12 @@
       if (pastedLength >= 50) {
         status.longPaste = true;
         status.confirmed = false;
-        showMessage("貼りつけを使わず、自分で入力しましょう。", "info");
       }
       setTimeout(() => {
         saveAnswerDraft();
-        updatePasteWarningState();
         updateRestoreDraftButton();
         updateFeedbackButtonState();
       }, 0);
-    }
-
-    function updatePasteWarningState() {
-      const warning = el("paste-warning");
-      if (!warning) return;
-      warning.classList.toggle("hidden", !currentPasteStatus().longPaste);
     }
 
     function draftStorageKey(problemId = selectedProblem && selectedProblem.problemId) {
@@ -2420,32 +2377,11 @@
         el("answer").value = draft.text;
         pasteStatusByProblem[activeDraft.problemId] = { ...draft.paste, confirmed: false };
         updateCharCount();
-        updatePasteWarningState();
         updateRestoreDraftButton();
         setDraftStatus("端末の下書きを復元しました");
       } catch (err) {
         setDraftStatus("下書きを読み込めません。今の文章は変更していません", true);
       }
-    }
-
-    function confirmOwnWordsIfNeeded() {
-      const status = currentPasteStatus();
-      if (!status.longPaste || status.confirmed) return true;
-      const message = [
-        "長い文章が貼りつけられています。",
-        "",
-        "この記述は、自分で考えて入力するためのものです。",
-        "貼りつけを使った回答は、コピペ使用として記録・表示されます。",
-        "自分で入力し直す場合は「キャンセル」を押してください。",
-        "",
-        "このまま送信しますか？"
-      ].join("\n");
-      if (!window.confirm(message)) {
-        showMessage("送信を止めました。自分の言葉で整理してから、もう一度送信してください。", "info");
-        return false;
-      }
-      status.confirmed = true;
-      return true;
     }
 
     function updateRestoreClearButton() {
@@ -2601,7 +2537,6 @@
         showMessage("前回のフィードバック後、回答が変更されていません。直してからもう一度送信してください。", "info");
         return;
       }
-      if (!confirmOwnWordsIfNeeded()) return;
       const duplicateSignature = feedbackDuplicateSignature(answer);
       if (isDuplicateFeedbackSubmission(duplicateSignature)) {
         showMessage("現在確認中です。同じ回答の連続送信は少し待ってから行ってください。", "info");
@@ -2864,33 +2799,6 @@
         .sort((a, b) => sortMode === "oldest" ? historyTimeValue(a) - historyTimeValue(b) : historyTimeValue(b) - historyTimeValue(a));
     }
 
-    function truthyFlag(value) {
-      return value === true || String(value || "").trim().toLowerCase() === "true";
-    }
-
-    function historyHasPasteUse(item) {
-      return !!item && (truthyFlag(item.longPasteDetected) || truthyFlag(item.pasteDetected) || truthyFlag(item["長文貼り付けあり"]) || truthyFlag(item["貼り付けあり"]));
-    }
-
-    function pasteHistoryTag(item) {
-      return historyHasPasteUse(item)
-        ? `<span class="paste-mini-tag shrink-0 rounded-full px-2 py-1 text-[10px] font-black" title="コピペ使用">コピペ使用</span>`
-        : "";
-    }
-
-    function latestHistoryForProblem(problemId) {
-      const id = String(problemId || "");
-      if (!id) return null;
-      return (writingHistory || [])
-        .filter((item) => String(item.problemId || "") === id)
-        .sort((a, b) => historyTimeValue(b) - historyTimeValue(a))[0] || null;
-    }
-
-    function problemPasteTag(problem) {
-      const latest = latestHistoryForProblem(problem && problem.problemId);
-      return pasteHistoryTag(latest || problem);
-    }
-
     function renderWritingHistory() {
       const list = el("history-list");
       if (!list) return;
@@ -2912,7 +2820,6 @@
         const assignmentType = normalizeAssignmentType(item.assignmentType || ((writingProblems.find((problem) => problem.problemId === item.problemId) || {}).assignmentType));
         const impression = isImpressionTask(assignmentType);
         const displayItem = completeFeedbackForDisplay(item);
-        const pasteTag = pasteHistoryTag(item);
         return `
           <details class="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-4">
             <summary class="cursor-pointer list-none">
@@ -2923,7 +2830,6 @@
                 </div>
                 <div class="shrink-0 flex flex-wrap items-center justify-end gap-2">
                   ${impression ? `<span class="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-slate-200">記録</span>` : `<span class="rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-sm font-black text-cyan-100">${escapeHtml(evaluationDisplay(displayItem.evaluation))}</span>`}
-                  ${pasteTag}
                 </div>
               </div>
             </summary>
