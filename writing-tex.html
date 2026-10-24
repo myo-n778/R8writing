@@ -1599,7 +1599,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.2/dist/katex.min.css" integrity="sha384-qArEAQvOPs1o7K1iAybhs66g8nYTXVt4VLOQ3abu+OMLJyPNfaH4Wpko0X2epHJ+" crossorigin="anonymous">
   <style>
     body { margin: 0; background: #f3f4f6; color: #111827; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .print-toolbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end; gap: 0.5rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.94); border-bottom: 1px solid #d1d5db; }
@@ -2893,7 +2893,9 @@
       const css = doc.createElement("link");
       css.id = "katex-css";
       css.rel = "stylesheet";
-      css.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
+      css.href = "https://cdn.jsdelivr.net/npm/katex@0.18.2/dist/katex.min.css";
+      css.integrity = "sha384-qArEAQvOPs1o7K1iAybhs66g8nYTXVt4VLOQ3abu+OMLJyPNfaH4Wpko0X2epHJ+";
+      css.crossOrigin = "anonymous";
       doc.head.appendChild(css);
     }
 
@@ -2904,7 +2906,7 @@
       if (mathRendererPromise) return mathRendererPromise;
       ensureKatexCss(document);
       mathRendererPromise = new Promise((resolve) => {
-        const loadScript = (id, src, done) => {
+        const loadScript = (id, src, integrity, done) => {
           const existing = document.getElementById(id);
           if (existing) {
             existing.addEventListener("load", done, { once: true });
@@ -2914,13 +2916,15 @@
           const script = document.createElement("script");
           script.id = id;
           script.src = src;
+          script.integrity = integrity;
+          script.crossOrigin = "anonymous";
           script.async = true;
           script.onload = done;
           script.onerror = () => resolve(false);
           document.head.appendChild(script);
         };
-        loadScript("katex-script", "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js", () => {
-          loadScript("katex-auto-render-script", "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js", () => resolve(true));
+        loadScript("katex-script", "https://cdn.jsdelivr.net/npm/katex@0.18.2/dist/katex.min.js", "sha384-IHT6Yddb0KLCzZaxQ/so1j3xkJ8R6hOkCR06ma9NDHGn0Z4ClKcGtQ6qqsflRPxR", () => {
+          loadScript("katex-auto-render-script", "https://cdn.jsdelivr.net/npm/katex@0.18.2/dist/contrib/auto-render.min.js", "sha384-bjyGPfbij8/NDKJhSGZNP/khQVgtHUE5exjm4Ydllo42FwIgYsdLO2lXGmRBf5Mz", () => resolve(true));
         });
       }).catch(() => false);
       return mathRendererPromise;
