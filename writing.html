@@ -659,6 +659,12 @@
     let lastClearedAnswer = null;
     let pasteStatusByProblem = {};
     let profileSaved = false;
+    let savedProfileFields = null;
+    let savedProfileUserId = "";
+    let profileEditing = false;
+    let syncedIdentity = null;
+    let serverPendingSubmissions = [];
+    const IDENTITY_VERSION = "code102-v2";
     const DRAFT_STORAGE_PREFIX = "writingFeedbackDraft:";
     const draftSessions = new Map();
     let activeDraft = null;
@@ -710,15 +716,34 @@
     }
 
     const userSchoolCode = () => ensureUserGradeControls();
-    const userId = () => `${userSchoolCode()}-${el("user-class").value.trim()}-${el("user-number").value.trim()}-${normalizeUserName(el("user-name").value)}`;
-    const isProfileFieldsComplete = () => el("user-stage").value && el("user-grade").value && el("user-class").value.trim() && el("user-number").value.trim() && normalizeUserName(el("user-name").value);
-    const isProfileReady = () => profileSaved && isProfileFieldsComplete();
+    function fixedStudentCode() {
+      if (userSchoolCode() !== "M2") return "";
+      const group = el("user-class").value.trim();
+      const rawNumber = el("user-number").value.trim().replace(/[０-９]/g, ch => String(ch.charCodeAt(0) - 0xFF10));
+      const number = /^\d{1,2}$/.test(rawNumber) ? Number(rawNumber) : 0;
+      const max = group === "菊" ? 33 : group === "桜" ? 34 : 0;
+      return number >= 1 && number <= max ? `1022${group === "菊" ? "1" : "2"}${String(number).padStart(2, "0")}` : "";
+    }
+    const userId = () => userSchoolCode() === "M2" ? fixedStudentCode() : `${userSchoolCode()}-${el("user-class").value.trim()}-${el("user-number").value.trim()}-${normalizeUserName(el("user-name").value)}`;
+    function profileFields() {
+      return ["user-stage", "user-grade", "user-class", "user-number", "user-name"].map(id => el(id).value);
+    }
+    function restoreProfileFields() {
+      if (savedProfileFields) ["user-stage", "user-grade", "user-class", "user-number", "user-name"].forEach((id, i) => { el(id).value = savedProfileFields[i]; });
+    }
+    function identityPayload(uid = userId()) {
+      return /^1022[12]\d{2}$/.test(uid) ? { identityVersion: IDENTITY_VERSION, studentCode: uid } : {};
+    }
+    const isProfileFieldsComplete = () => el("user-stage").value && el("user-grade").value && el("user-class").value.trim() && el("user-number").value.trim() &&
+      (userSchoolCode() === "M2" || normalizeUserName(el("user-name").value));
+    const isProfileReady = () => profileSaved && isProfileFieldsComplete() && !!userId();
 
     function updateProfileMode() {
       const ready = isProfileReady();
-      el("profile-view").classList.toggle("hidden", !ready);
-      el("profile-view").classList.toggle("flex", ready);
-      el("profile-edit").classList.toggle("hidden", ready);
+      el("user-name").placeholder = userSchoolCode() === "M2" ? "名前（任意）" : "名前";
+      el("profile-view").classList.toggle("hidden", !ready || profileEditing);
+      el("profile-view").classList.toggle("flex", ready && !profileEditing);
+      el("profile-edit").classList.toggle("hidden", ready && !profileEditing);
       if (ready) {
         el("active-user-display").textContent = `${userSchoolCode()}-${el("user-class").value.trim()}-${el("user-number").value.trim()} ${normalizeUserName(el("user-name").value)}`;
       }
@@ -764,18 +789,38 @@
       if (!isProfileFieldsComplete()) {
         profileSaved = false;
         updateProfileMode();
-        showMessage("中学/高校・学年・クラス・番号・名前を入力してからSAVEしてください。", "error");
+        showMessage("中学/高校・学年・クラス・番号を入力してからSAVEしてください。中2以外は名前も入力してください。", "error");
         return;
+      }
+      if (userSchoolCode() === "M2" && !fixedStudentCode()) {
+        showMessage("中2は菊1～33番・桜1～34番を確認してください。", "error");
+        return;
+      }
+      if (!saveAnswerDraft()) {
+        restoreProfileFields();
+        updateProfileMode();
+        showMessage("下書きを保存できないため、利用者を切り替えていません。", "error");
+        return;
+      }
+      if (fixedStudentCode()) {
+        el("user-class").value = el("user-class").value.trim();
+        el("user-number").value = String(Number(fixedStudentCode().slice(-2)));
       }
       const profileStored = [
         ["ethics_user_stage", el("user-stage").value], ["ethics_user_grade", el("user-grade").value],
         ["ethics_user_class", el("user-class").value.trim()], ["ethics_user_number", el("user-number").value.trim()],
-        ["ethics_user_name", name]
+        ["ethics_user_name", name],
+        ["writing_identity_version", fixedStudentCode() ? IDENTITY_VERSION : ""],
+        ["writing_student_code", fixedStudentCode()]
       ].map(([key, value]) => preferenceStorage.setItem(key, value)).every(Boolean);
       el("user-name").value = name;
       profileSaved = true;
+      profileEditing = false;
+      savedProfileFields = profileFields();
+      savedProfileUserId = userId();
       if (selectedProblem) selectProblem(selectedProblem.problemId, { keepMessage: true, keepPeerExamples: true });
       updateProfileMode();
+      el("profile-storage-warning").textContent = "ユーザー情報を端末に保存できません。この画面を閉じると、再入力が必要です。";
       el("profile-storage-warning").classList.toggle("hidden", profileStored);
       showMessage(profileStored ? "ユーザー情報を端末に保存しました。問題と過去の取り組みを読み込んでいます。" : "ユーザー情報はこの画面で保持しています。端末には保存できませんでした。", profileStored ? "working" : "error");
       syncWriting();
@@ -789,12 +834,28 @@
       el("user-name").value = preferenceStorage.getItem("ethics_user_name") || "";
       const savedLevel = preferenceStorage.getItem("writing_feedback_level") || "中学生";
       el("feedback-level").value = FEEDBACK_LEVELS.includes(savedLevel) ? savedLevel : "中学生";
-      profileSaved = !!isProfileFieldsComplete();
+      const code = fixedStudentCode();
+      const needsConfirmation = userSchoolCode() === "M2" &&
+        (!code || preferenceStorage.getItem("writing_identity_version") !== IDENTITY_VERSION || preferenceStorage.getItem("writing_student_code") !== code);
+      if (needsConfirmation) {
+        el("user-class").value = "";
+        el("user-number").value = "";
+        el("profile-storage-warning").textContent = "中2の組と番号をもう一度確認してSAVEしてください。名前は表示用です。";
+        el("profile-storage-warning").classList.remove("hidden");
+      }
+      profileSaved = !needsConfirmation && !!isProfileFieldsComplete();
+      savedProfileFields = profileSaved ? profileFields() : null;
+      savedProfileUserId = profileSaved ? userId() : "";
       updateProfileMode();
     }
 
     function logoutProfile() {
-      detachAnswerDraft(true);
+      if (!detachAnswerDraft(true, true)) return;
+      savedProfileFields = null;
+      savedProfileUserId = "";
+      profileEditing = false;
+      syncedIdentity = null;
+      serverPendingSubmissions = [];
       el("profile-storage-warning").classList.add("hidden");
       syncedUserId = "";
       writingHistory = [];
@@ -818,12 +879,28 @@
     }
 
     function handleProfileEditChanged() {
-      detachAnswerDraft(true);
+      const previousId = savedProfileUserId;
+      if (!saveAnswerDraft()) {
+        restoreProfileFields();
+        updateProfileMode();
+        showMessage("下書きを保存できないため、利用者を切り替えていません。", "error");
+        return false;
+      }
+      if (profileSaved && previousId && userId() === previousId) {
+        savedProfileFields = profileFields();
+        updateProfileMode();
+        return true;
+      }
+      if (!detachAnswerDraft(true, true)) return false;
       syncedUserId = "";
+      syncedIdentity = null;
+      serverPendingSubmissions = [];
       writingHistory = [];
       profileSaved = false;
       updateProfileMode();
       renderWritingHistory();
+      updateLegacyDraftCandidates();
+      return true;
     }
 
     function feedbackLevel() {
@@ -1010,31 +1087,23 @@
     }
 
     async function fetchJson(params) {
-      const action = String(params && params.action || "");
-      if (action === "syncWriting") return fetchJsonDirect(params);
-      const readOnlyAction = ["syncWriting", "historyExport", "adminSummary", "getQuestions"].includes(action);
-      try {
-        return await fetchJsonDirect(params);
-      } catch (err) {
-        if (!readOnlyAction) throw err;
-        try {
-          return await fetchJsonp(params);
-        } catch (jsonpErr) {
-          throw new Error(`GAS通信に失敗しました。fetch: ${err.message} / JSONP: ${jsonpErr.message}`);
-        }
-      }
+      return fetchJsonDirect(params);
     }
 
     async function fetchJsonDirect(params, controller = new AbortController()) {
-      const queryParams = Object.assign({}, params, { _ts: String(Date.now()) });
-      const url = `${GAS_URL}?${new URLSearchParams(queryParams).toString()}`;
+      const payload = { ...params, ...(params.userId ? identityPayload(params.userId) : {}) };
+      const anonymous = payload.action === "getQuestions" && !payload.userId;
+      const url = anonymous ? `${GAS_URL}?${new URLSearchParams({ action: "getQuestions", id: payload.id, ...(payload.problemGradeScope ? { problemGradeScope: payload.problemGradeScope } : {}), _ts: String(Date.now()) })}` : GAS_URL;
+      const options = anonymous
+        ? { cache: "no-store", signal: controller.signal }
+        : { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: JSON.stringify(payload), cache: "no-store", signal: controller.signal };
       const timeoutMs = ["gradeWriting", "syncWriting"].includes(params.action) ? 120000 : 25000;
-      const label = params.action === "gradeWriting" ? "採点" : params.action === "submissionStatus" ? "提出結果の確認" : params.action === "syncWriting" ? "問題・履歴の読み込み" : "データの読み込み";
+      const label = params.action === "gradeWriting" ? "採点" : params.action === "submissionStatus" ? "提出結果の確認" : "データの読み込み";
       let timer;
       try {
         return await Promise.race([
           (async () => {
-            const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+            const res = await fetch(url, options);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             if (data.error) {
@@ -1058,35 +1127,6 @@
       } finally {
         window.clearTimeout(timer);
       }
-    }
-
-    function fetchJsonp(params) {
-      return new Promise((resolve, reject) => {
-        const callbackName = `__r8WritingJsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        const script = document.createElement("script");
-        const cleanup = () => {
-          try { delete window[callbackName]; } catch (err) { window[callbackName] = undefined; }
-          if (script.parentNode) script.parentNode.removeChild(script);
-        };
-        const timer = window.setTimeout(() => {
-          cleanup();
-          reject(new Error("GAS通信がタイムアウトしました"));
-        }, 25000);
-        window[callbackName] = (data) => {
-          window.clearTimeout(timer);
-          cleanup();
-          if (data && data.error) reject(new Error(data.error));
-          else resolve(data);
-        };
-        const queryParams = Object.assign({}, params, { callback: callbackName, _ts: String(Date.now()) });
-        script.src = `${GAS_URL}?${new URLSearchParams(queryParams).toString()}`;
-        script.onerror = () => {
-          window.clearTimeout(timer);
-          cleanup();
-          reject(new Error("GAS通信に失敗しました"));
-        };
-        document.head.appendChild(script);
-      });
     }
 
     function showAdminMessage(text, type = "info") {
@@ -1651,35 +1691,42 @@
 
     async function exportStudentHistory(mode = "print") {
       if (!isProfileReady()) {
-        setStatus("ユーザー情報を保存すると、PDF用一覧を作成できます。", "error");
+        showMessage("ユーザー情報を保存すると、PDF用一覧を作成できます。", "error");
         return;
       }
+      const exportedUserId = userId();
+      const exportContextMatches = () => isProfileReady() && userId() === exportedUserId;
       const openedWindow = mode === "browse" ? window.open("", "_blank") : null;
+      const closeStaleExport = () => {
+        if (openedWindow && !openedWindow.closed) openedWindow.close();
+      };
       if (mode === "browse" && !openedWindow) {
-        setStatus("新しいタブを開けませんでした。ポップアップブロックを確認してください。", "error");
+        showMessage("新しいタブを開けませんでした。ポップアップブロックを確認してください。", "error");
         return;
       }
       const userLabel = `${userSchoolCode()} ${el("user-class").value.trim()}-${el("user-number").value.trim()} ${normalizeUserName(el("user-name").value)}`;
       let items = [];
       let usedFallback = false;
       try {
-        setStatus("PDF用履歴を取得しています...", "info");
+        showMessage("PDF用履歴を取得しています...", "info");
         const data = await fetchJson({
           action: "historyExport",
           id: SPREADSHEET_ID,
-          userId: userId(),
+          userId: exportedUserId,
           userName: normalizeUserName(el("user-name").value),
           userClass: el("user-class").value.trim(),
           userNumber: el("user-number").value.trim(),
           schoolCode: userSchoolCode(),
           ...themePayload()
         });
+        if (!exportContextMatches()) return closeStaleExport();
         items = Array.isArray(data.history) ? data.history : [];
       } catch (err) {
-        items = Array.isArray(writingHistory) ? writingHistory : [];
+        if (!exportContextMatches()) return closeStaleExport();
+        items = syncedUserId === exportedUserId && Array.isArray(writingHistory) ? writingHistory : [];
         usedFallback = true;
         if (!items.length) {
-          setStatus("PDF用履歴を取得できませんでした: " + err.message, "error");
+          showMessage("PDF用履歴を取得できませんでした: " + err.message, "error");
           if (openedWindow && !openedWindow.closed) openedWindow.close();
           return;
         }
@@ -1696,13 +1743,13 @@
       };
       if (mode === "browse") {
         if (openHistoryInNewTab(payload, openedWindow)) {
-          setStatus(usedFallback ? "同期済み履歴で新しいタブを開きました。" : "新しいタブでPDF用一覧を開きました。", "ok");
+          showMessage(usedFallback ? "同期済み履歴で新しいタブを開きました。" : "新しいタブでPDF用一覧を開きました。", "ok");
         }
         return;
       }
       if (renderPrintExport(payload)) {
-        window.setTimeout(() => window.print(), 100);
-        setStatus(usedFallback ? "同期済み履歴でPDF用一覧を開きました。印刷画面からPDF保存できます。" : "PDF用一覧を開きました。印刷画面からPDF保存できます。", "ok");
+        window.setTimeout(() => { if (exportContextMatches()) window.print(); }, 100);
+        showMessage(usedFallback ? "同期済み履歴でPDF用一覧を開きました。印刷画面からPDF保存できます。" : "PDF用一覧を開きました。印刷画面からPDF保存できます。", "ok");
       }
     }
 
@@ -1968,7 +2015,7 @@
     }
 
     function clearSelectedProblem() {
-      detachAnswerDraft();
+      if (!detachAnswerDraft()) return;
       selectedProblem = null;
       el("empty-state").classList.remove("hidden");
       el("writing-area").classList.add("hidden");
@@ -2089,7 +2136,7 @@
       const nextProblem = writingProblems.find((p) => p.problemId === problemId) || null;
       if (!nextProblem) return;
       const nextKey = draftStorageKey(problemId);
-      if (!activeDraft || activeDraft.key !== nextKey) detachAnswerDraft();
+      if ((!activeDraft || activeDraft.key !== nextKey) && !detachAnswerDraft()) return;
       selectedProblem = nextProblem;
       if (!selectedProblem) return;
       if (!activeDraft && nextKey) loadAnswerDraft();
@@ -2204,11 +2251,11 @@
 
     function rememberSuccessfulFeedback(problemId, answer) {
       if (!problemId) return;
-      lastSuccessfulFeedbackByProblem[problemId] = normalizeSubmittedAnswer(answer);
+      lastSuccessfulFeedbackByProblem[`${userId()}:${problemId}`] = normalizeSubmittedAnswer(answer);
     }
 
     function latestSuccessfulAnswerForProblem(problemId) {
-      const cached = lastSuccessfulFeedbackByProblem[problemId];
+      const cached = lastSuccessfulFeedbackByProblem[`${userId()}:${problemId}`];
       if (cached) return cached;
       const item = (writingHistory || []).find((historyItem) => (
         historyItem &&
@@ -2257,7 +2304,91 @@
 
     function draftStorageKey(problemId = selectedProblem && selectedProblem.problemId) {
       if (!problemId || !isProfileReady()) return "";
-      return `${DRAFT_STORAGE_PREFIX}${userId()}:${problemId}`;
+      return userSchoolCode() === "M2"
+        ? `${DRAFT_STORAGE_PREFIX}${SPREADSHEET_ID}:${userId()}:${problemId}`
+        : `${DRAFT_STORAGE_PREFIX}${userId()}:${problemId}`;
+    }
+
+    function legacyDraftCandidates() {
+      if (!selectedProblem || !isProfileReady() || userSchoolCode() !== "M2") return [];
+      const candidates = [];
+      for (const uid of ownedLegacyUserIds()) {
+        const key = `${DRAFT_STORAGE_PREFIX}${uid}:${selectedProblem.problemId}`;
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        try {
+          const draft = parseAnswerDraft(raw);
+          if (draft) candidates.push({ key, uid, raw, draft });
+        } catch (err) { /* Preserve malformed legacy entries without importing them. */ }
+      }
+      return candidates;
+    }
+
+    function updateLegacyDraftCandidates() {
+      let panel = el("legacy-draft-panel");
+      if (!panel) {
+        panel = document.createElement("div");
+        panel.id = "legacy-draft-panel";
+        panel.className = "hidden flex flex-wrap gap-2 items-center mt-2";
+        const select = document.createElement("select");
+        select.id = "legacy-draft-select";
+        select.setAttribute("aria-label", "取り込む旧下書き");
+        select.className = "min-w-0 max-w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs";
+        const button = document.createElement("button");
+        button.id = "import-legacy-draft-btn";
+        button.type = "button";
+        button.className = "border border-cyan-300/25 text-cyan-100 rounded-lg px-3 py-2 text-xs";
+        button.textContent = "旧下書きを取り込む";
+        button.addEventListener("click", importLegacyDraft);
+        panel.append(select, button);
+        el("draft-status").parentElement.after(panel);
+      }
+      panel.classList.add("hidden");
+      const select = el("legacy-draft-select");
+      select.replaceChildren();
+      try {
+        const candidates = legacyDraftCandidates();
+        if (!candidates.length) return;
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "旧下書きを選択";
+        select.appendChild(placeholder);
+        candidates.forEach(candidate => {
+          const option = document.createElement("option");
+          option.value = candidate.key;
+          option.textContent = `${candidate.uid} / ${new Date(candidate.draft.updatedAt).toLocaleString("ja-JP")} / ${candidate.draft.text.slice(0, 32)}`;
+          select.appendChild(option);
+        });
+        panel.classList.remove("hidden");
+        const occupied = !activeDraft || activeDraft.raw !== null || activeDraft.dirty || !!el("answer").value ||
+          localStorage.getItem(activeDraft.key) !== null;
+        el("import-legacy-draft-btn").disabled = occupied;
+        el("import-legacy-draft-btn").title = occupied ? "現在の下書きは上書きしません" : "選択した旧下書きをコピー";
+      } catch (err) {
+        setDraftStatus("旧下書きを確認できません。保存済みの内容は変更していません", true);
+      }
+    }
+
+    function importLegacyDraft() {
+      try {
+        const candidate = legacyDraftCandidates().find(item => item.key === el("legacy-draft-select").value);
+        if (!candidate || !activeDraft) return;
+        if (activeDraft.raw !== null || activeDraft.dirty || el("answer").value || localStorage.getItem(activeDraft.key) !== null) {
+          return setDraftStatus("現在の下書きは上書きしません", true);
+        }
+        if (!window.confirm(`${candidate.uid} の旧下書きをコピーしますか？旧下書きはそのまま残ります。`)) return;
+        // Check again after confirmation; another tab may have created a draft.
+        if (localStorage.getItem(activeDraft.key) !== null) return setDraftStatus("別の画面の下書きは上書きしません", true);
+        localStorage.setItem(activeDraft.key, candidate.raw);
+        if (localStorage.getItem(activeDraft.key) !== candidate.raw) throw new Error("Draft readback failed");
+        loadAnswerDraft();
+        updateCharCount();
+        updateRestoreDraftButton();
+        updateLegacyDraftCandidates();
+        setDraftStatus("旧下書きをコピーしました。元の下書きは残しています");
+      } catch (err) {
+        setDraftStatus("旧下書きを取り込めません。元の下書きは残しています", true);
+      }
     }
 
     function parseAnswerDraft(raw) {
@@ -2298,6 +2429,7 @@
       }
       el("answer").value = activeDraft.text;
       pasteStatusByProblem[activeDraft.problemId] = { detected: false, longPaste: false, charCount: 0, ...activeDraft.paste, confirmed: false };
+      updateLegacyDraftCandidates();
     }
 
     function saveAnswerDraft(force = false) {
@@ -2344,14 +2476,15 @@
       } catch (err) { /* The failure is already visible beside the save button. */ }
     }
 
-    function detachAnswerDraft(clearRestore = false) {
-      if (activeDraft) saveAnswerDraft();
+    function detachAnswerDraft(clearRestore = false, requireSaved = false) {
+      if (activeDraft && !saveAnswerDraft() && requireSaved) return false;
       activeDraft = null;
       el("answer").value = "";
       if (clearRestore) lastClearedAnswer = null;
       pasteStatusByProblem = {};
       setDraftStatus("");
       updateRestoreClearButton();
+      return true;
     }
 
     function updateRestoreDraftButton() {
@@ -2441,7 +2574,7 @@
     }
 
     async function syncWriting(options = {}) {
-      const params = { action: "syncWriting", id: SPREADSHEET_ID };
+      const params = { action: isProfileReady() ? "syncWriting" : "getQuestions", id: SPREADSHEET_ID };
       const scope = String(options.problemGradeScope || libraryGradeOverride || "");
       if (scope) params.problemGradeScope = scope;
       if (isProfileReady()) Object.assign(params, {
@@ -2476,6 +2609,18 @@
           if (!Array.isArray(data.problems) || (params.userId && !Array.isArray(data.myHistory))) {
             throw new Error("問題または履歴の応答が不完全です。取得済みデータは更新していません。");
           }
+          if (params.userId && identityPayload(params.userId).identityVersion) {
+            if (!data.identity || data.identity.userId !== params.userId || data.identity.studentCode !== params.userId ||
+                !Array.isArray(data.identity.legacyUserIds) || !Array.isArray(data.pendingSubmissions)) {
+              throw new Error("固定IDの同期応答を確認できません。履歴と旧下書きは取り込んでいません。");
+            }
+          }
+          syncedIdentity = params.userId && data.identity ? {
+            userId: params.userId,
+            legacyUserIds: data.identity.legacyUserIds.filter(uid => typeof uid === "string" && uid && uid !== params.userId)
+          } : null;
+          serverPendingSubmissions = params.userId && Array.isArray(data.pendingSubmissions) ? data.pendingSubmissions.filter(item =>
+            item && typeof item.submissionId === "string" && typeof item.problemId === "string") : [];
           writingProblems = data.problems;
           writingConfig = { ...writingConfig, ...(data.config || {}) };
           usage = data.usage || {};
@@ -2486,6 +2631,8 @@
           renderHistoryControls();
           renderProblems({ preserveProblemId });
           renderWritingHistory();
+          updateLegacyDraftCandidates();
+          updateRecoveryButton();
           showMessage(params.userId ? "問題と過去の取り組みを読み込みました。" : "問題を読み込みました。", "ok");
           return true;
         } catch (err) {
@@ -2514,7 +2661,7 @@
         return;
       }
       if (!selectedProblem) return showMessage("記述問題を選んでください。", "error");
-      if (!isProfileReady()) return showMessage("中学/高校・学年・クラス・番号・名前を保存してください。", "error");
+      if (!isProfileReady()) return showMessage("中学/高校・学年・クラス・番号を保存してください。中2以外は名前も必要です。", "error");
       if (syncedUserId !== userId()) return showMessage("過去の取り組みと提出回数を確認中です。同期完了後に送信してください。", "working");
       let pendingFeedback;
       try { pendingFeedback = readPendingFeedback(); } catch (err) {
@@ -2529,8 +2676,8 @@
       const submittedProblemId = submissionProblem.problemId;
       const attemptsUnlimited = submissionProblem.attemptsUnlimited || Number(submissionProblem.maxAttempts || 0) === 0;
       if (!attemptsUnlimited && Number(submissionProblem.attemptsRemaining || 0) <= 0) return showMessage(feedbackAttemptLimitMessage(), "error");
-      const answer = el("answer").value.trim();
-      if (!answer) return showMessage("回答が空欄です。", "error");
+      const answer = el("answer").value;
+      if (!answer.trim()) return showMessage("回答が空欄です。", "error");
       if (answer.length > submissionProblem.maxChars) return showMessage(`回答が上限の${submissionProblem.maxChars}字を超えています。`, "error");
       if (!writingConfig.writingAiEnabled) return showMessage("現在、記述AIフィードバックはOFFです。", "error");
       if (isUnchangedSinceLastFeedback(submittedProblemId, answer)) {
@@ -2568,7 +2715,7 @@
           answer
         });
         const feedback = data.feedback || {};
-        if (userId() !== submittedUserId) return;
+        if (!isProfileReady() || userId() !== submittedUserId) return;
         if (selectedProblem && selectedProblem.problemId === submittedProblemId) {
           renderFeedback(feedback);
           renderPeerExamples(isImpressionTask(activeAssignmentType(feedback)) ? [] : (data.peerExamples || []));
@@ -2577,7 +2724,7 @@
         rememberSuccessfulFeedback(submittedProblemId, answer);
         await syncWriting({ preserveProblemId: submittedProblemId });
       } catch (err) {
-        showMessage(err.message, "error");
+        if (isProfileReady() && userId() === submittedUserId) showMessage(err.message, "error");
       } finally {
         feedbackSubmitting = false;
         updateFeedbackButtonState();
@@ -2586,12 +2733,52 @@
     }
 
     function pendingFeedbackKey() {
-      return `r8writing-pending:${SPREADSHEET_ID}:${userId()}`;
+      return `r8writing-pending-v2:${SPREADSHEET_ID}:${userId()}`;
+    }
+
+    function ownedLegacyUserIds() {
+      if (!isProfileReady()) return [];
+      if (userSchoolCode() !== "M2") return [userId()];
+      return syncedIdentity && syncedIdentity.userId === userId() ? syncedIdentity.legacyUserIds : [];
     }
 
     function readPendingFeedback() {
-      const raw = sessionStorage.getItem(pendingFeedbackKey());
-      return raw ? JSON.parse(raw) : null;
+      if (!isProfileReady()) return null;
+      const keys = [pendingFeedbackKey(), ...ownedLegacyUserIds().map(uid => `r8writing-pending:${SPREADSHEET_ID}:${uid}`)];
+      for (const key of keys) {
+        const raw = sessionStorage.getItem(key);
+        if (!raw) continue;
+        const pending = JSON.parse(raw);
+        if (!pending || typeof pending.submissionId !== "string" || !pending.submissionId ||
+            typeof pending.problemId !== "string" || !pending.problemId) throw new Error("Invalid pending submission");
+        const owner = key === pendingFeedbackKey() ? userId() : key.slice(`r8writing-pending:${SPREADSHEET_ID}:`.length);
+        if (pending.userId !== owner) continue;
+        if (!sessionStorage.getItem(`${key}:resolved:${pending.submissionId}`)) return { ...pending, _storageKey: key };
+      }
+      for (const pending of serverPendingSubmissions) {
+        const key = `${pendingFeedbackKey()}:server:${pending.submissionId}`;
+        if (!sessionStorage.getItem(`${key}:resolved:${pending.submissionId}`)) {
+          return { ...pending, userId: userId(), _storageKey: key };
+        }
+      }
+      return null;
+    }
+
+    function archivePendingFeedback(pending, status) {
+      const key = pending._storageKey || pendingFeedbackKey();
+      const archiveKey = `${key}:resolved:${pending.submissionId}`;
+      const raw = JSON.stringify({ original: pending, submissionStatus: status, archivedAt: Date.now() });
+      sessionStorage.setItem(archiveKey, raw);
+      if (sessionStorage.getItem(archiveKey) !== raw) throw new Error("提出情報の控えを保存できません。元の提出情報は残しています。");
+      // Legacy requests are never removed. New requests are removed only after verified archival.
+      if (key.startsWith(`r8writing-pending-v2:${SPREADSHEET_ID}:`) && !key.includes(":server:")) {
+        const current = sessionStorage.getItem(key);
+        if (current && JSON.parse(current).submissionId === pending.submissionId) sessionStorage.removeItem(key);
+      }
+      if (key.startsWith(`r8writing-pending-v2:${SPREADSHEET_ID}:${userId()}:`) || key === pendingFeedbackKey() ||
+          (syncedIdentity && syncedIdentity.userId === userId() && syncedIdentity.legacyUserIds.includes(pending.userId))) {
+        serverPendingSubmissions = serverPendingSubmissions.filter(item => item.submissionId !== pending.submissionId);
+      }
     }
 
     function updateRecoveryButton() {
@@ -2604,14 +2791,17 @@
     }
 
     async function submitFeedbackOnce(params) {
+      if (readPendingFeedback()) throw new Error("結果未確認の提出があります。新しい回答は送信していません。");
       const submissionId = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Array.from(crypto.getRandomValues(new Uint32Array(4))).join("-")}`;
-      const pending = { ...params, submissionId };
+      const { token, ...request } = params;
+      const pending = { ...request, ...identityPayload(params.userId), submissionId };
       const key = pendingFeedbackKey();
-      // Persist before sending; storage failure must not start an untrackable request.
-      sessionStorage.setItem(key, JSON.stringify(pending));
+      const raw = JSON.stringify(pending);
+      sessionStorage.setItem(key, raw);
+      if (sessionStorage.getItem(key) !== raw) throw new Error("提出情報を保存できません。送信していません。");
       updateRecoveryButton();
       const delayNotice = window.setTimeout(() => {
-        if (pendingFeedbackKey() === key) showMessage("提出から60秒経過しました。処理に時間がかかっています。回答は再送せず、そのままお待ちください。", "working");
+        if (isProfileReady() && pendingFeedbackKey() === key) showMessage("提出から60秒経過しました。処理に時間がかかっています。回答は再送せず、そのままお待ちください。", "working");
       }, 60000);
       try {
         const data = await fetchJson(pending);
@@ -2620,11 +2810,12 @@
           error.submissionStatus = data.submissionStatus;
           throw error;
         }
-        sessionStorage.removeItem(key);
+        archivePendingFeedback({ ...pending, _storageKey: key }, "completed");
         return data;
       } catch (err) {
-        if (["rejected", "failed", "expired", "superseded"].includes(err.submissionStatus)) sessionStorage.removeItem(key);
-        else err.message += " 回答は再送していません。「未確認の提出結果を確認」で結果を確認してください。";
+        if (["rejected", "failed", "expired", "superseded"].includes(err.submissionStatus)) {
+          archivePendingFeedback({ ...pending, _storageKey: key }, err.submissionStatus);
+        } else err.message += " 回答は再送していません。「未確認の提出結果を確認」で結果を確認してください。";
         throw err;
       } finally {
         window.clearTimeout(delayNotice);
@@ -2632,36 +2823,42 @@
     }
 
     async function recoverFeedback() {
-      if (feedbackSubmitting) return;
+      if (feedbackSubmitting || !isProfileReady()) return;
       let pending;
       try { pending = readPendingFeedback(); } catch (err) { return showMessage("提出情報を読み出せません。先生に確認してください。", "error"); }
       if (!pending) return updateRecoveryButton();
-      const key = pendingFeedbackKey();
+      const recoveringUserId = userId();
+      const recoveryContextMatches = () => isProfileReady() && userId() === recoveringUserId;
       feedbackSubmitting = true;
       updateFeedbackButtonState();
       updateRecoveryButton();
       showMessage("提出結果を確認しています。回答は再送しません。", "working");
       try {
-        const data = await fetchJsonDirect({ ...pending, action: "submissionStatus" });
-        if (pendingFeedbackKey() !== key) return;
+        const data = await fetchJsonDirect({
+          action: "submissionStatus", id: SPREADSHEET_ID, userId: recoveringUserId,
+          ...identityPayload(recoveringUserId), problemId: pending.problemId, submissionId: pending.submissionId,
+          ...(typeof pending.answer === "string" ? { answer: pending.answer } : {})
+        });
         if (!data.success) {
-          if (["expired", "superseded"].includes(data.submissionStatus)) sessionStorage.removeItem(key);
-          showMessage(data.message || (data.submissionStatus === "pending" ? "まだ処理中、または処理状況が未確定です。時間を置いて再度確認してください。" : "提出結果を確認できません。新しい採点は行わず、先生に確認してください。"), "error");
+          if (["rejected", "failed", "expired", "superseded"].includes(data.submissionStatus)) archivePendingFeedback(pending, data.submissionStatus);
+          if (recoveryContextMatches()) showMessage(data.message || (data.submissionStatus === "pending" ? "まだ処理中です。時間を置いて再度確認してください。" : "提出結果を確認できません。元の提出情報は保持しています。先生に確認してください。"), "error");
           return;
         }
-        sessionStorage.removeItem(key);
-        if (pendingFeedbackKey() !== key) return;
-        rememberSuccessfulFeedback(pending.problemId, pending.answer);
+        archivePendingFeedback(pending, "completed");
+        if (!recoveryContextMatches()) return;
+        if (typeof pending.answer === "string") rememberSuccessfulFeedback(pending.problemId, pending.answer);
         if (selectedProblem && selectedProblem.problemId === pending.problemId) {
           renderFeedback(data.feedback || {});
           renderPeerExamples([]);
         }
         await syncWriting({ preserveProblemId: selectedProblem ? selectedProblem.problemId : pending.problemId });
-        showMessage("提出済みのフィードバックを確認しました。", "ok");
+        if (recoveryContextMatches()) showMessage("提出済みのフィードバックを確認しました。", "ok");
       } catch (err) {
-        if (["rejected", "failed", "expired", "superseded"].includes(err.submissionStatus)) sessionStorage.removeItem(key);
-        if (pendingFeedbackKey() !== key) return;
-        showMessage(err.message, "error");
+        if (["rejected", "failed", "expired", "superseded"].includes(err.submissionStatus)) {
+          try { archivePendingFeedback(pending, err.submissionStatus); }
+          catch (archiveError) { err.message += ` ${archiveError.message}`; }
+        }
+        if (recoveryContextMatches()) showMessage(err.message, "error");
       } finally {
         feedbackSubmitting = false;
         updateFeedbackButtonState();
@@ -2868,13 +3065,20 @@
       return String(value || "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
     }
 
+    el("active-user-display").title = "ユーザー情報を変更";
+    el("active-user-display").classList.replace("cursor-default", "cursor-pointer");
+    el("active-user-display").addEventListener("click", () => {
+      profileEditing = true;
+      updateProfileMode();
+      el("user-name").focus();
+    });
     el("save-profile-btn").addEventListener("click", saveProfile);
     el("logout-btn").addEventListener("click", logoutProfile);
     el("sync-btn").addEventListener("click", syncWriting);
     el("grade-filter-toggle").addEventListener("click", handleGradeFilterTap);
     ["user-stage", "user-grade"].forEach((id) => {
       el(id).addEventListener("change", () => {
-        handleProfileEditChanged();
+        if (!handleProfileEditChanged()) return;
         libraryGradeOverride = "";
         el("grade-unlock-select").classList.add("hidden");
         gradeTapCount = 0;
