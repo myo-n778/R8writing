@@ -366,7 +366,7 @@
     </section>
 
     <section class="writing-main-layout grid xl:grid-cols-[minmax(360px,1.05fr)_minmax(340px,1fr)_minmax(240px,0.72fr)] gap-4 items-start">
-      <section class="writing-answer-panel glass rounded-[1.8rem] p-4 md:p-5 min-h-[40rem]">
+      <section class="writing-answer-panel glass rounded-[1.8rem] p-4 md:p-5 min-h-[40rem] min-w-0">
         <div id="message" class="hidden rounded-2xl p-4 text-sm mb-4"></div>
         <button id="recover-feedback-btn" type="button" class="hidden mb-4 bg-cyan-400/10 border border-cyan-300/25 text-cyan-100 rounded-lg px-5 py-4 text-sm font-bold"><i class="fa-solid fa-rotate"></i> 未確認の提出結果を確認</button>
 
@@ -730,7 +730,12 @@
       const max = group === "菊" ? 33 : group === "桜" ? 34 : 0;
       return number >= 1 && number <= max ? `1022${group === "菊" ? "1" : "2"}${String(number).padStart(2, "0")}` : "";
     }
-    const userId = () => userSchoolCode() === "M2" ? fixedStudentCode() : `${userSchoolCode()}-${el("user-class").value.trim()}-${el("user-number").value.trim()}-${normalizeUserName(el("user-name").value)}`;
+    function teacher34UserId() {
+      return userSchoolCode() === "M2" && el("user-class").value.trim() === "菊" &&
+        el("user-number").value.normalize("NFKC").trim() === "34" && normalizeUserName(el("user-name").value) === "みょーん"
+        ? "M2-菊-34-みょーん" : "";
+    }
+    const userId = () => teacher34UserId() || (userSchoolCode() === "M2" ? fixedStudentCode() : `${userSchoolCode()}-${el("user-class").value.trim()}-${el("user-number").value.trim()}-${normalizeUserName(el("user-name").value)}`);
     function profileFields() {
       return ["user-stage", "user-grade", "user-class", "user-number", "user-name"].map(id => el(id).value);
     }
@@ -798,7 +803,7 @@
         showMessage("中学/高校・学年・クラス・番号を入力してからSAVEしてください。中2以外は名前も入力してください。", "error");
         return;
       }
-      if (userSchoolCode() === "M2" && !fixedStudentCode()) {
+      if (userSchoolCode() === "M2" && !fixedStudentCode() && !teacher34UserId()) {
         showMessage("中2は菊1～33番・桜1～34番を確認してください。", "error");
         return;
       }
@@ -811,6 +816,9 @@
       if (fixedStudentCode()) {
         el("user-class").value = el("user-class").value.trim();
         el("user-number").value = String(Number(fixedStudentCode().slice(-2)));
+      } else if (teacher34UserId()) {
+        el("user-class").value = "菊";
+        el("user-number").value = "34";
       }
       const profileStored = [
         ["ethics_user_stage", el("user-stage").value], ["ethics_user_grade", el("user-grade").value],
@@ -841,7 +849,7 @@
       const savedLevel = preferenceStorage.getItem("writing_feedback_level") || "中学生";
       el("feedback-level").value = FEEDBACK_LEVELS.includes(savedLevel) ? savedLevel : "中学生";
       const code = fixedStudentCode();
-      const needsConfirmation = userSchoolCode() === "M2" &&
+      const needsConfirmation = userSchoolCode() === "M2" && !teacher34UserId() &&
         (!code || preferenceStorage.getItem("writing_identity_version") !== IDENTITY_VERSION || preferenceStorage.getItem("writing_student_code") !== code);
       if (needsConfirmation) {
         el("user-class").value = "";
@@ -2759,7 +2767,7 @@
 
     function ownedLegacyUserIds() {
       if (!isProfileReady()) return [];
-      if (userSchoolCode() !== "M2") return [userId()];
+      if (userSchoolCode() !== "M2" || teacher34UserId()) return [userId()];
       return syncedIdentity && syncedIdentity.userId === userId() ? syncedIdentity.legacyUserIds : [];
     }
 
