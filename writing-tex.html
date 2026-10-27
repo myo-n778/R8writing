@@ -580,7 +580,7 @@
           <select id="admin-class-filter" class="input-compact w-full px-3 py-2 text-sm"></select>
         </label>
         <label class="block">
-          <span class="block mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">User</span>
+          <span class="block mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">ユーザーID</span>
           <select id="admin-user-filter" class="input-compact w-full px-3 py-2 text-sm"></select>
         </label>
         <label class="block">
@@ -1169,6 +1169,15 @@
       return adminData && Array.isArray(adminData.history) ? adminData.history : [];
     }
 
+    function adminUserIdLabel(user) {
+      return String(user && (user.studentCode || user.userId) || "コード未確認");
+    }
+
+    function adminUserLabel(user) {
+      const state = user && user.identityStatus && user.identityStatus !== "確認済" ? `（${user.identityStatus}）` : "";
+      return [adminUserIdLabel(user), state, user && user.userName || ""].filter(Boolean).join(" ");
+    }
+
     function adminFilteredUsers() {
       const grade = el("admin-grade-filter").value || "all";
       const klass = el("admin-class-filter").value || "all";
@@ -1206,8 +1215,8 @@
       classSelect.innerHTML = `<option value="all">すべてのクラス</option>` + classes.map((klass) => `<option value="${escapeHtml(klass)}">${escapeHtml(klass)}</option>`).join("");
       classSelect.value = Array.from(classSelect.options).some((option) => option.value === currentClass) ? currentClass : "all";
       const filteredUsers = adminFilteredUsers();
-      userSelect.innerHTML = `<option value="all">ユーザーを選択</option>` + filteredUsers.map((user) => {
-        const label = `${user.userNumber || "--"} ${user.userName || "(名前なし)"}`;
+      userSelect.innerHTML = `<option value="all">ユーザーIDを選択</option>` + filteredUsers.map((user) => {
+        const label = adminUserLabel(user);
         return `<option value="${escapeHtml(user.userKey)}">${escapeHtml(label)}</option>`;
       }).join("");
       userSelect.value = Array.from(userSelect.options).some((option) => option.value === currentUser) ? currentUser : "all";
@@ -1288,8 +1297,8 @@
         const counts = user.counts || {};
         const themeLine = user.theme ? `<div class="mt-1 text-[9px] font-black uppercase text-orange-200/80">Theme: ${escapeHtml(user.theme)}</div>` : "";
         const fixed = `
-          <td class="admin-sticky admin-col-number px-2 py-2 text-center text-xs font-black">${escapeHtml(user.userNumber || "--")}</td>
-          <td class="admin-sticky admin-col-name px-3 py-2 text-xs font-bold"><div class="whitespace-normal break-words leading-snug">${escapeHtml(user.userName || "--")}</div>${themeLine}</td>
+          <td class="admin-sticky admin-col-number break-all px-2 py-2 text-center text-[10px] font-black" title="${escapeHtml(adminUserIdLabel(user))}">${escapeHtml(adminUserIdLabel(user))}</td>
+          <td class="admin-sticky admin-col-name px-3 py-2 text-xs font-bold"><div class="whitespace-normal break-words leading-snug">${escapeHtml(user.userName || "--")}</div>${user.identityStatus && user.identityStatus !== "確認済" ? `<div class="mt-1 text-[10px] text-amber-200">${escapeHtml(user.identityStatus)}</div>` : ""}${themeLine}</td>
           <td class="admin-sticky admin-col-a px-2 py-2 text-center text-xs font-black">${Number(counts.A || 0)}</td>
           <td class="admin-sticky admin-col-ap px-2 py-2 text-center text-xs font-black">${Number(counts["A'"] || 0)}</td>
           <td class="admin-sticky admin-col-b px-2 py-2 text-center text-xs font-black">${Number(counts.B || 0)}</td>
@@ -1314,12 +1323,12 @@
         return `<tr>${fixed}${cells}</tr>`;
       }).join("");
       container.innerHTML = `
-        <div class="mb-2 text-xs text-slate-400">左側の番号・名前・評価数は固定、課題部分は横にスクロールできます。</div>
+        <div class="mb-2 text-xs text-slate-400">左側のユーザーID・名前・評価数は固定、課題部分は横にスクロールできます。</div>
         <div class="admin-table-wrap">
           <table class="admin-table text-sm">
             <thead>
               <tr>
-                <th class="admin-sticky admin-col-number px-2 py-3 text-center text-[10px] uppercase">番号</th>
+                <th class="admin-sticky admin-col-number px-2 py-3 text-center text-[10px] uppercase">ユーザーID</th>
                 <th class="admin-sticky admin-col-name px-3 py-3 text-left text-[10px] uppercase">名前</th>
                 <th class="admin-sticky admin-col-a px-2 py-3 text-center text-[10px] uppercase">A</th>
                 <th class="admin-sticky admin-col-ap px-2 py-3 text-center text-[10px] uppercase">A'</th>
@@ -1344,7 +1353,7 @@
       const container = el("admin-user-view");
       const selected = el("admin-user-filter").value;
       if (!selected || selected === "all") {
-        container.innerHTML = `<div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">ユーザーを選ぶと履歴を表示します。</div>`;
+        container.innerHTML = `<div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">ユーザーIDを選択してください。</div>`;
         return;
       }
       const user = adminUsers().find((item) => item.userKey === selected);
@@ -1354,7 +1363,7 @@
         <div class="rounded-2xl border border-white/10 bg-slate-950/35 p-4">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div class="text-sm font-black text-slate-100">${escapeHtml(user ? `${user.grade || ""} ${user.userClass || ""}-${user.userNumber || ""} ${user.userName || ""}` : selected)}</div>
+              <div class="break-words text-sm font-black text-slate-100">${escapeHtml(user ? adminUserLabel(user) : selected)}</div>
               ${themeLine}
             </div>
             <div class="flex flex-wrap gap-2">
@@ -1389,7 +1398,7 @@
         return `
           <button type="button" class="w-full rounded-2xl border border-white/10 bg-slate-950/35 p-3 text-left hover:border-cyan-300/50" data-admin-user="${escapeHtml(user.userKey)}" data-admin-problem="${escapeHtml(selected)}">
             <div class="flex flex-wrap justify-between gap-2">
-              <span class="font-black text-slate-100">${escapeHtml(user.userNumber || "--")} ${escapeHtml(user.userName || "--")}</span>
+              <span class="break-words font-black text-slate-100">${escapeHtml(adminUserLabel(user))}</span>
               <span class="text-xs font-black ${latest ? "text-cyan-100" : "text-slate-500"}">${escapeHtml(status)}</span>
             </div>
             <div class="mt-1 text-xs text-slate-400">${latest ? `${history.length}回 / ${latest.date}` : "未提出"}</div>
@@ -1460,7 +1469,7 @@
           <div class="flex flex-wrap justify-between gap-2 mb-3">
             <div>
               <div class="text-xs text-slate-400">詳細</div>
-              <div class="font-black text-slate-100">${escapeHtml(user ? `${user.userNumber || "--"} ${user.userName || "--"}` : userKey)}</div>
+              <div class="break-words font-black text-slate-100">${escapeHtml(user ? adminUserLabel(user) : userKey)}</div>
             </div>
             <div class="text-right">
               <div class="font-tech text-[10px] text-cyan-200">${escapeHtml(problem ? adminProblemNumber(problem, 0) : problemId)}</div>
@@ -1768,7 +1777,7 @@
     function exportAdminUserHistory(userKey, mode = "print") {
       const user = adminUsers().find((item) => item.userKey === userKey);
       const items = adminHistory().filter((item) => item.userKey === userKey);
-      const label = user ? `${user.grade || ""} ${user.userClass || ""}-${user.userNumber || ""} ${user.userName || ""}` : userKey;
+      const label = user ? adminUserLabel(user) : userKey;
       const payload = {
         title: "Writing Feedback History",
         subtitle: `${label} / 管理者出力 / ${new Date().toLocaleString("ja-JP")}`,
