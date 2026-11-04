@@ -658,6 +658,7 @@
     let feedbackButtonLockedUntil = 0;
     let feedbackButtonLockTimer = null;
     let feedbackSubmitting = false;
+    let feedbackRevision = 0;
     let recentFeedbackSignature = "";
     let recentFeedbackSignatureAt = 0;
     let lastSuccessfulFeedbackByProblem = {};
@@ -1111,7 +1112,7 @@
       const options = anonymous
         ? { cache: "no-store", signal: controller.signal }
         : { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: JSON.stringify(payload), cache: "no-store", signal: controller.signal };
-      const timeoutMs = ["gradeWriting", "syncWriting"].includes(params.action) ? 120000 : 25000;
+      const timeoutMs = params.action === "gradeWriting" ? 120000 : params.action === "syncWriting" ? 15000 : 25000;
       const label = params.action === "gradeWriting" ? "採点" : params.action === "submissionStatus" ? "提出結果の確認" : "データの読み込み";
       let timer;
       try {
@@ -2606,11 +2607,12 @@
         schoolCode: userSchoolCode(), ...themePayload()
       });
       const signature = JSON.stringify(params);
-      if (syncRequest && syncRequest.signature === signature) return syncRequest.promise;
+      if (syncRequest && syncRequest.signature === signature && syncRequest.feedbackRevision === feedbackRevision && !options.force) return syncRequest.promise;
       // A changed profile supersedes the anonymous/previous user's request.
       if (syncRequest) syncRequest.controller.abort();
       const preserveProblemId = String(options.preserveProblemId || (selectedProblem && selectedProblem.problemId) || "");
-      const request = { signature, controller: new AbortController(), promise: null };
+      const request = { signature, feedbackRevision, controller: new AbortController(), promise: null, failed: false };
+      const quiet = !!options.background || feedbackSubmitting;
       syncRequest = request;
       syncSubmitting = true;
       if (syncedUserId !== (params.userId || "")) {
@@ -2619,16 +2621,19 @@
       }
       const button = el("sync-btn");
       if (button) {
-        button.disabled = true;
-        button.classList.add("opacity-60", "cursor-not-allowed");
+        button.disabled = false;
+        button.classList.remove("opacity-60", "cursor-not-allowed");
+        button.ariaBusy = "true";
+        button.title = "履歴を更新中です。押すと更新をやり直します。";
+        button.innerHTML = '<i class="fa-solid fa-rotate fa-spin"></i> Sync';
       }
-      showMessage("問題と過去の取り組みを読み込んでいます。", "working");
+      if (!quiet) showMessage("問題と過去の取り組みを読み込んでいます。", "working");
       request.promise = (async () => {
         try {
           if (!GAS_URL || GAS_URL.includes("PASTE_DEPLOYED")) throw new Error("GAS_URLが未設定です。");
           const data = await fetchJsonDirect(params, request.controller);
           const activeUserId = isProfileReady() ? userId() : "";
-          if (syncRequest !== request || activeUserId !== (params.userId || "")) return false;
+          if (syncRequest !== request || activeUserId !== (params.userId || "") || request.feedbackRevision !== feedbackRevision) return false;
           if (!Array.isArray(data.problems) || (params.userId && !Array.isArray(data.myHistory))) {
             throw new Error("問題または履歴の応答が不完全です。取得済みデータは更新していません。");
           }
@@ -2652,16 +2657,17 @@
           historyVisibleCount = 5;
           renderLimits();
           renderHistoryControls();
-          renderProblems({ preserveProblemId });
+          renderProblems({ preserveProblemId: selectedProblem ? selectedProblem.problemId : options.background ? "" : preserveProblemId });
           renderWritingHistory();
           updateLegacyDraftCandidates();
           updateRecoveryButton();
-          showMessage(params.userId ? "問題と過去の取り組みを読み込みました。" : "問題を読み込みました。", "ok");
+          if (!quiet) showMessage(params.userId ? "問題と過去の取り組みを読み込みました。" : "問題を読み込みました。", "ok");
           return true;
         } catch (err) {
           const activeUserId = isProfileReady() ? userId() : "";
-          if (syncRequest !== request || activeUserId !== (params.userId || "")) return false;
-          showMessage(`同期に失敗しました: ${err.message} 取得済みのデータは保持しています。SYNCで再確認できます。`, "error");
+          if (syncRequest !== request || activeUserId !== (params.userId || "") || request.feedbackRevision !== feedbackRevision) return false;
+          request.failed = true;
+          if (!quiet) showMessage(`同期に失敗しました: ${err.message} 取得済みのデータは保持しています。SYNCで再確認できます。`, "error");
           return false;
         } finally {
           if (syncRequest === request) {
@@ -2670,6 +2676,11 @@
             if (button) {
               button.disabled = false;
               button.classList.remove("opacity-60", "cursor-not-allowed");
+              button.ariaBusy = "false";
+              button.title = request.failed ? "履歴の更新は未完了です。押すと再更新します。" : "問題と履歴を再更新";
+              button.innerHTML = request.failed
+                ? '<i class="fa-solid fa-triangle-exclamation text-amber-200"></i> Sync'
+                : '<i class="fa-solid fa-rotate"></i> Sync';
             }
             updateFeedbackButtonState();
           }
@@ -2714,6 +2725,7 @@
       }
 
       feedbackSubmitting = true;
+      feedbackRevision++;
       rememberFeedbackSubmission(duplicateSignature);
       lockFeedbackButton(6000);
       showMessage("現在確認中です。フィードバックを作成しています...", "working");
@@ -2745,7 +2757,7 @@
         }
         showMessage("フィードバックを記録しました。", "ok");
         rememberSuccessfulFeedback(submittedProblemId, answer);
-        await syncWriting({ preserveProblemId: submittedProblemId });
+        void syncWriting({ preserveProblemId: submittedProblemId, background: true, force: true });
       } catch (err) {
         if (isProfileReady() && userId() === submittedUserId) showMessage(err.message, "error");
       } finally {
@@ -2901,6 +2913,7 @@
       const recoveringUserId = userId();
       const recoveryContextMatches = () => isProfileReady() && userId() === recoveringUserId;
       feedbackSubmitting = true;
+      feedbackRevision++;
       updateFeedbackButtonState();
       updateRecoveryButton();
       try {
@@ -2932,8 +2945,8 @@
           renderFeedback(data.feedback || {});
           renderPeerExamples([]);
         }
-        await syncWriting({ preserveProblemId: selectedProblem ? selectedProblem.problemId : pending.problemId });
         if (recoveryContextMatches()) showMessage("提出済みのフィードバックを確認しました。", "ok");
+        void syncWriting({ preserveProblemId: selectedProblem ? selectedProblem.problemId : pending.problemId, background: true, force: true });
       } catch (err) {
         if (["rejected", "failed", "expired", "superseded"].includes(err.submissionStatus)) {
           try { archivePendingFeedback(pending, err.submissionStatus); }
@@ -3155,7 +3168,7 @@
     });
     el("save-profile-btn").addEventListener("click", saveProfile);
     el("logout-btn").addEventListener("click", logoutProfile);
-    el("sync-btn").addEventListener("click", syncWriting);
+    el("sync-btn").addEventListener("click", () => syncWriting({ force: true }));
     el("grade-filter-toggle").addEventListener("click", handleGradeFilterTap);
     ["user-stage", "user-grade"].forEach((id) => {
       el(id).addEventListener("change", () => {
