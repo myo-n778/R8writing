@@ -2771,7 +2771,10 @@
         rememberSuccessfulFeedback(submittedProblemId, answer);
         void syncWriting({ preserveProblemId: submittedProblemId, background: true, force: true });
       } catch (err) {
-        if (isProfileReady() && userId() === submittedUserId) showMessage(err.message, "error");
+        if (isProfileReady() && userId() === submittedUserId) {
+          if (err.feedback && selectedProblem && selectedProblem.problemId === submittedProblemId) renderFeedback(err.feedback);
+          showMessage(err.message, "error");
+        }
       } finally {
         feedbackSubmitting = false;
         updateFeedbackButtonState();
@@ -2793,14 +2796,22 @@
       if (!isProfileReady()) return null;
       const keys = [pendingFeedbackKey(), ...ownedLegacyUserIds().map(uid => `r8writing-pending:${SPREADSHEET_ID}:${uid}`)];
       for (const key of keys) {
-        const raw = sessionStorage.getItem(key);
+        let held = null;
+        try {
+          const memory = typeof rememberPendingEvaluation === "function" && rememberPendingEvaluation.copies;
+          const heldRaw = sessionStorage.getItem(key + ":held-evaluation") || (typeof localStorage !== "undefined" ? localStorage.getItem(key + ":held-evaluation") : null);
+          if (heldRaw) held = JSON.parse(heldRaw);
+          if (memory && memory[key + ":held-evaluation"]) held = memory[key + ":held-evaluation"];
+        } catch (err) { /* Keep the original pending request authoritative. */ }
+        const raw = sessionStorage.getItem(key) || (held && held.original ? JSON.stringify(held.original) : null);
         if (!raw) continue;
         const pending = JSON.parse(raw);
         if (!pending || typeof pending.submissionId !== "string" || !pending.submissionId ||
             typeof pending.problemId !== "string" || !pending.problemId) throw new Error("Invalid pending submission");
         const owner = key === pendingFeedbackKey() ? userId() : key.slice(`r8writing-pending:${SPREADSHEET_ID}:`.length);
         if (pending.userId !== owner) continue;
-        if (!sessionStorage.getItem(`${key}:resolved:${pending.submissionId}`)) return { ...pending, _storageKey: key };
+        if (!sessionStorage.getItem(`${key}:resolved:${pending.submissionId}`)) return { ...pending, _storageKey: key,
+          _saveCopy: held && held.original && held.original.userId === owner && held.original.problemId === pending.problemId && held.original.submissionId === pending.submissionId ? held : null };
       }
       for (const pending of serverPendingSubmissions) {
         if (["expired", "failed", "rejected", "superseded"].includes(pending.submissionStatus)) continue;
@@ -2819,6 +2830,19 @@
       sessionStorage.setItem(archiveKey, raw);
       if (sessionStorage.getItem(archiveKey) !== raw) throw new Error("提出情報の控えを保存できません。元の提出情報は残しています。");
       // Legacy requests are never removed. New requests are removed only after verified archival.
+      const heldKey = key + ":held-evaluation";
+      if (typeof rememberPendingEvaluation === "function" && rememberPendingEvaluation.copies) delete rememberPendingEvaluation.copies[heldKey];
+      for (const storage of [sessionStorage, ...(typeof localStorage !== "undefined" ? [localStorage] : [])]) {
+        try {
+          const held = storage.getItem(heldKey);
+          const copy = held && JSON.parse(held);
+          if (!copy || !copy.original || copy.original.userId !== pending.userId || copy.original.submissionId !== pending.submissionId) continue;
+          const savedKey = heldKey + ":resolved:" + pending.submissionId;
+          if (storage.getItem(savedKey) && storage.getItem(savedKey) !== held) continue;
+          storage.setItem(savedKey, held);
+          if (storage.getItem(savedKey) === held) storage.removeItem(heldKey);
+        } catch (err) { /* Keep the held copy if archival is unavailable. */ }
+      }
       if (key.startsWith(`r8writing-pending-v2:${SPREADSHEET_ID}:`) && !key.includes(":server:")) {
         const current = sessionStorage.getItem(key);
         if (current && JSON.parse(current).submissionId === pending.submissionId) sessionStorage.removeItem(key);
@@ -2836,7 +2860,10 @@
       try { pending = readPendingFeedback(); } catch (err) { pending = {}; }
       button.classList.toggle("hidden", !pending);
       button.disabled = feedbackSubmitting;
-      button.innerHTML = pending && pendingRetryKey === userId() + ":" + pending.submissionId
+      const saving = pending && ((pending._saveCopy && pending._saveCopy.saveRetryAllowed) ||
+        (pending.submissionStatus === "save_pending" && pending.saveRetryAllowed && !pending.needsClientCopy));
+      button.innerHTML = saving ? '<i class="fa-solid fa-floppy-disk"></i> 保存だけを再試行'
+        : pending && pendingRetryKey === userId() + ":" + pending.submissionId
         ? '<i class="fa-solid fa-rotate"></i> 同じ提出を再送'
         : '<i class="fa-solid fa-rotate"></i> 未確認の提出結果を確認';
       updateRecoveryAnswerArchive();
@@ -2885,6 +2912,29 @@
       } catch (err) { showMessage("回答の控えを確認できません。今の回答は変更していません。", "error"); }
     }
 
+    function rememberPendingEvaluation(pending, data) {
+      const key = (pending._storageKey || pendingFeedbackKey()) + ":held-evaluation";
+      const original = { ...pending };
+      delete original._saveCopy;
+      const prior = pending._saveCopy || {};
+      const copy = { original, saveRetryAllowed: !data.needsClientCopy || !!(data.recoveryEnvelope || prior.recoveryEnvelope),
+        feedback: data.feedback || prior.feedback, recoveryEnvelope: data.recoveryEnvelope || prior.recoveryEnvelope || "" };
+      const raw = JSON.stringify(copy);
+      if (!rememberPendingEvaluation.copies) rememberPendingEvaluation.copies = Object.create(null);
+      rememberPendingEvaluation.copies[key] = copy;
+      let stored = false;
+      for (const storage of [sessionStorage, ...(typeof localStorage !== "undefined" ? [localStorage] : [])]) {
+        try {
+          const before = JSON.parse(storage.getItem(key) || "null");
+          if (before && before.original && before.original.submissionId !== pending.submissionId) continue;
+          storage.setItem(key, raw);
+          if (storage.getItem(key) === raw) stored = true;
+        } catch (err) { /* The other store or server backup can still retain the result. */ }
+      }
+      updateRecoveryButton();
+      if (!stored) throw new Error("評価の端末控えを保存できません。ページを閉じずに保存を再試行してください。");
+    }
+
     async function submitFeedbackOnce(params) {
       if (readPendingFeedback()) throw new Error("結果未確認の提出があります。新しい回答は送信していません。");
       const submissionId = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Array.from(crypto.getRandomValues(new Uint32Array(4))).join("-")}`;
@@ -2903,6 +2953,11 @@
         if (!data.success) {
           const error = new Error(data.message || "提出は現在確認中です。しばらく待ってから「未確認の提出結果を確認」を押してください。");
           error.submissionStatus = data.submissionStatus;
+          if (data.submissionStatus === "save_pending") {
+            error.feedback = data.feedback;
+            try { rememberPendingEvaluation({ ...pending, _storageKey: key }, data); }
+            catch (copyError) { error.message += " " + copyError.message; }
+          }
           throw error;
         }
         archivePendingFeedback({ ...pending, _storageKey: key }, "completed");
@@ -2910,7 +2965,7 @@
       } catch (err) {
         if (["rejected", "failed", "expired", "superseded"].includes(err.submissionStatus)) {
           archivePendingFeedback({ ...pending, _storageKey: key }, err.submissionStatus);
-        } else err.message += " 回答は再送していません。「未確認の提出結果を確認」で結果を確認してください。";
+        } else if (err.submissionStatus !== "save_pending") err.message += " 回答は再送していません。「未確認の提出結果を確認」で結果を確認してください。";
         throw err;
       } finally {
         window.clearTimeout(delayNotice);
@@ -2930,11 +2985,17 @@
       updateRecoveryButton();
       try {
         const retryKey = recoveringUserId + ":" + pending.submissionId;
-        const retrySameId = pendingRetryKey === retryKey && typeof pending.answer === "string";
-        showMessage(retrySameId ? "同じ提出IDで再送しています。" : "提出結果を確認しています。回答は再送しません。", "working");
+        const copy = pending._saveCopy;
+        const saveOnly = !!(copy && copy.saveRetryAllowed || pending.submissionStatus === "save_pending" && pending.saveRetryAllowed && !pending.needsClientCopy);
+        const retrySameId = !saveOnly && pendingRetryKey === retryKey && typeof pending.answer === "string";
+        showMessage(saveOnly ? "評価の保存だけを再試行しています。再採点はしません。" : retrySameId ? "同じ提出IDで再送しています。" : "提出結果を確認しています。回答は再送しません。", "working");
         pendingRetryKey = "";
-        const { _storageKey, ...originalRequest } = pending;
-        const data = await fetchJsonDirect(retrySameId ? {
+        const { _storageKey, _saveCopy, ...originalRequest } = pending;
+        const data = await fetchJsonDirect(saveOnly ? {
+          action: "retrySubmissionSave", id: SPREADSHEET_ID, userId: recoveringUserId, ...identityPayload(recoveringUserId),
+          problemId: pending.problemId, submissionId: pending.submissionId,
+          ...(copy && copy.recoveryEnvelope ? { recoveryEnvelope: copy.recoveryEnvelope } : {})
+        } : retrySameId ? {
           ...originalRequest, action: "gradeWriting", id: SPREADSHEET_ID, userId: recoveringUserId,
           userName: normalizeUserName(el("user-name").value), userClass: el("user-class").value.trim(),
           userNumber: el("user-number").value.trim(), schoolStage: el("user-stage").value,
@@ -2945,6 +3006,10 @@
           ...(typeof pending.answer === "string" ? { answer: pending.answer } : {})
         });
         if (!data.success) {
+          if (data.submissionStatus === "save_pending") {
+            rememberPendingEvaluation(pending, data);
+            if (recoveryContextMatches() && data.feedback && selectedProblem && selectedProblem.problemId === pending.problemId) renderFeedback(data.feedback);
+          }
           if (data.submissionStatus === "not_received" && data.sameIdRetryAllowed && typeof pending.answer === "string") pendingRetryKey = retryKey;
           if (["rejected", "failed", "expired", "superseded"].includes(data.submissionStatus)) archivePendingFeedback(pending, data.submissionStatus);
           if (recoveryContextMatches()) showMessage(data.message || (data.submissionStatus === "pending" ? "まだ処理中です。時間を置いて再度確認してください。" : "提出結果を確認できません。元の提出情報は保持しています。先生に確認してください。"), "error");
