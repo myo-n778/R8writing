@@ -367,6 +367,11 @@
       <section class="writing-answer-panel glass rounded-[1.8rem] p-4 md:p-5 min-h-[40rem] min-w-0">
         <div id="message" class="hidden rounded-2xl p-4 text-sm mb-4"></div>
         <button id="recover-feedback-btn" type="button" class="hidden mb-4 bg-cyan-400/10 border border-cyan-300/25 text-cyan-100 rounded-lg px-5 py-4 text-sm font-bold"><i class="fa-solid fa-rotate"></i> 未確認の提出結果を確認</button>
+        <details id="recovery-answer-box" class="hidden mb-4">
+          <summary id="recovery-answer-title" class="cursor-pointer text-sm text-cyan-200">送信時の回答の控え</summary>
+          <textarea id="recovery-answer-copy" readonly aria-label="送信時の回答の控え" class="mt-2 w-full min-h-32 rounded-lg border border-slate-600 bg-slate-950 p-3 text-sm"></textarea>
+          <button id="restore-recovery-answer-btn" type="button" class="mt-2 rounded-lg border border-cyan-300/25 px-3 py-2 text-sm"><i class="fa-solid fa-arrow-rotate-left"></i> 回答欄へ戻す</button>
+        </details>
 
         <div id="empty-state" class="h-full min-h-[32rem] grid place-items-center text-center text-slate-400">
           <div>
@@ -664,6 +669,7 @@
     let profileEditing = false;
     let syncedIdentity = null;
     let serverPendingSubmissions = [];
+    let pendingRetryKey = "";
     const IDENTITY_VERSION = "code102-v2";
     const DRAFT_STORAGE_PREFIX = "writingFeedbackDraft:";
     const draftSessions = new Map();
@@ -2773,6 +2779,7 @@
         if (!sessionStorage.getItem(`${key}:resolved:${pending.submissionId}`)) return { ...pending, _storageKey: key };
       }
       for (const pending of serverPendingSubmissions) {
+        if (["expired", "failed", "rejected", "superseded"].includes(pending.submissionStatus)) continue;
         const key = `${pendingFeedbackKey()}:server:${pending.submissionId}`;
         if (!sessionStorage.getItem(`${key}:resolved:${pending.submissionId}`)) {
           return { ...pending, userId: userId(), _storageKey: key };
@@ -2801,10 +2808,57 @@
     function updateRecoveryButton() {
       const button = el("recover-feedback-btn");
       if (!button) return;
-      let pending = false;
-      try { pending = !!readPendingFeedback(); } catch (err) { pending = true; }
+      let pending = null;
+      try { pending = readPendingFeedback(); } catch (err) { pending = {}; }
       button.classList.toggle("hidden", !pending);
       button.disabled = feedbackSubmitting;
+      button.innerHTML = pending && pendingRetryKey === userId() + ":" + pending.submissionId
+        ? '<i class="fa-solid fa-rotate"></i> 同じ提出を再送'
+        : '<i class="fa-solid fa-rotate"></i> 未確認の提出結果を確認';
+      updateRecoveryAnswerArchive();
+    }
+
+    function recoveryAnswerArchive() {
+      if (!isProfileReady()) return null;
+      const owners = [userId(), ...ownedLegacyUserIds()];
+      const bases = [pendingFeedbackKey(), ...owners.map(uid => `r8writing-pending:${SPREADSHEET_ID}:${uid}`)];
+      let latest = null;
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (!key || !key.includes(":resolved:") || !bases.some(base => key.startsWith(base + ":"))) continue;
+        const item = JSON.parse(sessionStorage.getItem(key));
+        const original = item && item.original;
+        if (!original || !owners.includes(original.userId) || typeof original.answer !== "string" ||
+            !["failed", "expired", "rejected", "superseded"].includes(item.submissionStatus) ||
+            (selectedProblem && original.problemId !== selectedProblem.problemId)) continue;
+        if (!latest || Number(item.archivedAt) > Number(latest.archivedAt)) latest = item;
+      }
+      return latest;
+    }
+
+    function updateRecoveryAnswerArchive() {
+      const box = el("recovery-answer-box");
+      if (!box) return;
+      try {
+        const item = recoveryAnswerArchive();
+        box.classList.toggle("hidden", !item);
+        if (item) {
+          el("recovery-answer-title").textContent = "送信時の回答の控え（" + item.original.problemId + "）";
+          el("recovery-answer-copy").value = item.original.answer;
+        }
+      } catch (err) { box.classList.add("hidden"); }
+    }
+
+    function restoreRecoveryAnswer() {
+      try {
+        const item = recoveryAnswerArchive();
+        if (!item || !selectedProblem || selectedProblem.problemId !== item.original.problemId) return showMessage("控えの問題を選んでください。今の回答は変更していません。", "error");
+        const answer = el("answer");
+        if (answer.value && answer.value !== item.original.answer) return showMessage("現在の回答は上書きしていません。送信時の回答は控え欄で確認できます。", "error");
+        answer.value = item.original.answer;
+        handleAnswerInput();
+        showMessage("送信時の回答を戻しました。確認・修正して提出できます。", "ok");
+      } catch (err) { showMessage("回答の控えを確認できません。今の回答は変更していません。", "error"); }
     }
 
     async function submitFeedbackOnce(params) {
@@ -2849,14 +2903,24 @@
       feedbackSubmitting = true;
       updateFeedbackButtonState();
       updateRecoveryButton();
-      showMessage("提出結果を確認しています。回答は再送しません。", "working");
       try {
-        const data = await fetchJsonDirect({
+        const retryKey = recoveringUserId + ":" + pending.submissionId;
+        const retrySameId = pendingRetryKey === retryKey && typeof pending.answer === "string";
+        showMessage(retrySameId ? "同じ提出IDで再送しています。" : "提出結果を確認しています。回答は再送しません。", "working");
+        pendingRetryKey = "";
+        const { _storageKey, ...originalRequest } = pending;
+        const data = await fetchJsonDirect(retrySameId ? {
+          ...originalRequest, action: "gradeWriting", id: SPREADSHEET_ID, userId: recoveringUserId,
+          userName: normalizeUserName(el("user-name").value), userClass: el("user-class").value.trim(),
+          userNumber: el("user-number").value.trim(), schoolStage: el("user-stage").value,
+          schoolGrade: el("user-grade").value, schoolCode: userSchoolCode(), ...identityPayload(recoveringUserId)
+        } : {
           action: "submissionStatus", id: SPREADSHEET_ID, userId: recoveringUserId,
           ...identityPayload(recoveringUserId), problemId: pending.problemId, submissionId: pending.submissionId,
           ...(typeof pending.answer === "string" ? { answer: pending.answer } : {})
         });
         if (!data.success) {
+          if (data.submissionStatus === "not_received" && data.sameIdRetryAllowed && typeof pending.answer === "string") pendingRetryKey = retryKey;
           if (["rejected", "failed", "expired", "superseded"].includes(data.submissionStatus)) archivePendingFeedback(pending, data.submissionStatus);
           if (recoveryContextMatches()) showMessage(data.message || (data.submissionStatus === "pending" ? "まだ処理中です。時間を置いて再度確認してください。" : "提出結果を確認できません。元の提出情報は保持しています。先生に確認してください。"), "error");
           return;
@@ -3147,6 +3211,7 @@
     });
     el("feedback-btn").addEventListener("click", requestFeedback);
     el("recover-feedback-btn").addEventListener("click", recoverFeedback);
+    el("restore-recovery-answer-btn").addEventListener("click", restoreRecoveryAnswer);
     updateRecoveryButton();
     el("voice-input-btn").addEventListener("click", toggleVoiceInput);
     el("toggle-examples-btn").addEventListener("click", () => {
