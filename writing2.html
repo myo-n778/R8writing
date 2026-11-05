@@ -2722,6 +2722,65 @@
       if (syncRequest) syncRequest.controller.abort();
     }
 
+    function applyWritingHistoryResponse(data, owner, sid, pid) {
+      if (!data.success || data.historyOnly !== true || data.userId !== owner || data.submissionId !== sid || data.problemId !== pid ||
+          !Array.isArray(data.myHistory) || data.myHistory.length > 50 || !Array.isArray(data.problemStates)) throw new Error("履歴の応答を確認できません。");
+      const ids = new Set();
+      for (const item of data.myHistory) {
+        if (!item || typeof item.submissionId !== "string" || (item.submissionId && ids.has(item.submissionId)) || typeof item.problemId !== "string" ||
+            (sid && (item.submissionId !== sid || item.problemId !== pid))) throw new Error("対象の履歴を照合できません。");
+        if (item.submissionId) ids.add(item.submissionId);
+      }
+      if (sid && data.myHistory.length !== 1) throw new Error("今回の履歴を照合できません。");
+      const states = new Map();
+      for (const state of data.problemStates) {
+        if (!state || typeof state.problemId !== "string" || states.has(state.problemId) || (pid && state.problemId !== pid) ||
+            !Number.isInteger(state.attemptCount) || state.attemptCount < 0 || typeof state.bestEvaluation !== "string" || typeof state.bestEvaluationDate !== "string") throw new Error("提出回数の応答を確認できません。");
+        states.set(state.problemId, state);
+      }
+      if (sid && !states.has(pid)) throw new Error("今回の提出回数を照合できません。");
+      if (sid) {
+        writingHistory = data.myHistory.concat(writingHistory.filter(item => item.submissionId !== sid));
+        writingHistory.sort((a, b) => historyTimeValue(b) - historyTimeValue(a));
+        writingHistory = writingHistory.slice(0, 50);
+      } else writingHistory = data.myHistory;
+      const update = problem => {
+        const state = states.get(problem.problemId);
+        if (!state) return;
+        problem.attemptCount = state.attemptCount;
+        problem.attemptsRemaining = problem.attemptsUnlimited ? null : Math.max(0, Number(problem.maxAttempts || 0) - state.attemptCount);
+        problem.bestEvaluation = state.bestEvaluation;
+        problem.bestEvaluationDate = state.bestEvaluationDate;
+      };
+      writingProblems.forEach(update);
+      if (selectedProblem) update(selectedProblem);
+      renderProblems({ preserveProblemId: selectedProblem && selectedProblem.problemId, preserveMissing: true });
+      renderLimits();
+      renderWritingHistory();
+      updateFeedbackButtonState();
+      el("history-sync-status").textContent = sid ? "今回の履歴を更新しました" : "履歴を更新しました";
+      globalThis.writingHistoryReadRevision = Number(globalThis.writingHistoryReadRevision || 0) + 1;
+    }
+
+    function applySavedWritingHistory(data, owner, pid, expectedRevision = Number(globalThis.writingHistoryReadRevision || 0)) {
+      if (!data.success || data.error || !data.submissionId || !data.savedHistory ||
+          (data.submissionStatus && data.submissionStatus !== "completed") ||
+          !isProfileReady() || userId() !== owner || syncedUserId !== owner ||
+          expectedRevision !== Number(globalThis.writingHistoryReadRevision || 0)) return false;
+      try {
+        applyWritingHistoryResponse(data.savedHistory, owner, data.submissionId, pid);
+        if (historyReadRequest) {
+          const old = historyReadRequest;
+          historyReadRequest = null;
+          old.controller.abort();
+          el("history-sync-btn").disabled = false;
+          el("history-cancel-btn").classList.add("hidden");
+        }
+        if (syncRequest && JSON.parse(syncRequest.signature).action === "syncWriting") syncRequest.controller.abort();
+        return true;
+      } catch (err) { return false; }
+    }
+
     async function syncWritingHistory(options = {}) {
       if (!isProfileReady() || syncedUserId !== userId()) return false;
       const owner = userId(), revision = feedbackRevision;
@@ -2732,6 +2791,7 @@
       }
       const signature = JSON.stringify([owner, sid, pid, revision]);
       if (historyReadRequest && historyReadRequest.signature === signature) return historyReadRequest.promise;
+      globalThis.writingHistoryReadRevision = Number(globalThis.writingHistoryReadRevision || 0) + 1;
       if (historyReadRequest) historyReadRequest.controller.abort();
       if (syncRequest && JSON.parse(syncRequest.signature).action === "syncWriting") syncRequest.controller.abort();
       const request = { signature, controller: new AbortController(), promise: null };
@@ -2748,45 +2808,7 @@
             userNumber: el("user-number").value.trim(), schoolCode: userSchoolCode(), submissionId: sid, problemId: pid,
             knownProblemIds: sid ? [pid] : writingProblems.map(problem => problem.problemId) }, request.controller);
           if (!active() || request.controller.signal.aborted) return false;
-          if (!data.success || data.historyOnly !== true || data.userId !== owner || data.submissionId !== sid || data.problemId !== pid ||
-              !Array.isArray(data.myHistory) || data.myHistory.length > 50 || !Array.isArray(data.problemStates)) throw new Error("履歴の応答を確認できません。");
-          const ids = new Set();
-          for (const item of data.myHistory) {
-            if (!item || typeof item.submissionId !== "string" || (item.submissionId && ids.has(item.submissionId)) || typeof item.problemId !== "string" ||
-                (sid && (item.submissionId !== sid || item.problemId !== pid))) throw new Error("対象の履歴を照合できません。");
-            if (item.submissionId) ids.add(item.submissionId);
-          }
-          if (sid && data.myHistory.length !== 1) throw new Error("今回の履歴を照合できません。");
-          const states = new Map();
-          for (const state of data.problemStates) {
-            if (!state || typeof state.problemId !== "string" || states.has(state.problemId) || (pid && state.problemId !== pid) ||
-                !Number.isInteger(state.attemptCount) || state.attemptCount < 0 || typeof state.bestEvaluation !== "string" || typeof state.bestEvaluationDate !== "string") throw new Error("提出回数の応答を確認できません。");
-            states.set(state.problemId, state);
-          }
-          if (sid && !states.has(pid)) throw new Error("今回の提出回数を照合できません。");
-          if (sid) {
-            writingHistory = data.myHistory.concat(writingHistory.filter(item => item.submissionId !== sid));
-            writingHistory.sort((a, b) => historyTimeValue(b) - historyTimeValue(a));
-            writingHistory = writingHistory.slice(0, 50);
-            status.textContent = "今回の履歴を更新しました";
-          } else {
-            writingHistory = data.myHistory;
-            status.textContent = "履歴を更新しました";
-          }
-          const update = problem => {
-            const state = states.get(problem.problemId);
-            if (!state) return;
-            problem.attemptCount = state.attemptCount;
-            problem.attemptsRemaining = problem.attemptsUnlimited ? null : Math.max(0, Number(problem.maxAttempts || 0) - state.attemptCount);
-            problem.bestEvaluation = state.bestEvaluation;
-            problem.bestEvaluationDate = state.bestEvaluationDate;
-          };
-          writingProblems.forEach(update);
-          if (selectedProblem) update(selectedProblem);
-          renderProblems({ preserveProblemId: selectedProblem && selectedProblem.problemId, preserveMissing: true });
-          renderLimits();
-          renderWritingHistory();
-          updateFeedbackButtonState();
+          applyWritingHistoryResponse(data, owner, sid, pid);
           return true;
         } catch (err) {
           if (active()) status.textContent = `履歴は更新未完了です。表示済みの評価・回答は保持しています。${err.message}`;
@@ -2815,6 +2837,7 @@
       if (params.userId && typeof historyReadRequest !== "undefined" && historyReadRequest) historyReadRequest.controller.abort();
       const signature = JSON.stringify(params);
       if (syncRequest && syncRequest.signature === signature && syncRequest.feedbackRevision === feedbackRevision && !options.force) return syncRequest.promise;
+      if (params.userId) globalThis.writingHistoryReadRevision = Number(globalThis.writingHistoryReadRevision || 0) + 1;
       // A changed profile supersedes the anonymous/previous user's request.
       if (syncRequest) syncRequest.controller.abort();
       const preserveProblemId = String(options.preserveProblemId || (selectedProblem && selectedProblem.problemId) || "");
@@ -2947,6 +2970,7 @@
       }
       const submissionProblem = { ...selectedProblem };
       const submittedUserId = userId();
+      const submittedHistoryRevision = Number(globalThis.writingHistoryReadRevision || 0);
       const submittedProblemId = submissionProblem.problemId;
       const attemptsUnlimited = submissionProblem.attemptsUnlimited || Number(submissionProblem.maxAttempts || 0) === 0;
       if (!attemptsUnlimited && Number(submissionProblem.attemptsRemaining || 0) <= 0) return showMessage(feedbackAttemptLimitMessage(), "error");
@@ -2997,7 +3021,9 @@
         }
         showMessage("フィードバックを記録しました。", "ok");
         rememberSuccessfulFeedback(submittedProblemId, answer);
-        void syncWritingHistory({ afterFeedback: true, submissionId: data.submissionId, problemId: submittedProblemId });
+        if (!applySavedWritingHistory(data, submittedUserId, submittedProblemId, submittedHistoryRevision)) {
+          void syncWritingHistory({ afterFeedback: true, submissionId: data.submissionId, problemId: submittedProblemId });
+        }
       } catch (err) {
         if (isProfileReady() && userId() === submittedUserId) {
           if (err.feedback && selectedProblem && selectedProblem.problemId === submittedProblemId) renderFeedback(err.feedback);
@@ -3188,6 +3214,7 @@
           }
           throw error;
         }
+        if (data.savedHistory && data.submissionId !== submissionId) throw new Error("提出IDの応答を照合できません。元の提出情報は保持しています。");
         archivePendingFeedback({ ...pending, _storageKey: key }, "completed");
         return data;
       } catch (err) {
@@ -3206,6 +3233,7 @@
       try { pending = readPendingFeedback(); } catch (err) { return showMessage("提出情報を読み出せません。先生に確認してください。", "error"); }
       if (!pending) return updateRecoveryButton();
       const recoveringUserId = userId();
+      const recoveringHistoryRevision = Number(globalThis.writingHistoryReadRevision || 0);
       const recoveryContextMatches = () => isProfileReady() && userId() === recoveringUserId;
       feedbackSubmitting = true;
       feedbackRevision++;
@@ -3243,6 +3271,7 @@
           if (recoveryContextMatches()) showMessage(data.message || (data.submissionStatus === "pending" ? "まだ処理中です。時間を置いて再度確認してください。" : "提出結果を確認できません。元の提出情報は保持しています。先生に確認してください。"), "error");
           return;
         }
+        if (data.savedHistory && data.submissionId !== pending.submissionId) throw new Error("提出IDの応答を照合できません。元の提出情報は保持しています。");
         archivePendingFeedback(pending, "completed");
         if (!recoveryContextMatches()) return;
         if (typeof pending.answer === "string") rememberSuccessfulFeedback(pending.problemId, pending.answer);
@@ -3251,7 +3280,9 @@
           renderPeerExamples([]);
         }
         if (recoveryContextMatches()) showMessage("提出済みのフィードバックを確認しました。", "ok");
-        void syncWritingHistory({ afterFeedback: true, submissionId: pending.submissionId, problemId: pending.problemId });
+        if (!applySavedWritingHistory(data, recoveringUserId, pending.problemId, recoveringHistoryRevision)) {
+          void syncWritingHistory({ afterFeedback: true, submissionId: pending.submissionId, problemId: pending.problemId });
+        }
       } catch (err) {
         if (["rejected", "failed", "expired", "superseded"].includes(err.submissionStatus)) {
           try { archivePendingFeedback(pending, err.submissionStatus); }
