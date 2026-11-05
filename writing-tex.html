@@ -2777,14 +2777,10 @@
           }
           if (sid && !states.has(pid)) throw new Error("今回の提出回数を照合できません。");
           if (sid) {
-            if (writingHistory.some(item => !item.submissionId)) {
-              status.textContent = "今回の評価・回数は確認済みです。履歴一覧は「履歴を更新」で取得できます。";
-            } else {
-              writingHistory = data.myHistory.concat(writingHistory.filter(item => item.submissionId !== sid));
-              writingHistory.sort((a, b) => historyTimeValue(b) - historyTimeValue(a));
-              writingHistory = writingHistory.slice(0, 50);
-              status.textContent = "今回の履歴を更新しました";
-            }
+            writingHistory = data.myHistory.concat(writingHistory.filter(item => item.submissionId !== sid));
+            writingHistory.sort((a, b) => historyTimeValue(b) - historyTimeValue(a));
+            writingHistory = writingHistory.slice(0, 50);
+            status.textContent = "今回の履歴を更新しました";
           } else {
             writingHistory = data.myHistory;
             status.textContent = "履歴を更新しました";
