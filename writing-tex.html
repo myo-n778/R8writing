@@ -528,6 +528,11 @@
           </div>
         </summary>
         <div class="mt-4 space-y-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="history-sync-btn" type="button" class="chip px-3 py-2 text-xs"><i class="fa-solid fa-rotate"></i> 履歴を更新</button>
+            <button id="history-cancel-btn" type="button" class="hidden chip px-3 py-2 text-xs">中止</button>
+            <span id="history-sync-status" role="status" class="text-xs text-slate-400"></span>
+          </div>
           <div class="grid md:grid-cols-[1fr_auto_auto_auto] gap-3">
             <label class="block">
               <span class="block mb-1 text-[10px] font-black tracking-[0.16em] text-slate-400 uppercase">Problem</span>
@@ -645,6 +650,7 @@
     let problemCacheWarning = "";
     let readingState = "";
     let readingCancelRevision = 0;
+    let historyReadRequest = null;
     let selectedProblem = null;
     let selectedSubjectFilter = "all";
     let selectedUnitFilter = "all";
@@ -2719,13 +2725,98 @@
       const questionsReady = await syncWriting({ questionsOnly: true, background: writingProblems.length > 0 });
       if (readingCancelRevision !== cancelRevision || (isProfileReady() ? userId() : "") !== owner || writingReadScope() !== scope) return false;
       if (!questionsReady && Date.now() - startedAt >= 30000) return false;
-      if (isProfileReady() && (questionsReady || writingProblems.length > 0)) return syncWriting({ background: true });
+      if (isProfileReady() && syncedUserId !== userId() && (questionsReady || writingProblems.length > 0)) return syncWriting({ background: true });
       return questionsReady;
     }
 
     function cancelWritingRead() {
       readingCancelRevision++;
       if (syncRequest) syncRequest.controller.abort();
+    }
+
+    async function syncWritingHistory(options = {}) {
+      if (!isProfileReady() || syncedUserId !== userId()) return false;
+      const owner = userId(), revision = feedbackRevision;
+      const sid = String(options.submissionId || ""), pid = String(options.problemId || "");
+      if (options.afterFeedback && (!sid || !pid)) {
+        el("history-sync-status").textContent = "評価は表示済みです。履歴一覧は未更新です。";
+        return false;
+      }
+      const signature = JSON.stringify([owner, sid, pid, revision]);
+      if (historyReadRequest && historyReadRequest.signature === signature) return historyReadRequest.promise;
+      if (historyReadRequest) historyReadRequest.controller.abort();
+      if (syncRequest && JSON.parse(syncRequest.signature).action === "syncWriting") syncRequest.controller.abort();
+      const request = { signature, controller: new AbortController(), promise: null };
+      historyReadRequest = request;
+      const active = () => historyReadRequest === request && isProfileReady() && userId() === owner && feedbackRevision === revision;
+      const status = el("history-sync-status"), button = el("history-sync-btn");
+      status.textContent = sid ? "今回の履歴を更新中" : "履歴を更新中";
+      button.disabled = true;
+      el("history-cancel-btn").classList.remove("hidden");
+      request.promise = (async () => {
+        try {
+          const data = await fetchJsonDirect({ action: "syncWriting", historyOnly: true, id: SPREADSHEET_ID,
+            userId: owner, userName: normalizeUserName(el("user-name").value), userClass: el("user-class").value.trim(),
+            userNumber: el("user-number").value.trim(), schoolCode: userSchoolCode(), submissionId: sid, problemId: pid,
+            knownProblemIds: sid ? [pid] : writingProblems.map(problem => problem.problemId) }, request.controller);
+          if (!active() || request.controller.signal.aborted) return false;
+          if (!data.success || data.historyOnly !== true || data.userId !== owner || data.submissionId !== sid || data.problemId !== pid ||
+              !Array.isArray(data.myHistory) || data.myHistory.length > 50 || !Array.isArray(data.problemStates)) throw new Error("履歴の応答を確認できません。");
+          const ids = new Set();
+          for (const item of data.myHistory) {
+            if (!item || typeof item.submissionId !== "string" || (item.submissionId && ids.has(item.submissionId)) || typeof item.problemId !== "string" ||
+                (sid && (item.submissionId !== sid || item.problemId !== pid))) throw new Error("対象の履歴を照合できません。");
+            if (item.submissionId) ids.add(item.submissionId);
+          }
+          if (sid && data.myHistory.length !== 1) throw new Error("今回の履歴を照合できません。");
+          const states = new Map();
+          for (const state of data.problemStates) {
+            if (!state || typeof state.problemId !== "string" || states.has(state.problemId) || (pid && state.problemId !== pid) ||
+                !Number.isInteger(state.attemptCount) || state.attemptCount < 0 || typeof state.bestEvaluation !== "string" || typeof state.bestEvaluationDate !== "string") throw new Error("提出回数の応答を確認できません。");
+            states.set(state.problemId, state);
+          }
+          if (sid && !states.has(pid)) throw new Error("今回の提出回数を照合できません。");
+          if (sid) {
+            if (writingHistory.some(item => !item.submissionId)) {
+              status.textContent = "今回の評価・回数は確認済みです。履歴一覧は「履歴を更新」で取得できます。";
+            } else {
+              writingHistory = data.myHistory.concat(writingHistory.filter(item => item.submissionId !== sid));
+              writingHistory.sort((a, b) => historyTimeValue(b) - historyTimeValue(a));
+              writingHistory = writingHistory.slice(0, 50);
+              status.textContent = "今回の履歴を更新しました";
+            }
+          } else {
+            writingHistory = data.myHistory;
+            status.textContent = "履歴を更新しました";
+          }
+          const update = problem => {
+            const state = states.get(problem.problemId);
+            if (!state) return;
+            problem.attemptCount = state.attemptCount;
+            problem.attemptsRemaining = problem.attemptsUnlimited ? null : Math.max(0, Number(problem.maxAttempts || 0) - state.attemptCount);
+            problem.bestEvaluation = state.bestEvaluation;
+            problem.bestEvaluationDate = state.bestEvaluationDate;
+          };
+          writingProblems.forEach(update);
+          if (selectedProblem) update(selectedProblem);
+          renderProblems({ preserveProblemId: selectedProblem && selectedProblem.problemId, preserveMissing: true });
+          renderLimits();
+          renderWritingHistory();
+          updateFeedbackButtonState();
+          return true;
+        } catch (err) {
+          if (active()) status.textContent = `履歴は更新未完了です。表示済みの評価・回答は保持しています。${err.message}`;
+          return false;
+        } finally {
+          if (historyReadRequest === request) {
+            historyReadRequest = null;
+            button.disabled = false;
+            el("history-cancel-btn").classList.add("hidden");
+            if (!isProfileReady() || userId() !== owner || feedbackRevision !== revision) status.textContent = "";
+          }
+        }
+      })();
+      return request.promise;
     }
 
     async function syncWriting(options = {}) {
@@ -2737,6 +2828,7 @@
         userClass: el("user-class").value.trim(), userNumber: el("user-number").value.trim(),
         schoolCode: userSchoolCode(), ...themePayload()
       });
+      if (params.userId && typeof historyReadRequest !== "undefined" && historyReadRequest) historyReadRequest.controller.abort();
       const signature = JSON.stringify(params);
       if (syncRequest && syncRequest.signature === signature && syncRequest.feedbackRevision === feedbackRevision && !options.force) return syncRequest.promise;
       // A changed profile supersedes the anonymous/previous user's request.
@@ -2771,7 +2863,7 @@
           if (!GAS_URL || GAS_URL.includes("PASTE_DEPLOYED")) throw new Error("GAS_URLが未設定です。");
           const data = await fetchJsonDirect(params, request.controller);
           const activeUserId = isProfileReady() ? userId() : "";
-          if (syncRequest !== request || activeUserId !== requestOwner || writingReadScope() !== scope || request.feedbackRevision !== feedbackRevision) return false;
+          if (request.controller.signal.aborted || syncRequest !== request || activeUserId !== requestOwner || writingReadScope() !== scope || request.feedbackRevision !== feedbackRevision) return false;
           if (!Array.isArray(data.problems) || (params.userId && !Array.isArray(data.myHistory))) {
             throw new Error("問題または履歴の応答が不完全です。取得済みデータは更新していません。");
           }
@@ -2921,7 +3013,7 @@
         }
         showMessage("フィードバックを記録しました。", "ok");
         rememberSuccessfulFeedback(submittedProblemId, answer);
-        void syncWriting({ preserveProblemId: submittedProblemId, background: true, force: true });
+        void syncWritingHistory({ afterFeedback: true, submissionId: data.submissionId, problemId: submittedProblemId });
       } catch (err) {
         if (isProfileReady() && userId() === submittedUserId) {
           if (err.feedback && selectedProblem && selectedProblem.problemId === submittedProblemId) renderFeedback(err.feedback);
@@ -3175,7 +3267,7 @@
           renderPeerExamples([]);
         }
         if (recoveryContextMatches()) showMessage("提出済みのフィードバックを確認しました。", "ok");
-        void syncWriting({ preserveProblemId: selectedProblem ? selectedProblem.problemId : pending.problemId, background: true, force: true });
+        void syncWritingHistory({ afterFeedback: true, submissionId: pending.submissionId, problemId: pending.problemId });
       } catch (err) {
         if (["rejected", "failed", "expired", "superseded"].includes(err.submissionStatus)) {
           try { archivePendingFeedback(pending, err.submissionStatus); }
@@ -3487,6 +3579,8 @@
     el("logout-btn").addEventListener("click", logoutProfile);
     el("sync-btn").addEventListener("click", () => refreshWriting());
     el("sync-cancel-btn").addEventListener("click", cancelWritingRead);
+    el("history-sync-btn").addEventListener("click", () => syncWritingHistory());
+    el("history-cancel-btn").addEventListener("click", () => { if (historyReadRequest) historyReadRequest.controller.abort(); });
     el("grade-filter-toggle").addEventListener("click", handleGradeFilterTap);
     ["user-stage", "user-grade"].forEach((id) => {
       el(id).addEventListener("change", () => {
