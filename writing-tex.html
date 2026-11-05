@@ -270,13 +270,15 @@
     details > summary { list-style: none; }
     details > summary::-webkit-details-marker { display: none; }
     @media print {
-      @page { size: B5 portrait; margin: 8mm; }
+      @page { size: B5 portrait; margin: 15mm; }
       body { background: #fff !important; color: #111827 !important; }
       body > main { display: none !important; }
       #print-export-root { display: block !important; }
       .print-page { width: 100%; max-width: 100%; padding: 0; font-size: 9.5pt; }
       .print-grid { grid-template-columns: 1fr; gap: 0.35rem; }
-      .print-block { padding: 0.38rem; }
+      .print-problem, .print-attempt { break-inside: auto; page-break-inside: auto; }
+      .print-header, .print-problem-title, .print-problem-meta, .print-attempt-head { break-after: avoid; page-break-after: avoid; }
+      .print-block { padding: 0.38rem; break-inside: avoid; page-break-inside: avoid; }
       .print-text { font-size: 8.8pt; line-height: 1.45; }
       .print-actions { display: none !important; }
     }
@@ -1717,13 +1719,15 @@
     .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
     .print-criteria { display: grid; gap: 0.35rem; margin-top: 0.25rem; }
     .print-criterion { display: grid; grid-template-columns: 1.6rem minmax(4.5rem, 7rem) 1fr; gap: 0.3rem; align-items: start; font-size: 0.78rem; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.32rem; box-sizing: border-box; }
-    @page { size: B5 portrait; margin: 8mm; }
+    @page { size: B5 portrait; margin: 15mm; }
     @media print {
       body { background: #fff; }
       .print-toolbar { display: none; }
       .print-page { width: 100%; max-width: 100%; margin: 0; padding: 0; box-shadow: none; font-size: 9.5pt; }
       .print-grid { grid-template-columns: 1fr; gap: 0.35rem; }
-      .print-block { padding: 0.38rem; }
+      .print-problem, .print-attempt { break-inside: auto; page-break-inside: auto; }
+      .print-header, .print-problem-title, .print-problem-meta, .print-attempt-head { break-after: avoid; page-break-after: avoid; }
+      .print-block { padding: 0.38rem; break-inside: avoid; page-break-inside: avoid; }
       .print-text { font-size: 8.8pt; line-height: 1.45; }
     }
   </style>
