@@ -265,6 +265,10 @@
     .print-label { font-size: 0.72rem; font-weight: 900; color: #374151; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem; }
     .print-text { white-space: pre-wrap; line-height: 1.55; font-size: 0.84rem; margin: 0; overflow-wrap: anywhere; }
     .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+    .print-return-item { border-top: 1px solid #9ca3af; margin-top: 1.5mm; padding-top: 1mm; break-inside: auto; page-break-inside: auto; }
+    .print-return-heading { font-size: 9pt; line-height: 1.45; margin: 0 0 0.5mm; break-after: avoid; page-break-after: avoid; }
+    .print-return-date { font-weight: 400; white-space: nowrap; }
+    .print-return-text { font-size: 8.8pt; line-height: 1.45; margin: 0; white-space: normal; overflow-wrap: anywhere; }
     .print-criteria { display: grid; gap: 0.35rem; margin-top: 0.25rem; }
     .print-criterion { display: grid; grid-template-columns: 1.6rem minmax(4.5rem, 7rem) 1fr; gap: 0.3rem; align-items: start; font-size: 0.78rem; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.32rem; box-sizing: border-box; }
     details > summary { list-style: none; }
@@ -565,13 +569,19 @@
               </button>
             </div>
             <div class="flex items-end">
-              <div class="grid gap-2 sm:grid-cols-2">
+              <div class="grid gap-2 min-w-0">
+                <select id="history-print-selection" aria-label="印刷する履歴" class="w-full min-w-0 rounded-2xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
+                  <option value="latest">各課題の最新（返却用）</option>
+                  <option value="all">全履歴（詳細）</option>
+                </select>
+                <div class="grid gap-2 sm:grid-cols-2">
                 <button id="history-browse-btn" type="button" class="rounded-2xl border border-cyan-300/30 bg-cyan-400/10 hover:bg-cyan-400/15 px-4 py-3 text-sm font-black text-cyan-100">
                   ブラウザで開く
                 </button>
                 <button id="history-print-btn" type="button" class="rounded-2xl border border-orange-300/30 bg-orange-400/10 hover:bg-orange-400/15 px-4 py-3 text-sm font-black text-orange-100">
                   PDF保存
                 </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1660,7 +1670,27 @@
       `;
     }
 
-    function buildPrintExportHtml({ title, subtitle, items, problems }) {
+    function buildLatestReturnHtml({ title, subtitle, items, problems }) {
+      const problemMap = new Map((problems || []).map((problem, index) => [problem.problemId, { ...problem, exportIndex: index }]));
+      const latest = new Map();
+      for (const item of items || []) {
+        if (!item || typeof item.problemId !== "string" || !item.problemId ||
+            !Number.isFinite(item.submittedAtMs) || !Number.isInteger(item.printSequence)) throw new Error("最新の履歴を照合できません。");
+        const previous = latest.get(item.problemId);
+        if (!previous || item.submittedAtMs > previous.submittedAtMs ||
+            (item.submittedAtMs === previous.submittedAtMs && item.printSequence > previous.printSequence)) latest.set(item.problemId, item);
+      }
+      if (!latest.size) { window.alert("印刷できる履歴がありません。"); return ""; }
+      const rows = [...latest.values()].map(item => ({ item, problem: problemMap.get(item.problemId) || { problemId: item.problemId, exportIndex: 999999 } }));
+      rows.sort((a, b) => problemSortKeyForExport(a.problem, a.problem.exportIndex).localeCompare(problemSortKeyForExport(b.problem, b.problem.exportIndex), "ja"));
+      return `<article class="print-page"><header class="print-header"><h1 class="print-title">${escapeHtml(title)}</h1><div class="print-subtitle">${escapeHtml(subtitle)}</div></header>${rows.map(({ item, problem }) => {
+        const evaluation = isImpressionTask(normalizeAssignmentType(item.assignmentType || problem.assignmentType)) ? "記録" : evaluationDisplay(item.evaluation);
+        return `<section class="print-return-item"><h2 class="print-return-heading">${escapeHtml(problemNumberForExport(problem, problem.exportIndex))} ${escapeHtml(problemTitleForExport(problem, item.problemId))} <span class="print-return-date">${escapeHtml(item.date || "")}</span> <span>評価：${escapeHtml(evaluation || "--")}</span></h2><p class="print-return-text"><strong>回答：</strong><span>${escapeHtml(item.answer || "--")}</span> <strong>評価コメント：</strong><span>${escapeHtml(item.overall || "--")}</span></p></section>`;
+      }).join("")}</article>`;
+    }
+
+    function buildPrintExportHtml({ title, subtitle, items, problems, printSelection = "all" }) {
+      if (printSelection === "latest") return buildLatestReturnHtml({ title, subtitle, items, problems });
       const groups = groupHistoryForPrint(items, problems);
       if (!groups.length) {
         window.alert("PDF化できる履歴がありません。");
@@ -1729,6 +1759,10 @@
 	    .tex-content .katex { font-size: 1.02em; }
 	    .tex-content .katex-display { margin: 0.35rem 0; overflow-x: auto; overflow-y: hidden; }
     .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+    .print-return-item { border-top: 1px solid #9ca3af; margin-top: 1.5mm; padding-top: 1mm; break-inside: auto; page-break-inside: auto; }
+    .print-return-heading { font-size: 9pt; line-height: 1.45; margin: 0 0 0.5mm; break-after: avoid; page-break-after: avoid; }
+    .print-return-date { font-weight: 400; white-space: nowrap; }
+    .print-return-text { font-size: 8.8pt; line-height: 1.45; margin: 0; white-space: normal; overflow-wrap: anywhere; }
     .print-criteria { display: grid; gap: 0.35rem; margin-top: 0.25rem; }
     .print-criterion { display: grid; grid-template-columns: 1.6rem minmax(4.5rem, 7rem) 1fr; gap: 0.3rem; align-items: start; font-size: 0.78rem; border: 1px solid #e5e7eb; border-radius: 0.35rem; padding: 0.32rem; box-sizing: border-box; }
     @page { size: B5 portrait; margin: 15mm; }
@@ -1789,6 +1823,7 @@
         return;
       }
       const exportedUserId = userId();
+      const printSelection = el("history-print-selection").value === "all" ? "all" : "latest";
       const exportContextMatches = () => isProfileReady() && userId() === exportedUserId;
       const openedWindow = mode === "browse" ? window.open("", "_blank") : null;
       const closeStaleExport = () => {
@@ -1805,6 +1840,7 @@
         showMessage("PDF用履歴を取得しています...", "info");
         const data = await fetchJson({
           action: "historyExport",
+          printLatest: printSelection === "latest",
           id: SPREADSHEET_ID,
           userId: exportedUserId,
           userName: normalizeUserName(el("user-name").value),
@@ -1814,9 +1850,21 @@
           ...themePayload()
         });
         if (!exportContextMatches()) return closeStaleExport();
+        if (printSelection === "latest" && (data.success !== true || data.userId !== exportedUserId || data.historySelection !== "latest" || data.historyComplete !== true ||
+            !Array.isArray(data.history) || data.history.some(item => !item || typeof item.problemId !== "string" || !item.problemId ||
+              typeof item.answer !== "string" || typeof item.evaluation !== "string" || typeof item.overall !== "string" ||
+              !Number.isFinite(item.submittedAtMs) || item.submittedAtMs < 0 || !Number.isInteger(item.printSequence) || item.printSequence < 2) ||
+            new Set(data.history.map(item => item.problemId)).size !== data.history.length)) {
+          throw new Error("最新回答の確認が完了していません。");
+        }
         items = Array.isArray(data.history) ? data.history : [];
       } catch (err) {
         if (!exportContextMatches()) return closeStaleExport();
+        if (printSelection === "latest") {
+          closeStaleExport();
+          showMessage("最新の回答を確認できないため、返却用の印刷は保留しました。履歴・回答は保持しています。" + err.message, "error");
+          return;
+        }
         items = syncedUserId === exportedUserId && Array.isArray(writingHistory) ? writingHistory : [];
         usedFallback = true;
         if (!items.length) {
@@ -1825,15 +1873,21 @@
           return;
         }
       }
-      if (!items.length && Array.isArray(writingHistory) && writingHistory.length) {
+      if (printSelection === "all" && !items.length && Array.isArray(writingHistory) && writingHistory.length) {
         items = writingHistory;
         usedFallback = true;
       }
+      if (printSelection === "latest" && !items.length) {
+        closeStaleExport();
+        showMessage("印刷できる履歴がありません。", "info");
+        return;
+      }
       const payload = {
-        title: "Writing Feedback History",
+        title: printSelection === "latest" ? "回答・評価返却表" : "Writing Feedback History",
         subtitle: `${userLabel} / ${new Date().toLocaleString("ja-JP")}`,
         items,
-        problems: writingProblems
+        problems: writingProblems,
+        printSelection
       };
       if (mode === "browse") {
         if (openHistoryInNewTab(payload, openedWindow)) {
