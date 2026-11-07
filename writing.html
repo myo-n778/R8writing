@@ -273,11 +273,23 @@
       body > main { display: none !important; }
       #print-export-root { display: block !important; }
       .print-page { width: 100%; max-width: 100%; padding: 0; font-size: 9.5pt; }
-      .print-grid { grid-template-columns: 1fr; gap: 0.35rem; }
+      .print-header { border-bottom-width: 1px; padding-bottom: 1.5mm; margin-bottom: 2mm; }
+      .print-title { font-size: 12pt; line-height: 1.25; }
+      .print-subtitle { font-size: 8pt; margin-top: 0.8mm; }
+      .print-problem { border: 0; border-top: 1px solid #9ca3af; border-radius: 0; padding: 1.5mm 0 0; margin: 2mm 0 0; }
+      .print-problem-title { font-size: 10pt; line-height: 1.25; margin-bottom: 0.6mm; }
+      .print-problem-meta { font-size: 8pt; margin-bottom: 0.8mm; }
+      .print-attempt { padding-top: 1mm; margin-top: 1mm; }
+      .print-attempt-head { font-size: 8pt; gap: 2mm; margin-bottom: 0.5mm; }
+      .print-evaluation { border: 0; border-radius: 0; padding: 0; font-size: 9pt; }
+      .print-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 3mm; }
       .print-problem, .print-attempt { break-inside: auto; page-break-inside: auto; }
       .print-header, .print-problem-title, .print-problem-meta, .print-attempt-head { break-after: avoid; page-break-after: avoid; }
-      .print-block { padding: 0.38rem; break-inside: avoid; page-break-inside: avoid; }
+      .print-block { border: 0; border-radius: 0; margin: 1mm 0; padding: 0; break-inside: avoid; page-break-inside: avoid; }
+      .print-label { font-size: 8pt; line-height: 1.25; letter-spacing: 0; margin-bottom: 0.3mm; }
       .print-text { font-size: 8.8pt; line-height: 1.45; }
+      .print-criteria { gap: 0.6mm; margin-top: 0.6mm; }
+      .print-criterion { border: 0; border-bottom: 1px dotted #d1d5db; border-radius: 0; padding: 0.5mm 0; font-size: 8pt; break-inside: avoid; page-break-inside: avoid; }
       .print-actions { display: none !important; }
     }
   </style>
@@ -1713,11 +1725,23 @@
       body { background: #fff; }
       .print-toolbar { display: none; }
       .print-page { width: 100%; max-width: 100%; margin: 0; padding: 0; box-shadow: none; font-size: 9.5pt; }
-      .print-grid { grid-template-columns: 1fr; gap: 0.35rem; }
+      .print-header { border-bottom-width: 1px; padding-bottom: 1.5mm; margin-bottom: 2mm; }
+      .print-title { font-size: 12pt; line-height: 1.25; }
+      .print-subtitle { font-size: 8pt; margin-top: 0.8mm; }
+      .print-problem { border: 0; border-top: 1px solid #9ca3af; border-radius: 0; padding: 1.5mm 0 0; margin: 2mm 0 0; }
+      .print-problem-title { font-size: 10pt; line-height: 1.25; margin-bottom: 0.6mm; }
+      .print-problem-meta { font-size: 8pt; margin-bottom: 0.8mm; }
+      .print-attempt { padding-top: 1mm; margin-top: 1mm; }
+      .print-attempt-head { font-size: 8pt; gap: 2mm; margin-bottom: 0.5mm; }
+      .print-evaluation { border: 0; border-radius: 0; padding: 0; font-size: 9pt; }
+      .print-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 3mm; }
       .print-problem, .print-attempt { break-inside: auto; page-break-inside: auto; }
       .print-header, .print-problem-title, .print-problem-meta, .print-attempt-head { break-after: avoid; page-break-after: avoid; }
-      .print-block { padding: 0.38rem; break-inside: avoid; page-break-inside: avoid; }
+      .print-block { border: 0; border-radius: 0; margin: 1mm 0; padding: 0; break-inside: avoid; page-break-inside: avoid; }
+      .print-label { font-size: 8pt; line-height: 1.25; letter-spacing: 0; margin-bottom: 0.3mm; }
       .print-text { font-size: 8.8pt; line-height: 1.45; }
+      .print-criteria { gap: 0.6mm; margin-top: 0.6mm; }
+      .print-criterion { border: 0; border-bottom: 1px dotted #d1d5db; border-radius: 0; padding: 0.5mm 0; font-size: 8pt; break-inside: avoid; page-break-inside: avoid; }
     }
   </style>
 </head>
