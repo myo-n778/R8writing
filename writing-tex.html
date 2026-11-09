@@ -1151,7 +1151,8 @@
     }
 
     async function fetchJsonDirect(params, controller = new AbortController()) {
-      const payload = { ...params, ...(params.userId ? identityPayload(params.userId) : {}) };
+      const payload = { ...params, ...(params.userId ? identityPayload(params.userId) : {}),
+        ...(["gradeWriting", "submissionStatus", "retrySubmissionSave"].includes(params.action) ? { receiptMode: "saved-item-v1" } : {}) };
       const anonymous = payload.action === "getQuestions" && !payload.userId;
       const url = anonymous ? `${GAS_URL}?${new URLSearchParams({ action: "getQuestions", id: payload.id, ...(payload.problemGradeScope ? { problemGradeScope: payload.problemGradeScope } : {}), _ts: String(Date.now()) })}` : GAS_URL;
       const options = anonymous
@@ -2832,7 +2833,8 @@
             !Number.isInteger(state.attemptCount) || state.attemptCount < 0 || typeof state.bestEvaluation !== "string" || typeof state.bestEvaluationDate !== "string") throw new Error("提出回数の応答を確認できません。");
         states.set(state.problemId, state);
       }
-      if (sid && !states.has(pid)) throw new Error("今回の提出回数を照合できません。");
+      const receiptOnly = data.receiptOnly === true && !!sid && data.problemStates.length === 0;
+      if (sid && !states.has(pid) && !receiptOnly) throw new Error("今回の提出回数を照合できません。");
       if (sid) {
         writingHistory = data.myHistory.concat(writingHistory.filter(item => item.submissionId !== sid));
         writingHistory.sort((a, b) => historyTimeValue(b) - historyTimeValue(a));
@@ -2871,6 +2873,10 @@
           el("history-cancel-btn").classList.add("hidden");
         }
         if (syncRequest && JSON.parse(syncRequest.signature).action === "syncWriting") syncRequest.controller.abort();
+        if (data.savedHistory.receiptOnly === true) {
+          // The committed item is visible before counts are reconciled. The server still enforces limits.
+          void syncWritingHistory({ afterFeedback: true, submissionId: data.submissionId, problemId: pid });
+        }
         return true;
       } catch (err) { return false; }
     }
