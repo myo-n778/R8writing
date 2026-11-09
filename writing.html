@@ -385,7 +385,7 @@
 
     <section class="writing-main-layout grid xl:grid-cols-[minmax(360px,1.05fr)_minmax(340px,1fr)_minmax(240px,0.72fr)] gap-4 items-start">
       <section class="writing-answer-panel glass rounded-[1.8rem] p-4 md:p-5 min-h-[40rem] min-w-0">
-        <div id="message" class="hidden rounded-2xl p-4 text-sm mb-4"></div>
+        <div id="message" role="status" aria-live="polite" class="hidden rounded-2xl p-4 text-sm mb-4"></div>
         <button id="recover-feedback-btn" type="button" class="hidden mb-4 bg-cyan-400/10 border border-cyan-300/25 text-cyan-100 rounded-lg px-5 py-4 text-sm font-bold"><i class="fa-solid fa-rotate"></i> 未確認の提出結果を確認</button>
         <details id="recovery-answer-box" class="hidden mb-4">
           <summary id="recovery-answer-title" class="cursor-pointer text-sm text-cyan-200">送信時の回答の控え</summary>
@@ -3027,6 +3027,7 @@
             }
             el("sync-cancel-btn")?.classList.add("hidden");
             updateFeedbackButtonState();
+            if (typeof schedulePendingRecovery === "function") schedulePendingRecovery();
           }
         }
       })();
@@ -3048,7 +3049,7 @@
       }
       if (pendingFeedback) {
         updateRecoveryButton();
-        return showMessage("結果未確認の提出があります。「未確認の提出結果を確認」を押してください。新しい採点は送信していません。", "error");
+        return recoverFeedback({ checkOnly: true });
       }
       const submissionProblem = { ...selectedProblem };
       const submittedUserId = userId();
@@ -3115,6 +3116,7 @@
         feedbackSubmitting = false;
         updateFeedbackButtonState();
         updateRecoveryButton();
+        if (typeof schedulePendingRecovery === "function") schedulePendingRecovery();
       }
     }
 
@@ -3198,7 +3200,9 @@
       button.disabled = feedbackSubmitting;
       const saving = pending && ((pending._saveCopy && pending._saveCopy.saveRetryAllowed) ||
         (pending.submissionStatus === "save_pending" && pending.saveRetryAllowed && !pending.needsClientCopy));
-      button.innerHTML = saving ? '<i class="fa-solid fa-floppy-disk"></i> 保存だけを再試行'
+      button.ariaBusy = String(feedbackSubmitting);
+      button.innerHTML = feedbackSubmitting ? '<i class="fa-solid fa-spinner fa-spin"></i> 提出状況を確認中'
+        : saving ? '<i class="fa-solid fa-floppy-disk"></i> 保存だけを再試行'
         : pending && pendingRetryKey === userId() + ":" + pending.submissionId
         ? '<i class="fa-solid fa-rotate"></i> 同じ提出を再送'
         : '<i class="fa-solid fa-rotate"></i> 未確認の提出結果を確認';
@@ -3309,23 +3313,50 @@
       }
     }
 
-    async function recoverFeedback() {
-      if (feedbackSubmitting || !isProfileReady()) return;
+    function schedulePendingRecovery() {
+      if (schedulePendingRecovery.timer || feedbackSubmitting || !isProfileReady() || syncedUserId !== userId()) return;
+      let pending;
+      try { pending = readPendingFeedback(); } catch (err) { return; }
+      if (!pending) return;
+      const key = userId() + ":" + pending.submissionId;
+      if (schedulePendingRecovery.key !== key) {
+        schedulePendingRecovery.key = key;
+        schedulePendingRecovery.attempts = 0;
+      }
+      if (schedulePendingRecovery.attempts >= 3) return;
+      schedulePendingRecovery.timer = window.setTimeout(() => {
+        schedulePendingRecovery.timer = null;
+        let current;
+        try { current = readPendingFeedback(); } catch (err) { return; }
+        if (!isProfileReady() || userId() + ":" + (current || {}).submissionId !== key || feedbackSubmitting) return;
+        schedulePendingRecovery.attempts++;
+        void recoverFeedback({ checkOnly: true, automatic: true });
+      }, schedulePendingRecovery.attempts ? 3000 : 0);
+    }
+
+    async function recoverFeedback(options = {}) {
+      if (feedbackSubmitting) return showMessage("提出結果を確認中です。回答は保持しています。", "working");
+      if (!isProfileReady()) return showMessage("登録情報が編集中のため確認できません。組・番号を保存してから、もう一度確認してください。回答と未確認の提出は保持しています。", "error");
       let pending;
       try { pending = readPendingFeedback(); } catch (err) { return showMessage("提出情報を読み出せません。先生に確認してください。", "error"); }
-      if (!pending) return updateRecoveryButton();
+      if (!pending) {
+        updateRecoveryButton();
+        return showMessage("未確認の提出はありません。回答欄の内容を確認して送信できます。", "ok");
+      }
       const recoveringUserId = userId();
       const recoveringHistoryRevision = Number(globalThis.writingHistoryReadRevision || 0);
       const recoveryContextMatches = () => isProfileReady() && userId() === recoveringUserId;
       feedbackSubmitting = true;
       feedbackRevision++;
-      updateFeedbackButtonState();
-      updateRecoveryButton();
       try {
+        updateFeedbackButtonState();
+        updateRecoveryButton();
         const retryKey = recoveringUserId + ":" + pending.submissionId;
         const copy = pending._saveCopy;
-        const saveOnly = !!(copy && copy.saveRetryAllowed || pending.submissionStatus === "save_pending" && pending.saveRetryAllowed && !pending.needsClientCopy);
-        const retrySameId = !saveOnly && pendingRetryKey === retryKey && typeof pending.answer === "string";
+        // The main submit button may check status, but never implicitly retry grading or saving.
+        const checkOnly = options.checkOnly === true;
+        const saveOnly = !checkOnly && !!(copy && copy.saveRetryAllowed || pending.submissionStatus === "save_pending" && pending.saveRetryAllowed && !pending.needsClientCopy);
+        const retrySameId = !checkOnly && !saveOnly && pendingRetryKey === retryKey && typeof pending.answer === "string";
         showMessage(saveOnly ? "評価の保存だけを再試行しています。再採点はしません。" : retrySameId ? "同じ提出IDで再送しています。" : "提出結果を確認しています。回答は再送しません。", "working");
         pendingRetryKey = "";
         const { _storageKey, _saveCopy, ...originalRequest } = pending;
@@ -3344,6 +3375,7 @@
           ...(typeof pending.answer === "string" ? { answer: pending.answer } : {})
         });
         if (!data.success) {
+          if (options.automatic && !["pending", "unknown"].includes(data.submissionStatus)) schedulePendingRecovery.attempts = 3;
           if (data.submissionStatus === "save_pending") {
             rememberPendingEvaluation(pending, data);
             if (recoveryContextMatches() && data.feedback && selectedProblem && selectedProblem.problemId === pending.problemId) renderFeedback(data.feedback);
@@ -3370,11 +3402,12 @@
           try { archivePendingFeedback(pending, err.submissionStatus); }
           catch (archiveError) { err.message += ` ${archiveError.message}`; }
         }
-        if (recoveryContextMatches()) showMessage(err.message, "error");
+        if (recoveryContextMatches()) showMessage(err.message + " 回答は保持しています。確認ボタンから再度確認できます。", "error");
       } finally {
         feedbackSubmitting = false;
         updateFeedbackButtonState();
         updateRecoveryButton();
+        if (options.automatic && typeof schedulePendingRecovery === "function") schedulePendingRecovery();
       }
     }
 
