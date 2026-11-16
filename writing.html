@@ -2809,21 +2809,36 @@
     }
 
     async function refreshWriting() {
+      if (refreshWriting.pending) return refreshWriting.pending;
       if (syncRequest) return syncRequest.promise;
       const owner = isProfileReady() ? userId() : "";
       const scope = writingReadScope();
       const cancelRevision = readingCancelRevision;
       const startedAt = Date.now();
-      const questionsReady = await syncWriting({ questionsOnly: true, background: writingProblems.length > 0 });
-      if (readingCancelRevision !== cancelRevision || (isProfileReady() ? userId() : "") !== owner || writingReadScope() !== scope) return false;
-      if (!questionsReady && Date.now() - startedAt >= 30000) return false;
-      if (isProfileReady() && syncedUserId !== userId() && (questionsReady || writingProblems.length > 0)) return syncWriting({ background: true });
-      return questionsReady;
+      const current = () => readingCancelRevision === cancelRevision && (isProfileReady() ? userId() : "") === owner && writingReadScope() === scope;
+      const task = (async () => {
+        const questionsReady = await syncWriting({ questionsOnly: true, background: writingProblems.length > 0 });
+        if (!current()) return false;
+        if (owner && syncedUserId === owner && writingProblems.length) {
+          const historyReady = await syncWritingHistory();
+          if (current()) setReadingStatus(historyReady
+            ? questionsReady ? "問題・取り組みの更新完了" : "取り組み更新完了・問題一覧は未更新"
+            : "取り組みの更新未完了・表示済みの記録と回答は保持");
+          return questionsReady && historyReady;
+        }
+        if (!questionsReady && Date.now() - startedAt >= 30000) return false;
+        if (isProfileReady() && (questionsReady || writingProblems.length > 0)) return syncWriting({ background: true });
+        return questionsReady;
+      })();
+      refreshWriting.pending = task;
+      try { return await task; }
+      finally { if (refreshWriting.pending === task) refreshWriting.pending = null; }
     }
 
     function cancelWritingRead() {
       readingCancelRevision++;
       if (syncRequest) syncRequest.controller.abort();
+      if (refreshWriting.pending && historyReadRequest) historyReadRequest.controller.abort();
     }
 
     function applyWritingHistoryResponse(data, owner, sid, pid) {
