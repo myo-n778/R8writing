@@ -1150,7 +1150,7 @@
       return fetchJsonDirect(params);
     }
 
-    async function fetchJsonDirect(params, controller = new AbortController()) {
+    async function fetchJsonDirect(params, controller = new AbortController(), onLateResult = null) {
       const payload = { ...params, ...(params.userId ? identityPayload(params.userId) : {}),
         ...(["gradeWriting", "submissionStatus", "retrySubmissionSave"].includes(params.action) ? { receiptMode: "saved-item-v1" } : {}) };
       const anonymous = payload.action === "getQuestions" && !payload.userId;
@@ -1159,24 +1159,40 @@
         ? { cache: "no-store", signal: controller.signal }
         : { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: JSON.stringify(payload), cache: "no-store", signal: controller.signal };
       const reading = ["syncWriting", "getQuestions"].includes(params.action);
-      const timeoutMs = params.action === "gradeWriting" ? 120000 : reading ? 30000 : 25000;
+      const timeoutMs = params.action === "gradeWriting" ? 120000 : params.action === "submissionStatus" ? 60000 : reading ? 30000 : 25000;
       const label = params.action === "gradeWriting" ? "採点" : params.action === "submissionStatus" ? "提出結果の確認" : "データの読み込み";
+      const recoverableRead = params.action === "submissionStatus" && typeof onLateResult === "function";
+      const readKey = JSON.stringify([params.userId, params.problemId, params.submissionId]);
+      const pendingReads = fetchJsonDirect.pendingStatusReads || (fetchJsonDirect.pendingStatusReads = new Map());
+      if (recoverableRead && pendingReads.has(readKey)) {
+        throw new Error("同じ提出の結果を引き続き確認しています。回答は保持しており、再送していません。");
+      }
       const startedAt = Date.now();
-      let timer, onAbort, stage = "接続・応答待ち", outcome = "ok";
+      let timer, hardTimer, onAbort, stage = "接続・応答待ち", outcome = "ok";
+      if (recoverableRead) pendingReads.set(readKey, true);
       try {
         return await Promise.race([
           (async () => {
-            const res = await fetch(url, options);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            stage = "応答本文の受信・JSON解析";
-            const data = await res.json();
-            if (data.error) {
-              const error = new Error(data.error);
-              error.serverResponse = true;
-              error.submissionStatus = data.submissionStatus;
-              throw error;
+            try {
+              const res = await fetch(url, options);
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              stage = "応答本文の受信・JSON解析";
+              const data = await res.json();
+              if (data.error) {
+                const error = new Error(data.error);
+                error.serverResponse = true;
+                error.submissionStatus = data.submissionStatus;
+                throw error;
+              }
+              if (recoverableRead && outcome === "timeout") await onLateResult(data, null);
+              return data;
+            } catch (err) {
+              if (recoverableRead && outcome === "timeout") await onLateResult(null, err);
+              throw err;
+            } finally {
+              window.clearTimeout(hardTimer);
+              if (recoverableRead) pendingReads.delete(readKey);
             }
-            return data;
           })(),
           new Promise((_, reject) => {
             onAbort = () => reject(new Error("読込みを中止しました。回答は保持しています。"));
@@ -1186,8 +1202,13 @@
             }
             timer = window.setTimeout(() => {
               outcome = "timeout";
-              reject(new Error(`${label}が${timeoutMs / 1000}秒以内に完了しませんでした（${stage}）。`));
-              controller.abort();
+              reject(new Error(recoverableRead
+                ? "結果の確認に時間がかかっています。回答は保持しています。届いた確認結果は自動で反映します。"
+                : `${label}が${timeoutMs / 1000}秒以内に完了しませんでした（${stage}）。`));
+              if (recoverableRead) {
+                // Keep one read alive after the UI wait ends; never resend grading or saving.
+                hardTimer = window.setTimeout(() => controller.abort(), 120000 - timeoutMs);
+              } else controller.abort();
             }, timeoutMs);
           })
         ]);
@@ -3336,6 +3357,8 @@
       let pending;
       try { pending = readPendingFeedback(); } catch (err) { return; }
       if (!pending) return;
+      if (fetchJsonDirect.pendingStatusReads && fetchJsonDirect.pendingStatusReads.has(
+          JSON.stringify([userId(), pending.problemId, pending.submissionId]))) return;
       const key = userId() + ":" + pending.submissionId;
       if (schedulePendingRecovery.key !== key) {
         schedulePendingRecovery.key = key;
@@ -3377,6 +3400,54 @@
         const retrySameId = !checkOnly && !saveOnly && pendingRetryKey === retryKey && typeof pending.answer === "string";
         showMessage(saveOnly ? "評価の保存だけを再試行しています。再採点はしません。" : retrySameId ? "同じ提出IDで再送しています。" : "提出結果を確認しています。回答は再送しません。", "working");
         pendingRetryKey = "";
+        const applyResult = data => {
+          if (!data.success) {
+            if (options.automatic && !["pending", "unknown"].includes(data.submissionStatus)) schedulePendingRecovery.attempts = 3;
+            if (data.submissionStatus === "save_pending") {
+              rememberPendingEvaluation(pending, data);
+              if (recoveryContextMatches() && data.feedback && selectedProblem && selectedProblem.problemId === pending.problemId) renderFeedback(data.feedback);
+            }
+            if (data.submissionStatus === "not_received" && data.sameIdRetryAllowed && typeof pending.answer === "string") pendingRetryKey = retryKey;
+            if (["rejected", "failed", "expired", "superseded"].includes(data.submissionStatus)) archivePendingFeedback(pending, data.submissionStatus);
+            if (data.submissionStatus === "expired" && recoveryContextMatches()) {
+              showMessage("前の提出が未完了で終了したことを確認しました。回答は保持しています。内容を確認して「フィードバックを見る」から送信できます。", "info");
+              return;
+            }
+            if (recoveryContextMatches()) showMessage(data.message || (data.submissionStatus === "pending" ? "まだ処理中です。時間を置いて再度確認してください。" : "提出結果を確認できません。元の提出情報は保持しています。先生に確認してください。"), "error");
+            return;
+          }
+          if (data.savedHistory && data.submissionId !== pending.submissionId) throw new Error("提出IDの応答を照合できません。元の提出情報は保持しています。");
+          archivePendingFeedback(pending, "completed");
+          if (!recoveryContextMatches()) return;
+          if (typeof pending.answer === "string") rememberSuccessfulFeedback(pending.problemId, pending.answer);
+          if (selectedProblem && selectedProblem.problemId === pending.problemId) {
+            renderFeedback(data.feedback || {});
+            renderPeerExamples([]);
+          }
+          if (recoveryContextMatches()) showMessage("提出済みのフィードバックを確認しました。", "ok");
+          if (!applySavedWritingHistory(data, recoveringUserId, pending.problemId, recoveringHistoryRevision)) {
+            void syncWritingHistory({ afterFeedback: true, submissionId: pending.submissionId, problemId: pending.problemId });
+          }
+        };
+        const acceptLateResult = async (data, error) => {
+          if (!recoveryContextMatches()) return;
+          let current;
+          try { current = readPendingFeedback(); } catch (err) { return; }
+          if (!current || current.submissionId !== pending.submissionId || current.problemId !== pending.problemId) return;
+          try {
+            if (error) throw error;
+            if (!data || data.submissionId !== pending.submissionId) throw new Error("提出IDの応答を照合できません。元の提出情報は保持しています。");
+            applyResult(data);
+          } catch (err) {
+            if (["failed", "expired", "rejected", "superseded"].includes(err.submissionStatus)) {
+              try { archivePendingFeedback(pending, err.submissionStatus); } catch (ignored) {}
+            }
+            showMessage((err.name === "AbortError" ? "結果確認の通信が終了しました。確認ボタンから再確認できます。" : err.message) + " 回答は保持しており、自動再送していません。", "error");
+          } finally {
+            updateFeedbackButtonState();
+            updateRecoveryButton();
+          }
+        };
         const { _storageKey, _saveCopy, ...originalRequest } = pending;
         const data = await fetchJsonDirect(saveOnly ? {
           action: "retrySubmissionSave", id: SPREADSHEET_ID, userId: recoveringUserId, ...identityPayload(recoveringUserId),
@@ -3391,30 +3462,8 @@
           action: "submissionStatus", id: SPREADSHEET_ID, userId: recoveringUserId,
           ...identityPayload(recoveringUserId), problemId: pending.problemId, submissionId: pending.submissionId,
           ...(typeof pending.answer === "string" ? { answer: pending.answer } : {})
-        });
-        if (!data.success) {
-          if (options.automatic && !["pending", "unknown"].includes(data.submissionStatus)) schedulePendingRecovery.attempts = 3;
-          if (data.submissionStatus === "save_pending") {
-            rememberPendingEvaluation(pending, data);
-            if (recoveryContextMatches() && data.feedback && selectedProblem && selectedProblem.problemId === pending.problemId) renderFeedback(data.feedback);
-          }
-          if (data.submissionStatus === "not_received" && data.sameIdRetryAllowed && typeof pending.answer === "string") pendingRetryKey = retryKey;
-          if (["rejected", "failed", "expired", "superseded"].includes(data.submissionStatus)) archivePendingFeedback(pending, data.submissionStatus);
-          if (recoveryContextMatches()) showMessage(data.message || (data.submissionStatus === "pending" ? "まだ処理中です。時間を置いて再度確認してください。" : "提出結果を確認できません。元の提出情報は保持しています。先生に確認してください。"), "error");
-          return;
-        }
-        if (data.savedHistory && data.submissionId !== pending.submissionId) throw new Error("提出IDの応答を照合できません。元の提出情報は保持しています。");
-        archivePendingFeedback(pending, "completed");
-        if (!recoveryContextMatches()) return;
-        if (typeof pending.answer === "string") rememberSuccessfulFeedback(pending.problemId, pending.answer);
-        if (selectedProblem && selectedProblem.problemId === pending.problemId) {
-          renderFeedback(data.feedback || {});
-          renderPeerExamples([]);
-        }
-        if (recoveryContextMatches()) showMessage("提出済みのフィードバックを確認しました。", "ok");
-        if (!applySavedWritingHistory(data, recoveringUserId, pending.problemId, recoveringHistoryRevision)) {
-          void syncWritingHistory({ afterFeedback: true, submissionId: pending.submissionId, problemId: pending.problemId });
-        }
+        }, undefined, saveOnly || retrySameId ? null : acceptLateResult);
+        applyResult(data);
       } catch (err) {
         if (["rejected", "failed", "expired", "superseded"].includes(err.submissionStatus)) {
           try { archivePendingFeedback(pending, err.submissionStatus); }
