@@ -1230,7 +1230,13 @@
               throw err;
             } finally {
               window.clearTimeout(hardTimer);
-              if (recoverableRead) pendingReads.delete(readKey);
+              if (recoverableRead) {
+                pendingReads.delete(readKey);
+                if (outcome === "timeout") {
+                  updateRecoveryButton();
+                  schedulePendingRecovery(true);
+                }
+              }
             }
           })(),
           new Promise((_, reject) => {
@@ -3238,7 +3244,8 @@
       } catch (err) {
         if (isProfileReady() && userId() === submittedUserId) {
           if (err.feedback && selectedProblem && selectedProblem.problemId === submittedProblemId) renderFeedback(err.feedback);
-          showMessage(err.message, "error");
+          if (/ロックのタイムアウト|Lock timeout/i.test(err.message)) showMessage("サーバーが混み合っています。回答は再送せず、提出結果を確認します。", "info");
+          else showMessage(err.message, "error");
         }
       } finally {
         feedbackSubmitting = false;
@@ -3325,11 +3332,13 @@
       let pending = null;
       try { pending = readPendingFeedback(); } catch (err) { pending = {}; }
       button.classList.toggle("hidden", !pending);
-      button.disabled = feedbackSubmitting;
+      const checking = feedbackSubmitting || !!(pending && fetchJsonDirect.pendingStatusReads?.has(
+        JSON.stringify([userId(), pending.problemId, pending.submissionId])));
+      button.disabled = checking;
       const saving = pending && ((pending._saveCopy && pending._saveCopy.saveRetryAllowed) ||
         (pending.submissionStatus === "save_pending" && pending.saveRetryAllowed && !pending.needsClientCopy));
-      button.ariaBusy = String(feedbackSubmitting);
-      button.innerHTML = feedbackSubmitting ? '<i class="fa-solid fa-spinner fa-spin"></i> 提出状況を確認中'
+      button.ariaBusy = String(checking);
+      button.innerHTML = checking ? '<i class="fa-solid fa-spinner fa-spin"></i> 提出状況を確認中'
         : saving ? '<i class="fa-solid fa-floppy-disk"></i> 保存だけを再試行'
         : pending && pendingRetryKey === userId() + ":" + pending.submissionId
         ? '<i class="fa-solid fa-rotate"></i> 同じ提出を再送'
@@ -3441,7 +3450,7 @@
       }
     }
 
-    function schedulePendingRecovery() {
+    function schedulePendingRecovery(delayFirst = false) {
       if (schedulePendingRecovery.timer || feedbackSubmitting || !isProfileReady() || syncedUserId !== userId()) return;
       let pending;
       try { pending = readPendingFeedback(); } catch (err) { return; }
@@ -3449,19 +3458,21 @@
       if (fetchJsonDirect.pendingStatusReads && fetchJsonDirect.pendingStatusReads.has(
           JSON.stringify([userId(), pending.problemId, pending.submissionId]))) return;
       const key = userId() + ":" + pending.submissionId;
+      if (pendingRetryKey === key || pending._saveCopy?.saveRetryAllowed || pending.saveRetryAllowed) return;
       if (schedulePendingRecovery.key !== key) {
         schedulePendingRecovery.key = key;
         schedulePendingRecovery.attempts = 0;
       }
-      if (schedulePendingRecovery.attempts >= 3) return;
+      if (schedulePendingRecovery.attempts >= 5) return;
       schedulePendingRecovery.timer = window.setTimeout(() => {
         schedulePendingRecovery.timer = null;
         let current;
         try { current = readPendingFeedback(); } catch (err) { return; }
-        if (!isProfileReady() || userId() + ":" + (current || {}).submissionId !== key || feedbackSubmitting) return;
+        if (!isProfileReady() || userId() + ":" + (current || {}).submissionId !== key || feedbackSubmitting ||
+            pendingRetryKey === key || current?._saveCopy?.saveRetryAllowed || current?.saveRetryAllowed) return;
         schedulePendingRecovery.attempts++;
         void recoverFeedback({ checkOnly: true, automatic: true });
-      }, schedulePendingRecovery.attempts ? 3000 : 0);
+      }, delayFirst || schedulePendingRecovery.attempts ? 120000 : 0);
     }
 
     async function recoverFeedback(options = {}) {
@@ -3474,6 +3485,7 @@
         return showMessage("未確認の提出はありません。回答欄の内容を確認して送信できます。", "ok");
       }
       const recoveringUserId = userId();
+      if (fetchJsonDirect.pendingStatusReads?.has(JSON.stringify([recoveringUserId, pending.problemId, pending.submissionId]))) return;
       const recoveringHistoryRevision = Number(globalThis.writingHistoryReadRevision || 0);
       const recoveryContextMatches = () => isProfileReady() && userId() === recoveringUserId;
       feedbackSubmitting = true;
@@ -3491,7 +3503,7 @@
         pendingRetryKey = "";
         const applyResult = data => {
           if (!data.success) {
-            if (options.automatic && !["pending", "unknown"].includes(data.submissionStatus)) schedulePendingRecovery.attempts = 3;
+            if (options.automatic && !["pending", "unknown"].includes(data.submissionStatus)) schedulePendingRecovery.attempts = 5;
             if (data.submissionStatus === "save_pending") {
               rememberPendingEvaluation(pending, data);
               if (recoveryContextMatches() && data.feedback && selectedProblem && selectedProblem.problemId === pending.problemId) renderFeedback(data.feedback);
@@ -3502,7 +3514,10 @@
               showMessage("前の提出が未完了で終了したことを確認しました。回答は保持しています。内容を確認して「フィードバックを見る」から送信できます。", "info");
               return;
             }
-            if (recoveryContextMatches()) showMessage(data.message || (data.submissionStatus === "pending" ? "まだ処理中です。時間を置いて再度確認してください。" : "提出結果を確認できません。元の提出情報は保持しています。先生に確認してください。"), "error");
+        if (recoveryContextMatches()) {
+          if (options.automatic && ["unknown", "pending"].includes(data.submissionStatus) && schedulePendingRecovery.attempts < 5) showMessage("提出結果を待っています。回答は再送せず、約2分後にもう一度確認します。", "info");
+          else showMessage(data.message || "提出結果を確認できません。元の提出情報は保持しています。", "info");
+        }
             return;
           }
           if (data.savedHistory && data.submissionId !== pending.submissionId) throw new Error("提出IDの応答を照合できません。元の提出情報は保持しています。");
@@ -3558,7 +3573,11 @@
           try { archivePendingFeedback(pending, err.submissionStatus); }
           catch (archiveError) { err.message += ` ${archiveError.message}`; }
         }
-        if (recoveryContextMatches()) showMessage(err.message + " 回答は保持しています。確認ボタンから再度確認できます。", "error");
+        if (recoveryContextMatches()) {
+          if (fetchJsonDirect.pendingStatusReads?.has(JSON.stringify([recoveringUserId, pending.problemId, pending.submissionId]))) showMessage("結果を待っています。回答の再送や確認ボタンの操作は不要です。", "info");
+          else if (/ロックのタイムアウト|Lock timeout/i.test(err.message)) showMessage("サーバーが混み合っています。回答は再送していません。提出結果はまだ確認できていません。", "info");
+          else showMessage(err.message + " 回答は保持しています。", "error");
+        }
       } finally {
         feedbackSubmitting = false;
         updateFeedbackButtonState();
