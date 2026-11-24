@@ -3431,7 +3431,7 @@
       if (readPendingFeedback()) throw new Error("結果未確認の提出があります。新しい回答は送信していません。");
       const submissionId = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Array.from(crypto.getRandomValues(new Uint32Array(4))).join("-")}`;
       const { token, ...request } = params;
-      const pending = { ...request, ...identityPayload(params.userId), submissionId };
+      const pending = { ...request, ...identityPayload(params.userId), submissionId, deliveryStartedAt: Date.now() };
       const key = pendingFeedbackKey();
       const raw = JSON.stringify(pending);
       sessionStorage.setItem(key, raw);
@@ -3549,6 +3549,26 @@
             void syncWritingHistory({ afterFeedback: true, submissionId: pending.submissionId, problemId: pending.problemId });
           }
         };
+        const finishRead = async data => {
+          const age = Date.now() - pending.deliveryStartedAt;
+          if (!saveOnly && !retrySameId && !data.success && data.submissionStatus === "not_received" &&
+              data.sameIdRetryAllowed === true && data.submissionId === pending.submissionId &&
+              pending.identityVersion === "code102-v2" && pending.userId === recoveringUserId &&
+              pending._storageKey === pendingFeedbackKey() && recoveryContextMatches() &&
+              age >= 0 && age < 86400000 && typeof pending.answer === "string") {
+            const current = readPendingFeedback();
+            const once = pending._storageKey + ":delivery:" + pending.submissionId;
+            if (current?.submissionId === pending.submissionId && current.problemId === pending.problemId &&
+                current.answer === pending.answer && !sessionStorage.getItem(once)) {
+              sessionStorage.setItem(once, "1");
+              if (sessionStorage.getItem(once) !== "1") throw new Error("提出情報を確認できません。");
+              showMessage("未受付を確認しました。同じ提出IDで元の回答を届けています。", "working");
+              data = await fetchJsonDirect({ ...originalRequest, action: "gradeWriting", id: SPREADSHEET_ID, userId: recoveringUserId });
+              if (data.submissionId !== pending.submissionId) throw new Error("提出IDの応答を照合できません。");
+            }
+          }
+          applyResult(data);
+        };
         const acceptLateResult = async (data, error) => {
           if (!recoveryContextMatches()) return;
           let current;
@@ -3557,7 +3577,7 @@
           try {
             if (error) throw error;
             if (!data || data.submissionId !== pending.submissionId) throw new Error("提出IDの応答を照合できません。元の提出情報は保持しています。");
-            applyResult(data);
+            await finishRead(data);
           } catch (err) {
             if (["failed", "expired", "rejected", "superseded"].includes(err.submissionStatus)) {
               try { archivePendingFeedback(pending, err.submissionStatus); } catch (ignored) {}
@@ -3582,7 +3602,7 @@
           action: "submissionStatus", id: SPREADSHEET_ID, userId: recoveringUserId,
           ...identityPayload(recoveringUserId), problemId: pending.problemId, submissionId: pending.submissionId,
         }, undefined, saveOnly || retrySameId ? null : acceptLateResult);
-        applyResult(data);
+        await finishRead(data);
       } catch (err) {
         if (["rejected", "failed", "expired", "superseded"].includes(err.submissionStatus)) {
           try { archivePendingFeedback(pending, err.submissionStatus); }
