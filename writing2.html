@@ -462,7 +462,7 @@
       </section>
 
       <section id="feedback-panel" class="writing-feedback-panel glass rounded-[1.8rem] p-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
-        <div id="feedback-activity" role="status" hidden><progress aria-label="処理中" style="width:4rem;vertical-align:middle"></progress> <span></span></div>
+        <div id="feedback-activity" hidden><span role="status"></span> · <span role="timer" style="font-variant-numeric:tabular-nums"></span></div>
         <div class="flex gap-3 items-start mb-3">
           <div id="evaluation" class="eval-badge">-</div>
           <div>
@@ -700,6 +700,25 @@
     let feedbackButtonLockTimer = null;
     let feedbackSubmitting = false;
     let feedbackActivityLabel = "";
+    let feedbackClock = null;
+    function updateFeedbackClock() {
+      const activity = el("feedback-activity");
+      activity.hidden = !feedbackSubmitting;
+      if (!feedbackSubmitting) {
+        clearInterval(feedbackClock);
+        feedbackClock = null;
+        return;
+      }
+      activity.firstElementChild.textContent = feedbackActivityLabel;
+      if (feedbackClock !== null) return;
+      const start = Date.now();
+      const tick = () => {
+        const seconds = Math.max(0, Math.floor((Date.now() - start) / 1000));
+        activity.lastElementChild.textContent = "経過 " + (seconds < 60 ? seconds + "秒" : Math.floor(seconds / 60) + "分" + String(seconds % 60).padStart(2, "0") + "秒");
+      };
+      tick();
+      feedbackClock = setInterval(tick, 1000);
+    }
     let feedbackRevision = 0;
     let recentFeedbackSignature = "";
     let recentFeedbackSignatureAt = 0;
@@ -2449,9 +2468,7 @@
       const limitReached = !!(selectedProblem && !unlimited && Number(selectedProblem.attemptsRemaining || 0) <= 0);
       const blocked = !isProfileReady() || syncedUserId !== userId() || !selectedProblem || selectedProblem.personalStateUnknown || feedbackSubmitting || locked;
       button.disabled = blocked;
-      const activity = el("feedback-activity");
-      activity.hidden = !feedbackSubmitting;
-      if (feedbackSubmitting) activity.querySelector("span").textContent = feedbackActivityLabel;
+      updateFeedbackClock();
       button.classList.toggle("opacity-60", blocked);
       button.classList.toggle("cursor-not-allowed", blocked);
       button.innerHTML = feedbackSubmitting
