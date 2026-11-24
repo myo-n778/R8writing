@@ -1214,6 +1214,7 @@
         ]);
       } catch (err) {
         if (outcome !== "timeout") outcome = controller.signal.aborted ? "cancelled" : err.serverResponse ? "server" : err.name === "SyntaxError" ? "json" : /^HTTP /.test(err.message) ? "http" : "network";
+        if (reading && outcome === "timeout") err.readTimedOut = true;
         if (!err.serverResponse && !err.message.startsWith(label)) err.message = `${label}に失敗しました: ${err.message}`;
         throw err;
       } finally {
@@ -2847,7 +2848,29 @@
       finally { if (refreshWriting.pending === task) refreshWriting.pending = null; }
     }
 
+    let readRetryTimer = 0, readRetryCount = 0;
+    function stopReadRetry() {
+      window.clearTimeout(readRetryTimer);
+      readRetryTimer = 0;
+      readRetryCount = 0;
+    }
+    function scheduleReadRetry() {
+      if (readRetryTimer || readRetryCount >= 5) return;
+      const owner = isProfileReady() ? userId() : "", scope = writingReadScope();
+      const tick = () => {
+        readRetryTimer = 0;
+        if (owner !== (isProfileReady() ? userId() : "") || scope !== writingReadScope()) return stopReadRetry();
+        if (syncRequest || historyReadRequest || feedbackSubmitting) {
+          readRetryTimer = window.setTimeout(tick, 120000);
+          return;
+        }
+        readRetryCount++;
+        void syncWriting({ background: true, automaticRetry: true });
+      };
+      readRetryTimer = window.setTimeout(tick, 120000);
+    }
     function cancelWritingRead() {
+      stopReadRetry();
       readingCancelRevision++;
       if (syncRequest) syncRequest.controller.abort();
       if (refreshWriting.pending && historyReadRequest) historyReadRequest.controller.abort();
@@ -2948,6 +2971,7 @@
           return true;
         } catch (err) {
           if (active()) status.textContent = `履歴は更新未完了です。表示済みの評価・回答は保持しています。${err.message}`;
+          if (active() && (!request.controller.signal.aborted || err.readTimedOut)) scheduleReadRetry();
           return false;
         } finally {
           if (historyReadRequest === request) {
@@ -3020,6 +3044,7 @@
           data.problems = data.problems.filter(p => scope === "all" || problemAppliesToGrade(p.grade, scope));
           if (data.config && (typeof data.config !== "object" || Array.isArray(data.config))) throw new Error("設定の応答が不完全です。");
           saveProblemCache(data.problems, cacheKey);
+          if (params.userId || !requestOwner) stopReadRetry();
           if (!params.userId) {
             const known = new Map((requestOwner && syncedUserId === requestOwner ? writingProblems : []).map(p => [p.problemId, p]));
             writingProblems = publicProblems(data.problems).map(p => {
@@ -3060,10 +3085,11 @@
           if (syncRequest !== request || activeUserId !== requestOwner || writingReadScope() !== scope || request.feedbackRevision !== feedbackRevision) return false;
           request.failed = true;
           if (!selectedProblem && !writingProblems.length) restoreProblemCache();
+          if (!request.controller.signal.aborted || err.readTimedOut) scheduleReadRetry();
           if (selectedProblem || writingProblems.length) {
             setReadingStatus("同期は未完了です。表示中の問題にはそのまま解答できます。");
             if (!quiet) showMessage("問題の選択と回答の入力は続けられます。履歴は「更新」で再確認できます。", "info");
-          } else if (params.userId && !request.controller.signal.aborted) {
+          } else if (params.userId && !options.automaticRetry && !request.controller.signal.aborted) {
             return syncWriting({ questionsOnly: true, problemGradeScope: scope });
           } else {
             setReadingStatus("問題を読み込めませんでした。「更新」で再試行してください。");
@@ -3799,7 +3825,7 @@
     el("sync-btn").addEventListener("click", () => refreshWriting());
     el("sync-cancel-btn").addEventListener("click", cancelWritingRead);
     el("history-sync-btn").addEventListener("click", () => syncWritingHistory());
-    el("history-cancel-btn").addEventListener("click", () => { if (historyReadRequest) historyReadRequest.controller.abort(); });
+    el("history-cancel-btn").addEventListener("click", () => { stopReadRetry(); if (historyReadRequest) historyReadRequest.controller.abort(); });
     el("grade-filter-toggle").addEventListener("click", handleGradeFilterTap);
     ["user-stage", "user-grade"].forEach((id) => {
       el(id).addEventListener("change", () => {
