@@ -346,7 +346,10 @@
             <button type="button" data-font-size="xlarge" class="px-2 py-1.5 rounded-md text-[9px] font-black transition-all">特大</button>
           </div>
           <div class="flex gap-2 justify-end">
-            <button id="sync-btn" class="chip rounded-full px-4 py-2 text-xs font-black"><i class="fa-solid fa-rotate"></i> 更新</button>
+            <div style="min-width:0;max-width:12rem;text-align:right">
+              <button id="sync-btn" class="chip rounded-full px-4 py-2 text-xs font-black"><i class="fa-solid fa-rotate"></i> 更新</button>
+              <small id="sync-transfer" style="display:block;font-size:11px;font-variant-numeric:tabular-nums"></small>
+            </div>
             <button id="sync-cancel-btn" type="button" class="hidden chip rounded-full px-3 py-2 text-xs" title="読込みを中止" aria-label="読込みを中止"><i class="fa-solid fa-xmark"></i> 中止</button>
             <div id="theme-picker" class="relative">
               <button id="theme-btn" class="chip rounded-full px-4 py-2 text-xs font-black uppercase" type="button" aria-expanded="false"><i class="fa-solid fa-palette"></i> Theme</button>
@@ -1153,7 +1156,7 @@
         ? { cache: "no-store", signal: controller.signal }
         : { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: JSON.stringify(payload), cache: "no-store", signal: controller.signal };
       const reading = ["syncWriting", "getQuestions"].includes(params.action);
-      const timeoutMs = params.action === "gradeWriting" ? 120000 : params.action === "submissionStatus" ? 60000 : reading ? (manualRead ? 90000 : 30000) : 25000;
+      const timeoutMs = params.action === "gradeWriting" ? 120000 : params.action === "submissionStatus" ? 60000 : reading ? (manualRead ? 120000 : 30000) : 25000;
       const label = params.action === "gradeWriting" ? "採点" : params.action === "submissionStatus" ? "提出結果の確認" : "データの読み込み";
       const recoverableRead = params.action === "submissionStatus" && typeof onLateResult === "function";
       const readKey = JSON.stringify([params.userId, params.problemId, params.submissionId]);
@@ -1162,6 +1165,17 @@
         throw new Error("同じ提出の結果を引き続き確認しています。回答は保持しており、再送していません。");
       }
       const startedAt = Date.now();
+      const meter = reading && !params.historyOnly && typeof document !== "undefined" && document.getElementById("sync-transfer");
+      const token = {}, sizeKey = JSON.stringify([params.action, params.problemGradeScope, params.userId]);
+      const sizes = fetchJsonDirect.readSizes || (fetchJsonDirect.readSizes = new Map());
+      let bytes = 0, total = 0, phase = "応答待ち", tick, arm;
+      const size = n => n < 1000 ? n + " B" : (n / 1000).toFixed(1) + " kB";
+      function paint() {
+        if (!meter || meter.transfer !== token) return;
+        const hint = total ? " / " + size(total) : sizes.has(sizeKey) ? "（前回 " + size(sizes.get(sizeKey)) + "）" : "（総量未定）";
+        meter.textContent = phase + " " + Math.floor((Date.now()-startedAt)/1000) + "秒 · " + size(bytes) + hint;
+      }
+      if (meter) { meter.transfer = token; paint(); tick = window.setInterval(paint,1000); }
       let timer, hardTimer, onAbort, stage = "接続・応答待ち", outcome = "ok";
       if (recoverableRead) pendingReads.set(readKey, true);
       try {
@@ -1171,7 +1185,32 @@
               const res = await fetch(url, options);
               if (!res.ok) throw new Error(`HTTP ${res.status}`);
               stage = "応答本文の受信・JSON解析";
-              const data = await res.json();
+              let data;
+              if (meter && res.body && typeof res.body.getReader === "function") {
+                // Cross-origin responses may hide Content-Encoding; don't compare compressed and decoded bytes.
+                if (res.type !== "cors" && !res.headers.get("Content-Encoding")) total = Number(res.headers.get("Content-Length")) || 0;
+                const reader = res.body.getReader(), decoder = new TextDecoder(), parts = [];
+                phase = "受信中"; paint();
+                try {
+                  while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    if (!value.byteLength) continue;
+                    bytes += value.byteLength;
+                    if (manualRead && arm) arm();
+                    parts.push(decoder.decode(value,{stream:true})); paint();
+                  }
+                } finally { reader.releaseLock(); }
+                parts.push(decoder.decode()); data = JSON.parse(parts.join(""));
+                total = bytes;
+                if (!data.error) sizes.set(sizeKey,bytes);
+              } else if (meter) {
+                phase = "受信中"; paint();
+                const body = await res.text();
+                total = bytes = new Blob([body]).size;
+                data = JSON.parse(body);
+                if (!data.error) sizes.set(sizeKey,bytes);
+              } else data = await res.json();
               if (data.error) {
                 const error = new Error(data.error);
                 error.serverResponse = true;
@@ -1194,7 +1233,7 @@
               controller.signal.addEventListener("abort", onAbort, { once: true });
               if (controller.signal.aborted) return onAbort();
             }
-            timer = window.setTimeout(() => {
+            arm = () => { window.clearTimeout(timer); timer = window.setTimeout(() => {
               outcome = "timeout";
               reject(new Error(recoverableRead
                 ? "結果の確認に時間がかかっています。回答は保持しています。届いた確認結果は自動で反映します。"
@@ -1203,7 +1242,8 @@
                 // Keep one read alive after the UI wait ends; never resend grading or saving.
                 hardTimer = window.setTimeout(() => controller.abort(), 120000 - timeoutMs);
               } else controller.abort();
-            }, timeoutMs);
+            }, timeoutMs); };
+            arm();
           })
         ]);
       } catch (err) {
@@ -1212,6 +1252,7 @@
         if (!err.serverResponse && !err.message.startsWith(label)) err.message = `${label}に失敗しました: ${err.message}`;
         throw err;
       } finally {
+        if (meter) { window.clearInterval(tick); phase = outcome === "ok" ? "受信完了" : outcome === "cancelled" ? "中止" : "受信未完了"; paint(); }
         window.clearTimeout(timer);
         if (onAbort) controller.signal.removeEventListener("abort", onAbort);
         if (reading) {
@@ -3016,7 +3057,7 @@
       request.promise = (async () => {
         try {
           if (!GAS_URL || GAS_URL.includes("PASTE_DEPLOYED")) throw new Error("GAS_URLが未設定です。");
-          const data = await fetchJsonDirect(params, request.controller, null, options.manualRead === true);
+          const data = await fetchJsonDirect(params, request.controller, null, options.manualRead === true || options.automaticRetry === true);
           const activeUserId = isProfileReady() ? userId() : "";
           if (request.controller.signal.aborted || syncRequest !== request || activeUserId !== requestOwner || writingReadScope() !== scope || request.feedbackRevision !== feedbackRevision) return false;
           if (!Array.isArray(data.problems) || (params.userId && !Array.isArray(data.myHistory))) {
