@@ -302,11 +302,11 @@
 </head>
 <body>
   <main class="max-w-[1500px] mx-auto px-4 py-4 md:py-6">
-    <header class="relative z-50 grid xl:grid-cols-[auto_1fr] gap-4 mb-4 items-start">
+    <header class="relative z-50 grid gap-4 mb-4 items-start">
       <div>
         <h1 class="text-3xl md:text-5xl font-black tracking-tight mt-1">Writing Feedback 2026</h1>
       </div>
-      <div class="glass rounded-[1.4rem] p-3 xl:justify-self-end w-full min-w-0 xl:max-w-[920px]">
+      <div class="glass rounded-[1.4rem] p-3 w-full min-w-0">
         <div class="flex flex-wrap gap-2 items-center justify-start">
           <div id="profile-view" class="hidden items-center gap-2 min-w-0 flex-wrap">
             <span class="font-tech text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase">USER</span>
@@ -350,7 +350,6 @@
           <div class="flex gap-2 justify-end">
             <div style="min-width:0;max-width:12rem;text-align:right">
               <button id="sync-btn" class="chip rounded-full px-4 py-2 text-xs font-black"><i class="fa-solid fa-rotate"></i> 更新</button>
-              <small id="sync-transfer" style="display:block;font-size:11px;font-variant-numeric:tabular-nums"></small>
             </div>
             <button id="sync-cancel-btn" type="button" class="hidden chip rounded-full px-3 py-2 text-xs" title="読込みを中止" aria-label="読込みを中止"><i class="fa-solid fa-xmark"></i> 中止</button>
             <div id="theme-picker" class="relative">
@@ -374,6 +373,7 @@
             </div>
           </div>
         </div>
+        <small id="sync-transfer" style="font-size:11px;font-variant-numeric:tabular-nums"></small>
       </div>
     </header>
     <p id="profile-storage-warning" role="status" class="hidden mb-4 text-sm text-rose-300">ユーザー情報を端末に保存できません。この画面を閉じると、再入力が必要です。</p>
@@ -468,6 +468,7 @@
       </section>
 
       <section id="feedback-panel" class="writing-feedback-panel glass rounded-[1.8rem] p-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
+        <div id="feedback-activity" role="status" hidden><progress aria-label="処理中" style="width:4rem;vertical-align:middle"></progress> <span></span></div>
         <div class="flex gap-3 items-start mb-3">
           <div id="evaluation" class="eval-badge">-</div>
           <div>
@@ -704,6 +705,7 @@
     let feedbackButtonLockedUntil = 0;
     let feedbackButtonLockTimer = null;
     let feedbackSubmitting = false;
+    let feedbackActivityLabel = "";
     let feedbackRevision = 0;
     let recentFeedbackSignature = "";
     let recentFeedbackSignatureAt = 0;
@@ -2459,6 +2461,9 @@
       const limitReached = !!(selectedProblem && !unlimited && Number(selectedProblem.attemptsRemaining || 0) <= 0);
       const blocked = !isProfileReady() || syncedUserId !== userId() || !selectedProblem || selectedProblem.personalStateUnknown || feedbackSubmitting || locked;
       button.disabled = blocked;
+      const activity = el("feedback-activity");
+      activity.hidden = !feedbackSubmitting;
+      if (feedbackSubmitting) activity.querySelector("span").textContent = feedbackActivityLabel;
       button.classList.toggle("opacity-60", blocked);
       button.classList.toggle("cursor-not-allowed", blocked);
       button.innerHTML = feedbackSubmitting
@@ -3240,6 +3245,7 @@
       feedbackSubmitting = true;
       feedbackRevision++;
       rememberFeedbackSubmission(duplicateSignature);
+      feedbackActivityLabel = "フィードバックを待っています";
       lockFeedbackButton(6000);
       showMessage("現在確認中です。フィードバックを作成しています...", "working");
       try {
@@ -3521,6 +3527,7 @@
       if (fetchJsonDirect.pendingStatusReads?.has(JSON.stringify([recoveringUserId, pending.problemId, pending.submissionId]))) return;
       const recoveringHistoryRevision = Number(globalThis.writingHistoryReadRevision || 0);
       const recoveryContextMatches = () => isProfileReady() && userId() === recoveringUserId;
+      feedbackActivityLabel = "提出結果を確認しています";
       feedbackSubmitting = true;
       feedbackRevision++;
       try {
