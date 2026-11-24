@@ -2432,11 +2432,38 @@
       el("registered-date").classList.toggle("hidden", !registered);
       setTexText("prompt", selectedProblem.prompt);
       renderProblemImage(selectedProblem.image || null);
+      if (!feedbackSubmitting) void displaySelectedFeedback(selectedProblem);
       if (!options.keepPeerExamples) renderPeerExamples([]);
       updateCharCount();
       updateRestoreDraftButton();
       renderLimits();
       updateFeedbackButtonState();
+    }
+
+    let olderFeedbackRead = null;
+    async function displaySelectedFeedback(problem) {
+      const owner = userId(), pid = problem.problemId;
+      const empty = overall => renderFeedback({ initial: true, evaluation: "-", overall });
+      if (!isProfileReady() || !owner || syncedUserId !== owner) return empty("本人の履歴はまだ取得できていません。");
+      const latest = writingHistory.filter(item => item.problemId === pid)
+        .sort((a, b) => (b.submittedAtMs || historyTimeValue(b)) - (a.submittedAtMs || historyTimeValue(a)))[0];
+      if (latest) return renderFeedback(latest);
+      if (!problem.personalStateUnknown && !problem.bestEvaluation && !Number(problem.attemptCount)) return empty("この問題の提出履歴はありません。");
+      empty("保存済みのフィードバックを読み込んでいます。");
+      const revision = feedbackRevision, history = writingHistory;
+      const active = () => isProfileReady() && userId() === owner && syncedUserId === owner && selectedProblem?.problemId === pid && !feedbackSubmitting && feedbackRevision === revision && writingHistory === history;
+      try {
+        if (!olderFeedbackRead || olderFeedbackRead.owner !== owner || olderFeedbackRead.history !== history || olderFeedbackRead.revision !== revision) {
+          olderFeedbackRead = { owner, history, revision, promise: fetchJson({action:"historyExport", printLatest:true, id:SPREADSHEET_ID, userId:owner, schoolCode:userSchoolCode(), userClass:el("user-class").value.trim(), userNumber:el("user-number").value.trim(), userName:normalizeUserName(el("user-name").value)}) };
+        }
+        const data = await olderFeedbackRead.promise;
+        if (!active()) return;
+        if (!data.success || data.userId !== owner || data.historySelection !== "latest" || data.historyComplete !== true || !Array.isArray(data.history)) throw Error();
+        const item = data.history.find(row => row.problemId === pid);
+        if (item) renderFeedback(item); else empty("この問題の評価済み履歴はありません。");
+      } catch {
+        if (active()) { olderFeedbackRead = null; empty("保存済みのフィードバックを取得できませんでした。"); }
+      }
     }
 
     function renderProblemImage(image) {
