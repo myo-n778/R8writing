@@ -3439,10 +3439,11 @@
     }
 
     function schedulePendingRecovery(delayFirst = false) {
-      if (schedulePendingRecovery.timer || feedbackSubmitting || !isProfileReady() || syncedUserId !== userId()) return;
+      if (schedulePendingRecovery.timer || feedbackSubmitting || !isProfileReady()) return;
       let pending;
       try { pending = readPendingFeedback(); } catch (err) { return; }
       if (!pending) return;
+      if (syncedUserId !== userId() && (pending._storageKey !== pendingFeedbackKey() || pending.userId !== userId())) return;
       if (fetchJsonDirect.pendingStatusReads && fetchJsonDirect.pendingStatusReads.has(
           JSON.stringify([userId(), pending.problemId, pending.submissionId]))) return;
       const key = userId() + ":" + pending.submissionId;
@@ -3534,7 +3535,7 @@
             if (["failed", "expired", "rejected", "superseded"].includes(err.submissionStatus)) {
               try { archivePendingFeedback(pending, err.submissionStatus); } catch (ignored) {}
             }
-            showMessage((err.name === "AbortError" ? "結果確認の通信が終了しました。確認ボタンから再確認できます。" : err.message) + " 回答は保持しており、自動再送していません。", "error");
+            showMessage("提出結果はまだ確認できていません。回答は再送していません。", "info");
           } finally {
             updateFeedbackButtonState();
             updateRecoveryButton();
@@ -3553,7 +3554,6 @@
         } : {
           action: "submissionStatus", id: SPREADSHEET_ID, userId: recoveringUserId,
           ...identityPayload(recoveringUserId), problemId: pending.problemId, submissionId: pending.submissionId,
-          ...(typeof pending.answer === "string" ? { answer: pending.answer } : {})
         }, undefined, saveOnly || retrySameId ? null : acceptLateResult);
         applyResult(data);
       } catch (err) {
@@ -3570,7 +3570,7 @@
         feedbackSubmitting = false;
         updateFeedbackButtonState();
         updateRecoveryButton();
-        if (options.automatic && typeof schedulePendingRecovery === "function") schedulePendingRecovery();
+        if (typeof schedulePendingRecovery === "function" && recoveryContextMatches()) schedulePendingRecovery(!options.automatic);
       }
     }
 
