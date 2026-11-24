@@ -3047,8 +3047,15 @@
           const activeUserId = isProfileReady() ? userId() : "";
           if (syncRequest !== request || activeUserId !== requestOwner || writingReadScope() !== scope || request.feedbackRevision !== feedbackRevision) return false;
           request.failed = true;
-          setReadingStatus(`更新未完了: ${err.message}`);
-          if (!quiet) showMessage(`同期に失敗しました: ${err.message} 回答は保持しています。「更新」で再確認できます。`, "error");
+          if (!selectedProblem && !writingProblems.length) restoreProblemCache();
+          if (selectedProblem || writingProblems.length) {
+            setReadingStatus("同期は未完了です。表示中の問題にはそのまま解答できます。");
+            if (!quiet) showMessage("問題の選択と回答の入力は続けられます。履歴は「更新」で再確認できます。", "info");
+          } else if (params.userId && !request.controller.signal.aborted) {
+            return syncWriting({ questionsOnly: true, problemGradeScope: scope });
+          } else {
+            setReadingStatus("問題を読み込めませんでした。「更新」で再試行してください。");
+          }
           return false;
         } finally {
           if (syncRequest === request) {
