@@ -392,6 +392,7 @@
       <section class="writing-answer-panel glass rounded-[1.8rem] p-4 md:p-5 min-h-[40rem] min-w-0">
         <div id="message" role="status" aria-live="polite" class="hidden rounded-2xl p-4 text-sm mb-4"></div>
         <button id="recover-feedback-btn" type="button" class="hidden mb-4 bg-cyan-400/10 border border-cyan-300/25 text-cyan-100 rounded-lg px-5 py-4 text-sm font-bold"><i class="fa-solid fa-rotate"></i> 未確認の提出結果を確認</button>
+        <details class="mb-3 text-xs" ontoggle="if(this.open) this.lastElementChild.textContent = statusTraceLines()"><summary>結果照会の通信記録</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></details>
         <details id="recovery-answer-box" class="hidden mb-4">
           <summary id="recovery-answer-title" class="cursor-pointer text-sm text-cyan-200">送信時の回答の控え</summary>
           <textarea id="recovery-answer-copy" readonly aria-label="送信時の回答の控え" class="mt-2 w-full min-h-32 rounded-lg border border-slate-600 bg-slate-950 p-3 text-sm"></textarea>
@@ -1153,8 +1154,24 @@
       return fetchJsonDirect(params);
     }
 
+    function statusTraceLines() {
+      try { return JSON.parse(localStorage.getItem("writing-status-traces-v1") || "[]").map(r => r.join(" ")).join("\n") || "記録はありません。"; }
+      catch (_) { return "この端末では記録を読み出せません。"; }
+    }
+
     async function fetchJsonDirect(params, controller = new AbortController(), onLateResult = null, manualRead = false) {
+      const traceId = params.action === "submissionStatus" && globalThis.crypto?.randomUUID?.();
+      const traceStart = Date.now();
+      function trace(stage) {
+        if (!traceId) return;
+        try {
+          const key = "writing-status-traces-v1", rows = JSON.parse(localStorage.getItem(key) || "[]");
+          rows.push([new Date().toISOString(), traceId, stage, (Date.now()-traceStart)+"ms"]);
+          localStorage.setItem(key, JSON.stringify(rows.slice(-100)));
+        } catch (_) { /* Diagnostics must not interrupt recovery. */ }
+      }
       const payload = { ...params, ...(params.userId ? identityPayload(params.userId) : {}),
+        ...(traceId ? {traceId} : {}),
         ...(["gradeWriting", "submissionStatus", "retrySubmissionSave"].includes(params.action) ? { receiptMode: "saved-item-v1" } : {}) };
       const anonymous = payload.action === "getQuestions" && !payload.userId;
       const url = anonymous ? `${GAS_URL}?${new URLSearchParams({ action: "getQuestions", id: payload.id, ...(payload.problemGradeScope ? { problemGradeScope: payload.problemGradeScope } : {}), _ts: String(Date.now()) })}` : GAS_URL;
@@ -1188,7 +1205,9 @@
         return await Promise.race([
           (async () => {
             try {
+              trace("照会開始");
               const res = await fetch(url, options);
+              trace("応答ヘッダー受信 HTTP " + res.status);
               if (!res.ok) throw new Error(`HTTP ${res.status}`);
               stage = "応答本文の受信・JSON解析";
               let data;
@@ -1217,6 +1236,12 @@
                 data = JSON.parse(body);
                 if (!data.error) sizes.set(sizeKey,bytes);
               } else data = await res.json();
+              trace("本文受信完了");
+              if (traceId && data.statusTrace?.id === traceId && Array.isArray(data.statusTrace.steps)) {
+                for (const [name,ms] of data.statusTrace.steps) {
+                  if (/^(received|openBook|identity|history|receipt|outbox|stopped|reservations|journal|legacyReservation|failed|reply)$/.test(name) && Number.isSafeInteger(ms)) trace("GAS " + name + " +" + ms + "ms");
+                }
+              }
               if (data.error) {
                 const error = new Error(data.error);
                 error.serverResponse = true;
@@ -1226,6 +1251,7 @@
               if (recoverableRead && outcome === "timeout") await onLateResult(data, null);
               return data;
             } catch (err) {
+              trace(controller.signal.aborted ? "通信中止" : "照会失敗");
               if (recoverableRead && outcome === "timeout") await onLateResult(null, err);
               throw err;
             } finally {
@@ -1247,6 +1273,7 @@
             }
             arm = () => { window.clearTimeout(timer); timer = window.setTimeout(() => {
               outcome = "timeout";
+              trace("画面の待機時間超過");
               reject(new Error(recoverableRead
                 ? "結果の確認に時間がかかっています。回答は保持しています。届いた確認結果は自動で反映します。"
                 : `${label}が${timeoutMs / 1000}秒以内に完了しませんでした（${stage}）。`));
