@@ -1150,7 +1150,7 @@
       return fetchJsonDirect(params);
     }
 
-    async function fetchJsonDirect(params, controller = new AbortController(), onLateResult = null) {
+    async function fetchJsonDirect(params, controller = new AbortController(), onLateResult = null, manualRead = false) {
       const payload = { ...params, ...(params.userId ? identityPayload(params.userId) : {}),
         ...(["gradeWriting", "submissionStatus", "retrySubmissionSave"].includes(params.action) ? { receiptMode: "saved-item-v1" } : {}) };
       const anonymous = payload.action === "getQuestions" && !payload.userId;
@@ -1159,7 +1159,7 @@
         ? { cache: "no-store", signal: controller.signal }
         : { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: JSON.stringify(payload), cache: "no-store", signal: controller.signal };
       const reading = ["syncWriting", "getQuestions"].includes(params.action);
-      const timeoutMs = params.action === "gradeWriting" ? 120000 : params.action === "submissionStatus" ? 60000 : reading ? 30000 : 25000;
+      const timeoutMs = params.action === "gradeWriting" ? 120000 : params.action === "submissionStatus" ? 60000 : reading ? (manualRead ? 90000 : 30000) : 25000;
       const label = params.action === "gradeWriting" ? "採点" : params.action === "submissionStatus" ? "提出結果の確認" : "データの読み込み";
       const recoverableRead = params.action === "submissionStatus" && typeof onLateResult === "function";
       const readKey = JSON.stringify([params.userId, params.problemId, params.submissionId]);
@@ -2655,8 +2655,8 @@
       } catch (err) { /* The failure is already visible beside the save button. */ }
     }
 
-    function detachAnswerDraft(clearRestore = false, requireSaved = false) {
-      if (activeDraft && !saveAnswerDraft() && requireSaved) return false;
+    function detachAnswerDraft(clearRestore = false) {
+      if (activeDraft && !saveAnswerDraft()) return false;
       activeDraft = null;
       el("answer").value = "";
       if (clearRestore) lastClearedAnswer = null;
@@ -3028,7 +3028,7 @@
       request.promise = (async () => {
         try {
           if (!GAS_URL || GAS_URL.includes("PASTE_DEPLOYED")) throw new Error("GAS_URLが未設定です。");
-          const data = await fetchJsonDirect(params, request.controller);
+          const data = await fetchJsonDirect(params, request.controller, null, options.manualRead === true);
           const activeUserId = isProfileReady() ? userId() : "";
           if (request.controller.signal.aborted || syncRequest !== request || activeUserId !== requestOwner || writingReadScope() !== scope || request.feedbackRevision !== feedbackRevision) return false;
           if (!Array.isArray(data.problems) || (params.userId && !Array.isArray(data.myHistory))) {
@@ -3089,7 +3089,7 @@
           if (selectedProblem || writingProblems.length) {
             setReadingStatus("同期は未完了です。表示中の問題にはそのまま解答できます。");
             if (!quiet) showMessage("問題の選択と回答の入力は続けられます。履歴は「更新」で再確認できます。", "info");
-          } else if (params.userId && !options.automaticRetry && !request.controller.signal.aborted) {
+          } else if (params.userId && !options.manualRead && !options.automaticRetry && !request.controller.signal.aborted) {
             return syncWriting({ questionsOnly: true, problemGradeScope: scope });
           } else {
             setReadingStatus("問題を読み込めませんでした。「更新」で再試行してください。");
@@ -3822,7 +3822,10 @@
     });
     el("save-profile-btn").addEventListener("click", saveProfile);
     el("logout-btn").addEventListener("click", logoutProfile);
-    el("sync-btn").addEventListener("click", () => refreshWriting());
+    el("sync-btn").addEventListener("click", () => {
+      if (refreshWriting.pending || syncRequest || feedbackSubmitting) return;
+      void syncWriting({ manualRead: true });
+    });
     el("sync-cancel-btn").addEventListener("click", cancelWritingRead);
     el("history-sync-btn").addEventListener("click", () => syncWritingHistory());
     el("history-cancel-btn").addEventListener("click", () => { stopReadRetry(); if (historyReadRequest) historyReadRequest.controller.abort(); });
