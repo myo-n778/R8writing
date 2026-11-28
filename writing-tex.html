@@ -440,6 +440,7 @@
             <button id="save-draft-btn" type="button" title="下書きを端末に保存" aria-label="下書きを端末に保存" class="border border-cyan-300/25 text-cyan-100 rounded-lg w-12 h-12 shrink-0"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i></button>
             <span id="draft-status" role="status" aria-live="polite" class="text-xs text-slate-400 break-words"></span>
           </div>
+          <small id="feedback-transfer-inline" hidden style="font-variant-numeric:tabular-nums"></small>
           <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3">
             <button id="feedback-btn" class="bg-lime-400 hover:bg-lime-300 text-slate-950 rounded-2xl px-5 py-4 text-sm font-black uppercase flex-1">
               <i class="fa-solid fa-comments"></i> フィードバックを見る
@@ -469,6 +470,7 @@
 
       <section id="feedback-panel" class="writing-feedback-panel glass rounded-[1.8rem] p-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
         <div id="feedback-activity" hidden><span role="status"></span> · <span role="timer" style="font-variant-numeric:tabular-nums"></span></div>
+        <div id="feedback-transfer" hidden style="font-variant-numeric:tabular-nums"></div>
         <div class="flex gap-3 items-start mb-3">
           <div id="evaluation" class="eval-badge">-</div>
           <div>
@@ -1199,6 +1201,7 @@
         ...(traceId ? {traceId} : {}),
         ...(["gradeWriting", "submissionStatus", "retrySubmissionSave"].includes(params.action) ? { receiptMode: "saved-item-v1" } : {}) };
       const anonymous = payload.action === "getQuestions" && !payload.userId;
+      delete payload.feedbackDisplay;
       if (payload.userId === "QA-FEF95B80-8741-4312-A2C7-6FD67B9451B5") payload.qaTicket = sessionStorage.getItem("writing.qa.ticket") || "";
       const url = anonymous ? `${GAS_URL}?${new URLSearchParams({ action: "getQuestions", id: payload.id, ...(payload.problemGradeScope ? { problemGradeScope: payload.problemGradeScope } : {}), _ts: String(Date.now()) })}` : GAS_URL;
       const options = anonymous
@@ -1214,7 +1217,8 @@
         throw new Error("同じ提出の結果を引き続き確認しています。回答は保持しており、再送していません。");
       }
       const startedAt = Date.now();
-      const meter = reading && !params.historyOnly && typeof document !== "undefined" && document.getElementById("sync-transfer");
+      const feedbackRead = ["gradeWriting", "retrySubmissionSave", "submissionStatus"].includes(params.action) || (params.action === "historyExport" && !!params.feedbackDisplay);
+      const meter = typeof document !== "undefined" && (feedbackRead ? document.getElementById("feedback-transfer") : reading && !params.historyOnly && document.getElementById("sync-transfer"));
       const token = {}, sizeKey = JSON.stringify([params.action, params.problemGradeScope, params.userId]);
       const sizes = fetchJsonDirect.readSizes || (fetchJsonDirect.readSizes = new Map());
       let bytes = 0, total = 0, phase = "応答待ち", tick, arm;
@@ -1222,7 +1226,13 @@
       function paint() {
         if (!meter || meter.transfer !== token) return;
         const hint = total ? " / " + size(total) : sizes.has(sizeKey) ? "（前回 " + size(sizes.get(sizeKey)) + "）" : "（総量未定）";
-        meter.textContent = phase + " " + Math.floor((Date.now()-startedAt)/1000) + "秒 · " + size(bytes) + hint;
+        meter.hidden = false;
+        meter.textContent = phase + " " + Math.floor((Date.now()-startedAt)/1000) + "秒 · " + (feedbackRead ? "受信 " : "") + size(bytes) + hint;
+        if (feedbackRead) {
+          const inline = document.getElementById("feedback-transfer-inline");
+          inline.hidden = false;
+          inline.textContent = meter.textContent;
+        }
       }
       if (meter) { meter.transfer = token; paint(); tick = window.setInterval(paint,1000); }
       let timer, hardTimer, onAbort, stage = "接続・応答待ち", outcome = "ok";
@@ -1318,6 +1328,13 @@
         throw err;
       } finally {
         if (meter) { window.clearInterval(tick); phase = outcome === "ok" ? "受信完了" : outcome === "cancelled" ? "中止" : "受信未完了"; paint(); }
+        if (feedbackRead && meter && meter.transfer === token) {
+          window.setTimeout(() => {
+            if (meter.transfer !== token) return;
+            meter.hidden = true;
+            document.getElementById("feedback-transfer-inline").hidden = true;
+          }, 3000);
+        }
         window.clearTimeout(timer);
         if (onAbort) controller.signal.removeEventListener("abort", onAbort);
         if (reading) {
@@ -2454,7 +2471,7 @@
       const active = () => isProfileReady() && userId() === owner && syncedUserId === owner && selectedProblem?.problemId === pid && !feedbackSubmitting && feedbackRevision === revision && writingHistory === history;
       try {
         if (!olderFeedbackRead || olderFeedbackRead.owner !== owner || olderFeedbackRead.history !== history || olderFeedbackRead.revision !== revision) {
-          olderFeedbackRead = { owner, history, revision, promise: fetchJson({action:"historyExport", printLatest:true, id:SPREADSHEET_ID, userId:owner, schoolCode:userSchoolCode(), userClass:el("user-class").value.trim(), userNumber:el("user-number").value.trim(), userName:normalizeUserName(el("user-name").value)}) };
+          olderFeedbackRead = { owner, history, revision, promise: fetchJson({action:"historyExport", feedbackDisplay:true, printLatest:true, id:SPREADSHEET_ID, userId:owner, schoolCode:userSchoolCode(), userClass:el("user-class").value.trim(), userNumber:el("user-number").value.trim(), userName:normalizeUserName(el("user-name").value)}) };
         }
         const data = await olderFeedbackRead.promise;
         if (!active()) return;
